@@ -395,6 +395,13 @@ body.ro .adm { display: none !important; }
   body.app-pengelola.login-scr .login { margin: 0; padding: 0; }
   body.app-pengelola.login-scr .hook-login { border-radius: 20px; }
 }
+/* tombol keluar versi web */
+@media (min-width: 800px) {
+  .app-pengelola .nav-in { min-height: calc(100vh - 108px); }
+  .app-pengelola .nav .nav-out { order: 99; margin-top: auto; color: #fca5a5; border: 1px solid rgba(252,165,165,.25); background: none; cursor: pointer; }
+  .app-pengelola .nav .nav-out:hover { background: rgba(239,68,68,.15); color: #fff; }
+}
+.hbtn.web-out:hover { background: rgba(239,68,68,.35); }
 
 </style>
 </head>
@@ -407,6 +414,7 @@ body.ro .adm { display: none !important; }
   <button data-tab="armada"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 16h14M4 16l1.6-5.2A2 2 0 0 1 7.5 9.4h9a2 2 0 0 1 1.9 1.4L20 16v3h-2.5M4 16v3h2.5M7 19a1.5 1.5 0 1 0 3 0M14 19a1.5 1.5 0 1 0 3 0"/></svg>Armada<span class="badge" id="b-ar" hidden></span></button>
   <button data-tab="peta" class="wide-only"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Peta Live</button>
   <button data-tab="user" class="wide-only"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>Mitra & Member</button>
+  <button id="nav-out" class="wide-only nav-out" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Keluar</button>
   <button data-tab="atur"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Atur</button>
 </div></nav>
 
@@ -1851,7 +1859,12 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
   var app = document.getElementById('app');
   var MON = /[?&](monitor=1|page=monitor)/.test(location.search) || !!window.VT_MONITOR;
   var PINKEY = MON ? 'vt_monitor' : 'vt_admin';
-  var S = { tab: 'beranda', pin: V.lsGet(PINKEY, null), d: null, bf: 'tindakan', q: '', af: 'menunggu', uf: 'pemilik', ro: MON, live: null, lvSel: '' };
+  /* Versi web: PIN hanya disimpan selama tab/browser terbuka (sessionStorage), tidak permanen */
+  var WEB = !!window.VT_WEB;
+  function pinGet() { if (WEB) { try { return JSON.parse(sessionStorage.getItem(PINKEY) || 'null'); } catch (e) { return null; } } return V.lsGet(PINKEY, null); }
+  function pinSet(v) { if (WEB) { try { sessionStorage.setItem(PINKEY, JSON.stringify(v)); } catch (e) { /* abaikan */ } } else V.lsSet(PINKEY, v); }
+  function pinDel() { try { sessionStorage.removeItem(PINKEY); } catch (e) { /* abaikan */ } V.lsDel(PINKEY); }
+  var S = { tab: 'beranda', pin: pinGet(), d: null, bf: 'tindakan', q: '', af: 'menunggu', uf: 'pemilik', ro: MON, live: null, lvSel: '' };
   var WIDE = window.matchMedia ? window.matchMedia('(min-width: 800px)') : { matches: false };
   if (MON) document.body.classList.add('ro');
   if (window.VT_WEB) document.body.classList.add('web');
@@ -1862,7 +1875,21 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     document.querySelectorAll('.nav button').forEach(function (b) { if (b.dataset.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     render(); window.scrollTo(0, 0);
   }
-  document.querySelectorAll('.nav button').forEach(function (b) { b.onclick = function () { go(b.dataset.tab); }; });
+  document.querySelectorAll('.nav button[data-tab]').forEach(function (b) { b.onclick = function () { go(b.dataset.tab); }; });
+  /* Keluar: hapus PIN & data tersimpan di perangkat ini */
+  function logout(pesan) {
+    pinDel(); V.clearCached(); V.closeSheet && V.closeSheet(); stopLive();
+    S.pin = null; S.d = null; S.tab = 'beranda'; renderLogin();
+    V.toast(pesan || 'Anda sudah keluar.');
+  }
+  function tanyaKeluar() { V.confirm('Keluar dari ' + (S.ro ? 'Monitor' : 'Pengelola') + ' Vast Travel?', 'Ya, keluar').then(function () { logout(); }); }
+  var navOut = document.getElementById('nav-out'); if (navOut) navOut.onclick = tanyaKeluar;
+  /* Versi web: keluar otomatis setelah 30 menit tidak ada aktivitas */
+  if (WEB) {
+    var aktifTerakhir = Date.now();
+    ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(function (ev) { window.addEventListener(ev, function () { aktifTerakhir = Date.now(); }, { passive: true }); });
+    setInterval(function () { if (S.pin && Date.now() - aktifTerakhir > 30 * 60000) logout('Keluar otomatis karena 30 menit tidak ada aktivitas.'); }, 60000);
+  }
 
   function pemilikOf(id) { return S.d.pemilik.filter(function (p) { return p.id === id; })[0] || { nama: '-', wa: '', bank: '', alamat: '' }; }
   var SAH = ['lunas', 'berjalan', 'selesai'];
@@ -1887,13 +1914,15 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       if (!S.notif) { S.notif = 1; V.notifStart({ peran: 'pengelola', app: MON ? 'Vast Travel Monitor' : 'Vast Travel Pengelola', payload: function () { return { pin: S.pin }; }, onNew: function () { load(); } }); }
       if (dariCache !== 'diam') render();
     }, function (e) {
-      if (/PIN|monitor/.test(e.message)) { V.lsDel(PINKEY); S.pin = null; V.toast(e.message, true); return renderLogin(); }
+      if (/PIN|monitor/.test(e.message)) { pinDel(); S.pin = null; V.toast(e.message, true); return renderLogin(); }
       app.innerHTML = '<div class="empty" style="padding-top:30vh"><b>Gagal memuat</b>' + esc(e.message) + '</div><div style="padding:16px"><button class="btn block" id="rt">Coba lagi</button></div>';
       document.getElementById('rt').onclick = load;
     });
   }
-  function heroTop() { return '<div class="hero-top">' + V.brand(S.ro ? 'Monitor' : 'Admin') + '<button class="hbtn" id="bell" aria-label="Notifikasi">' + ic('bell') + '<span class="dot" id="bell-n" hidden></span></button></div>'; }
-  function bindHero() { var b = document.getElementById('bell'); if (b) b.onclick = function () { V.openNotif(function (ref) { S.q = ref || ''; S.bf = 'semua'; go('booking'); }); }; V.bindDemoReset(); V.notifPoll(); }
+  var IC_OUT = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>';
+  function heroTop() { return '<div class="hero-top">' + V.brand(S.ro ? 'Monitor' : 'Admin') + '<div class="row" style="gap:8px">' + (WEB ? '<button class="hbtn web-out" id="hero-out" aria-label="Keluar" title="Keluar">' + IC_OUT + '</button>' : '') +
+    '<button class="hbtn" id="bell" aria-label="Notifikasi">' + ic('bell') + '<span class="dot" id="bell-n" hidden></span></button></div></div>'; }
+  function bindHero() { var ho = document.getElementById('hero-out'); if (ho) ho.onclick = tanyaKeluar; var b = document.getElementById('bell'); if (b) b.onclick = function () { V.openNotif(function (ref) { S.q = ref || ''; S.bf = 'semua'; go('booking'); }); }; V.bindDemoReset(); V.notifPoll(); }
   function shortHero(title, sub) { return '<header class="hero short">' + V.scenery() + heroTop() + '<div class="hello" style="margin-top:12px"><h1 style="font-size:21px">' + title + '</h1><p>' + sub + '</p></div></header>'; }
 
   function renderLogin() {
@@ -1903,7 +1932,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       '<div class="login"><img class="hook-login" src="' + V.imgUrl('img/hook.jpg') + '" alt="Vast Travel">' + V.demoBanner(MON ? 'PIN monitor demo: 9999.' : 'PIN demo: 0000.') + '<div class="card stack"><label class="f">' + (MON ? 'PIN monitor' : 'PIN pengelola') + '<input id="pin" type="password" inputmode="numeric"></label><button class="btn block" id="go">Masuk</button></div></div>';
     V.bindDemoReset();
     var go2 = function () { var b = document.getElementById('go'); V.busy(b, true); S.pin = document.getElementById('pin').value.trim();
-      V.api('adminData', { pin: S.pin }).then(function () { V.lsSet(PINKEY, S.pin); load(); }).catch(function (e) { S.pin = null; V.busy(b, false); V.toast(e.message, true); }); };
+      V.api('adminData', { pin: S.pin }).then(function () { pinSet(S.pin); load(); }).catch(function (e) { S.pin = null; V.busy(b, false); V.toast(e.message, true); }); };
     document.getElementById('go').onclick = go2;
     document.getElementById('pin').onkeydown = function (e) { if (e.key === 'Enter') go2(); };
   }
@@ -2191,7 +2220,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       '<div class="card stack"><h3>Kontak pengelola</h3>' + V.waBtn(V.wa(S.d.app.admin_wa, 'Halo pengelola Vast Travel, '), 'Chat pengelola utama', 'block') + '</div>' +
       '<button class="btn ghost block" id="out">Keluar</button></main>';
     bindHero();
-    document.getElementById('out').onclick = function () { V.lsDel(PINKEY); V.clearCached(); S.pin = null; S.d = null; renderLogin(); };
+    document.getElementById('out').onclick = tanyaKeluar;
   }
 
   /* ---------------- PETA LIVE ---------------- */
@@ -2289,7 +2318,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       V.api('adminPengaturan', { pin: S.pin, nilai: v }).then(function () { if (np) { S.pin = np; V.lsSet('vt_admin', np); } V.toast('Pengaturan tersimpan.'); V.busy(b, false); load(); })
         .catch(function (e) { V.busy(b, false); V.toast(e.message, true); });
     };
-    document.getElementById('out').onclick = function () { V.lsDel(PINKEY); V.clearCached(); S.pin = null; S.d = null; renderLogin(); };
+    document.getElementById('out').onclick = tanyaKeluar;
     app.querySelectorAll('[data-cp]').forEach(function (x) { x.onclick = function () { V.copy(x.dataset.cp); }; });
   }
 
