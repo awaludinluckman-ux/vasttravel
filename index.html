@@ -473,7 +473,7 @@ body.ro .adm { display: none !important; }
 .paylist .po[aria-pressed="true"] .rd { border: 6px solid var(--g500); }
 .payhint { font: 600 11px var(--f-body); color: var(--muted, #6b7d75); text-align: center; }
 .konf { border: 2px solid #7c3aed; background: #faf5ff; }
-.paylist .pgrp { font: 800 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #6b7d75); padding: 6px 2px 0; position: sticky; top: 0; background: var(--card, #fff); z-index: 1; }
+.paylist .pgrp { font: 800 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #6b7d75); padding: 6px 2px 0; }
 
 </style>
 </head>
@@ -759,6 +759,8 @@ function vrCreateLogic(store) {
     o.promo = vrParsePairs(s.promo).map(function (z) { return { judul: z.nama, sub: z.nilai }; });
     o.bayar = VR_PAY.map(function (p) { return { k: p.k, label: p.label, warna: p.warna, grup: p.grup, akun: s[p.set] || '' }; })
       .filter(function (p) { return p.akun; });
+    /* Semua metode (bank, e-wallet, QRIS) selalu ditampilkan; yang belum diisi pengelola: nomor dikirim admin lewat WhatsApp */
+    o.bayar_semua = VR_PAY.map(function (p) { return { k: p.k, label: p.label, warna: p.warna, grup: p.grup, akun: s[p.set] || '' }; });
     o.poin = { per_rp: num(s.poin_per_rp) || 1000, min: num(s.poin_min_tukar) || 0, maks_persen: num(s.poin_maks_persen) || 50 };
     o.model = models(false);
     return o;
@@ -2410,6 +2412,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     if (WEB || WIDE.matches) h += '<div class="hook-web"><img src="' + V.imgUrl('img/hook.jpg') + '" alt="Vast Travel - Sewa kendaraan listrik untuk semua kebutuhan"></div>';
     var Q = [['b:cek', 'wallet', 'Verifikasi Bayar', c.cek], ['b:setuju', 'check', 'Setujui Order', c.setuju], ['b:payout', 'send', 'Teruskan Dana', c.payout], ['armada', 'car', 'Armada', c.unit],
       ['u:pemilik', 'key', 'Mitra Pemilik', c.mitra], ['u:member', 'users', 'Member', c.member], ['peta', 'pin', 'Peta Live', B.filter(function (b) { return b.status === 'berjalan'; }).length], ['atur', 'gear', S.ro ? 'Akun' : 'Pengaturan']];
+    if (!S.ro && !(d.app.bayar || []).length) h += '<div class="note warn"><b>Metode pembayaran belum diisi.</b> Penyewa hanya bisa meminta nomor rekening lewat WhatsApp. <button class="linkbtn" data-q="atur">Isi rekening, e-wallet & QRIS</button></div>';
     h += '<div class="qgrid">' + Q.map(function (q) { return '<button class="q" data-q="' + q[0] + '"><span class="qi">' + ic(q[1]) + '</span>' + q[2] + (q[3] ? '<span class="n">' + q[3] + '</span>' : '') + '</button>'; }).join('') + '</div>';
     h += '<div class="tiles"><div class="tile hot"><div class="k">Omzet sewa bulan ini</div><div class="v">' + rp(sum(bulan, 'total')) + '</div></div>' +
       '<div class="tile' + (hold.length ? ' alert' : '') + '"><div class="k">Dana belum diteruskan</div><div class="v">' + rp(sum(hold, 'bagian_pemilik')) + '</div></div>' +
