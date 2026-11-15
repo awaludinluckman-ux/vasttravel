@@ -406,6 +406,41 @@ body.ro .adm { display: none !important; }
 .hook-web img { width: 100%; height: 100%; object-fit: cover; object-position: center 35%; display: block; }
 @media (min-width: 800px) { .app-pengelola .hook-web { max-width: 820px; aspect-ratio: 2 / 1; max-height: none; } }
 
+/* ---------- galeri zoom foto unit ---------- */
+.zg { position: fixed; inset: 0; z-index: 10000; background: #050505; }
+.zg-track { display: flex; width: 100%; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x; }
+.zg-track::-webkit-scrollbar { display: none; }
+.zg-slide { flex: 0 0 100%; height: 100%; display: flex; align-items: center; justify-content: center; scroll-snap-align: center; overflow: hidden; touch-action: none; }
+.zg-slide img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center; user-select: none; -webkit-user-drag: none; }
+.zg-x { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; width: 42px; height: 42px; border-radius: 50%; border: 0; background: rgba(255,255,255,.16); color: #fff; font-size: 28px; line-height: 1; cursor: pointer; }
+.zg-n { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: #fff; font: 600 13px var(--f-body, sans-serif); opacity: .85; }
+.gal img { cursor: zoom-in; }
+.gal-hint { position: absolute; right: 12px; bottom: 44px; z-index: 3; background: rgba(0,0,0,.45); color: #fff; font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 99px; pointer-events: none; }
+/* ---------- filter pencarian (satu panel) ---------- */
+.fpanel { background: #fff; border: 1px solid var(--line, #e3ebe6); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.fpanel .fh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fpanel .fh b { font-size: 15px; }
+.fpanel .fl { font-size: 12px; font-weight: 700; color: var(--muted, #5d6f65); text-transform: uppercase; letter-spacing: .04em; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 1px solid var(--line, #dfe8e2); background: #fff; color: inherit; border-radius: 99px; padding: 7px 12px; font: 600 13px var(--f-body, sans-serif); cursor: pointer; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--g800, #0b3d2a); color: #fff; border-color: var(--g800, #0b3d2a); }
+.fpanel select { width: 100%; border: 1px solid var(--line, #dfe8e2); border-radius: 12px; padding: 9px 10px; font: 600 14px var(--f-body, sans-serif); background: #fff; color: inherit; }
+.fpanel .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fsum { font-size: 12px; color: var(--muted, #5d6f65); }
+/* ---------- promo & event wisata ---------- */
+.evs { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 4px; }
+.evs::-webkit-scrollbar { display: none; }
+.ev { flex: 0 0 78%; scroll-snap-align: start; background: #fff; border: 1px solid var(--line, #e3ebe6); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+.evs.col { flex-direction: column; overflow: visible; }
+.evs.col .ev { flex: none; }
+.ev .evimg { aspect-ratio: 16/9; background: linear-gradient(135deg, #0b3d2a, #17a14a); position: relative; display: flex; align-items: center; justify-content: center; color: #b6ee2a; font-size: 34px; }
+.ev .evimg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ev .evimg .evk { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
+.ev .evb { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+.ev .evb b { font-size: 15px; }
+.ev .evb .small { color: var(--muted, #5d6f65); }
+
 </style>
 </head>
 <body class="app-pengelola">
@@ -427,9 +462,10 @@ body.ro .adm { display: none !important; }
    VAST TRAVEL - logika inti (dipakai bersama oleh backend Google Apps Script
    dan oleh mode demo di browser).
 
-   Alur uang: perental membayar ke rekening/e-wallet/QRIS pengelola ->
-   pengelola memverifikasi -> dipotong komisi (default 15%) -> sisanya
-   diteruskan ke pemilik unit pada hari yang sama.
+   Harga sewa harian ditentukan pemilik unit (mitra). Sistem otomatis menambahkan
+   biaya layanan pengelola (persen, diatur pengelola) -> harga final yang tampil
+   ke penyewa sudah termasuk semuanya. Perental membayar ke pengelola ->
+   pengelola memverifikasi -> harga mitra diteruskan ke pemilik unit di hari yang sama.
    Perental dan pemilik unit tidak pernah saling terhubung: semua lewat pengelola.
    Layanan perjalanan (antar bandara, city tour, tour wisata): harga ditentukan pengelola.
    Poin: setiap Rp1.000 transaksi selesai = 1 poin; 1 poin = Rp1 potongan.
@@ -437,7 +473,7 @@ body.ro .adm { display: none !important; }
 var VR_TABLES = {
   Pemilik: ['id', 'nama', 'wa', 'alamat', 'kota', 'bank', 'pin', 'status', 'dibuat'],
   Unit: ['id', 'pemilik_id', 'jenis', 'merk', 'model', 'tahun', 'warna', 'tnkb', 'transmisi', 'kapasitas', 'kota', 'foto', 'fitur',
-    'status', 'tersedia', 'diubah', 'jarak_km', 'charging', 'bagasi', 'model_id'],
+    'status', 'tersedia', 'diubah', 'jarak_km', 'charging', 'bagasi', 'model_id', 'harga'],
   Member: ['id', 'nama', 'wa', 'alamat', 'kota', 'pin', 'status', 'catatan', 'dibuat'],
   Booking: ['id', 'waktu', 'unit_id', 'pemilik_id', 'member_id', 'nama', 'hp', 'layanan', 'tgl_mulai', 'durasi', 'tgl_selesai', 'jam',
     'lokasi', 'tujuan', 'catatan', 'tarif', 'total', 'komisi', 'bagian_pemilik', 'metode', 'bayar_lapor', 'status', 'unit_siap',
@@ -456,9 +492,10 @@ var VR_TEXT_COLUMNS = {
   Pengaturan: ['kunci', 'nilai'], Model: ['id'], Perangkat: ['token', 'kunci', 'diubah']
 };
 var VR_DEFAULTS = {
-  nama_app: 'Vast Travel', admin_wa: '6281234567890', admin_pin: '0000', monitor_pin: '', qris: '',
+  nama_app: 'Vast Travel', app_versi: '', admin_wa: '6281234567890', admin_pin: '0000', monitor_pin: '', qris: '',
   rek_bca: '', linkaja: '', dana: '', gopay: '', ovo: '',
-  tarif_motor: '55000', tarif_mobil5: '350000', tarif_mobil7: '450000', komisi: '15',
+  tarif_motor: '55000', tarif_mobil5: '350000', tarif_mobil7: '450000', tarif_mobil9: '650000', tarif_niaga: '400000', komisi: '15', biaya_admin: '10',
+  promo_event: '[]',
   batas_bayar_jam: '3', maks_hari: '29', jam_layanan: '06.00 - 22.00 WIB', kota: 'Malang;Batu;Surabaya;Sidoarjo', driver: '',
   info_bulanan: 'Sewa bulanan (30 hari ke atas) memakai ketentuan dan harga tersendiri. Hubungi pengelola untuk penawaran.',
   bandara: 'Juanda Surabaya (SUB);Abdulrachman Saleh Malang (MLG);Dhoho Kediri (DHX)',
@@ -466,7 +503,7 @@ var VR_DEFAULTS = {
   promo: 'Sewa Mobil Listrik Lebih Hemat!=Kumpulkan poin tiap transaksi;Antar Jemput Bandara=Harga sesuai rute;Tour Wisata Malang Raya=Tanya harga paket',
   poin_per_rp: '1000', poin_min_tukar: '1000', poin_maks_persen: '50'
 };
-var VR_EMPTY_OK = ['qris', 'rek_bca', 'linkaja', 'dana', 'gopay', 'ovo', 'driver', 'promo', 'outlet'];
+var VR_EMPTY_OK = ['promo_event', 'qris', 'rek_bca', 'linkaja', 'dana', 'gopay', 'ovo', 'driver', 'promo', 'outlet'];
 var VR_PUBLIC_SETTINGS = ['nama_app', 'admin_wa', 'jam_layanan', 'qris', 'info_bulanan', 'batas_bayar_jam', 'maks_hari'];
 var VR_PAY = [
   { k: 'BCA', label: 'Transfer Bank BCA', set: 'rek_bca', warna: '#0060AF' },
@@ -503,10 +540,34 @@ function vrModelOf(u, models) {
   return best;
 }
 var VR_JENIS = {
-  motor: { label: 'Motor Listrik', pendek: 'Motor EV', kapasitas: 2, tarifKey: 'tarif_motor', layanan: ['lepas'] },
-  mobil5: { label: 'Mobil Listrik 5 Seat', pendek: 'Mobil 5 Seat', kapasitas: 5, tarifKey: 'tarif_mobil5', layanan: ['driver', 'lepas'] },
-  mobil7: { label: 'Mobil Listrik 7 Seat', pendek: 'Mobil 7 Seat', kapasitas: 7, tarifKey: 'tarif_mobil7', layanan: ['driver', 'lepas'] }
+  motor: { label: 'Motor Listrik', pendek: 'Motor EV', kapasitas: 2, tarifKey: 'tarif_motor', layanan: ['lepas'], kategori: 'motor' },
+  mobil5: { label: 'Mobil Listrik 5 Seat', pendek: 'Mobil 5 Seat', kapasitas: 5, tarifKey: 'tarif_mobil5', layanan: ['driver', 'lepas'], kategori: 'penumpang' },
+  mobil7: { label: 'Mobil Listrik 7 Seat', pendek: 'Mobil 7 Seat', kapasitas: 7, tarifKey: 'tarif_mobil7', layanan: ['driver', 'lepas'], kategori: 'penumpang' },
+  mobil9: { label: 'Mobil Listrik 8+ Seat', pendek: 'Mobil 8+ Seat', kapasitas: 12, tarifKey: 'tarif_mobil9', layanan: ['driver', 'lepas'], kategori: 'penumpang' },
+  niaga: { label: 'Mobil Niaga Listrik', pendek: 'Mobil Niaga', kapasitas: 2, tarifKey: 'tarif_niaga', layanan: ['driver', 'lepas'], kategori: 'niaga' }
 };
+/* Kategori pencarian & kelompok kapasitas penumpang (dipakai ketiga aplikasi) */
+var VR_KATEGORI = {
+  motor: { label: 'Motor Listrik', pendek: 'Motor Listrik' },
+  penumpang: { label: 'Mobil Penumpang', pendek: 'Mobil Penumpang' },
+  niaga: { label: 'Mobil Niaga', pendek: 'Mobil Niaga' }
+};
+var VR_KAPASITAS = [
+  { k: '2-5', label: '2–5 penumpang', min: 1, max: 5 },
+  { k: '7-8', label: '7–8 penumpang', min: 6, max: 8 },
+  { k: '9+', label: 'Di atas 8 penumpang', min: 9, max: 999 }
+];
+function vrKategoriOf(jenis) { return (VR_JENIS[jenis] || {}).kategori || 'penumpang'; }
+function vrKapasitasOk(kap, k) {
+  var g = VR_KAPASITAS.filter(function (x) { return x.k === k; })[0];
+  return !g || (Number(kap) >= g.min && Number(kap) <= g.max);
+}
+/* Harga final ke penyewa = harga mitra + biaya layanan pengelola (persen), dibulatkan ke atas per Rp1.000 */
+function vrHargaFinal(hargaMitra, persen) {
+  hargaMitra = Math.round(Number(hargaMitra) || 0);
+  if (hargaMitra <= 0) return 0;
+  return Math.ceil(Math.round(hargaMitra * (100 + (Number(persen) || 0)) / 100) / 1000) * 1000;
+}
 var VR_LAYANAN = {
   driver: { label: 'Dengan driver', ket: 'Sopir dari Vast Travel, harga sudah termasuk driver.', tipe: 'harian' },
   lepas: { label: 'Lepas kunci', ket: 'Kemudikan sendiri. Khusus member terverifikasi.', tipe: 'harian' },
@@ -588,8 +649,24 @@ function vrCreateLogic(store) {
     if (ex) store.update('Pengaturan', 'kunci', k, { nilai: String(v) });
     else store.insert('Pengaturan', { kunci: k, nilai: String(v) });
   }
-  function tarifOf(s, jenis) { return num(s[VR_JENIS[jenis].tarifKey]); }
+  function tarifOf(s, jenis) { return num(s[(VR_JENIS[jenis] || VR_JENIS.mobil5).tarifKey]); }
   function komisiOf(s) { var k = num(s.komisi); return k >= 0 && k < 100 ? k : 15; }
+  function biayaAdminOf(s) { var k = num(s.biaya_admin); return k >= 0 && k <= 100 ? k : 10; }
+  /* Harga per hari sebuah unit: mitra = harga yang diisi pemilik; final = yang dibayar penyewa (sudah termasuk biaya layanan).
+     Unit lama yang belum diisi harganya memakai tarif standar pengelola (sudah final). */
+  function hargaUnit(s, u) {
+    var hm = Math.round(num(u.harga));
+    if (hm > 0) return { mitra: hm, final: vrHargaFinal(hm, biayaAdminOf(s)), dariMitra: true };
+    var t = tarifOf(s, u.jenis), k = Math.round(t * komisiOf(s) / 100);
+    return { mitra: t - k, final: t, dariMitra: false };
+  }
+  function promoEvent(s) {
+    var arr = parseJson(s.promo_event, []);
+    return (Array.isArray(arr) ? arr : []).map(function (p) {
+      return { id: txt(p.id, 12), judul: txt(p.judul, 80), ket: txt(p.ket, 300), foto: /^(https?:\/\/|img\/)/i.test(String(p.foto || '')) ? txt(p.foto, 500) : '',
+        link: /^(https?:\/\/|wa\.me)/i.test(String(p.link || '')) ? txt(p.link, 500) : '', kategori: txt(p.kategori, 30), berlaku: txt(p.berlaku, 60), aktif: p.aktif !== false };
+    }).filter(function (p) { return p.judul; });
+  }
   /* Daftar driver di pengaturan: "Nama=nomorWA=PIN;Nama2=nomorWA=PIN" (PIN untuk masuk mode Driver di aplikasi Mitra) */
   function drivers(s, denganPin) {
     return String(s.driver || '').split(';').map(function (x) {
@@ -613,8 +690,10 @@ function vrCreateLogic(store) {
     o.admin_wa = vrNormWa(o.admin_wa);
     o.batas_bayar_jam = num(o.batas_bayar_jam) || 3;
     o.maks_hari = num(o.maks_hari) || 29;
-    o.tarif = { motor: tarifOf(s, 'motor'), mobil5: tarifOf(s, 'mobil5'), mobil7: tarifOf(s, 'mobil7') };
+    o.tarif = {}; Object.keys(VR_JENIS).forEach(function (j) { o.tarif[j] = tarifOf(s, j); });
     o.komisi = komisiOf(s);
+    o.biaya_admin = biayaAdminOf(s);
+    o.promo_event = promoEvent(s).filter(function (p) { return p.aktif; });
     o.kota = vrList(s.kota);
     o.bandara = vrList(s.bandara);
     o.outlet = vrParsePairs(s.outlet).map(function (z) { return { nama: z.nama, alamat: z.nilai }; });
@@ -637,12 +716,13 @@ function vrCreateLogic(store) {
   }
   function seedModel() { if (!store.all('Model').length) VR_MODEL.forEach(function (m) { store.insert('Model', m); }); }
   function unitPublic(u) {
-    return { id: String(u.id), jenis: u.jenis, merk: u.merk, model: u.model, tahun: String(u.tahun || ''), warna: u.warna,
+    var hg = hargaUnit(settings(), u);
+    return { id: String(u.id), jenis: u.jenis, kategori: vrKategoriOf(u.jenis), harga_final: hg.final, merk: u.merk, model: u.model, tahun: String(u.tahun || ''), warna: u.warna,
       transmisi: u.transmisi, kapasitas: num(u.kapasitas) || (VR_JENIS[u.jenis] || {}).kapasitas, kota: u.kota, foto: u.foto, fitur: u.fitur,
       jarak_km: num(u.jarak_km), charging: String(u.charging || ''), bagasi: String(u.bagasi || ''), model_id: String(u.model_id || '') };
   }
   function unitFull(u) {
-    var x = unitPublic(u); x.pemilik_id = String(u.pemilik_id); x.tnkb = u.tnkb; x.status = u.status; x.tersedia = yes(u.tersedia); x.diubah = String(u.diubah);
+    var x = unitPublic(u), hg = hargaUnit(settings(), u); x.harga = num(u.harga); x.harga_mitra = hg.mitra; x.pemilik_id = String(u.pemilik_id); x.tnkb = u.tnkb; x.status = u.status; x.tersedia = yes(u.tersedia); x.diubah = String(u.diubah);
     return x;
   }
   function pemilikOut(p) {
@@ -813,6 +893,11 @@ function vrCreateLogic(store) {
 
   var actions = {
     /* ---------- PERENTAL ---------- */
+    /* Versi aplikasi terbaru (diisi otomatis setiap rilis APK baru) */
+    versiApp: function () {
+      var v = {}; try { v = JSON.parse(settings().app_versi || '{}') || {}; } catch (e) { v = {}; }
+      return { versi: num(v.versi), catatan: String(v.catatan || ''), waktu: String(v.waktu || ''), url: v.url || {} };
+    },
     katalog: function () {
       var s = settings(), pemilikAktif = {};
       store.all('Pemilik').forEach(function (p) { if (p.status === 'aktif') pemilikAktif[String(p.id)] = true; });
@@ -838,9 +923,10 @@ function vrCreateLogic(store) {
       var selesai = vrAddDays(mulai, durasi), lokasi = txt(req.lokasi, 300);
       if (lokasi.length < 5) fail('Isi lokasi pengambilan / penjemputan.');
       if (bentrok(u.id, mulai, selesai, '', s)) fail('Unit ini sudah dipesan pada tanggal tersebut. Pilih tanggal atau unit lain.');
-      var tarif = tarifOf(s, u.jenis);
-      if (tarif <= 0) fail('Tarif belum diatur pengelola.');
-      var h = vrHitung(tarif * durasi, komisiOf(s)), id = newBookingId();
+      var hg = hargaUnit(s, u), tarif = hg.final;
+      if (tarif <= 0) fail('Harga sewa unit ini belum diatur.');
+      var h = { total: tarif * durasi, bagian_pemilik: hg.mitra * durasi }; h.komisi = h.total - h.bagian_pemilik;
+      var id = newBookingId();
       store.insert('Booking', {
         id: id, waktu: nowIso(), unit_id: String(u.id), pemilik_id: String(u.pemilik_id), member_id: P.member ? String(P.member.id) : '',
         nama: P.nama, hp: P.hp, layanan: layanan, tipe: 'harian', jenis_unit: u.jenis, penumpang: '', bandara: '',
@@ -1060,7 +1146,9 @@ function vrCreateLogic(store) {
       var p = authPemilik(req), x = req.unit || {};
       if (!VR_JENIS[x.jenis]) fail('Pilih kategori kendaraan.');
       var row = { jenis: x.jenis, merk: txt(x.merk, 40), model: txt(x.model, 60), tahun: txt(x.tahun, 4), warna: txt(x.warna, 30),
-        tnkb: txt(x.tnkb, 15).toUpperCase(), transmisi: txt(x.transmisi, 20) || 'Otomatis', kapasitas: VR_JENIS[x.jenis].kapasitas,
+        tnkb: txt(x.tnkb, 15).toUpperCase(), transmisi: txt(x.transmisi, 20) || 'Otomatis',
+        kapasitas: (Math.round(num(x.kapasitas)) >= 1 && Math.round(num(x.kapasitas)) <= 60) ? Math.round(num(x.kapasitas)) : VR_JENIS[x.jenis].kapasitas,
+        harga: Math.round(num(x.harga)),
         kota: txt(x.kota, 60), foto: vrFotoList(Array.isArray(x.foto) ? x.foto.join('\n') : x.foto).filter(function (f) { return store.allowDataFoto || /^https?:/i.test(f); }).join('\n'),
         fitur: txt(x.fitur, 300), jarak_km: Math.max(0, Math.round(num(x.jarak_km))) || '', charging: txt(x.charging, 40), bagasi: txt(x.bagasi, 20), model_id: txt(x.model_id, 12), diubah: nowIso() };
       if (!row.merk) fail('Isi merk kendaraan.');
@@ -1068,6 +1156,8 @@ function vrCreateLogic(store) {
       if (!row.warna) fail('Isi warna kendaraan.');
       if (row.tnkb.replace(/\s/g, '').length < 4) fail('Isi nomor polisi (TNKB).');
       if (!row.kota) fail('Pilih kota unit.');
+      if (row.harga < 10000) fail('Isi harga sewa per hari (minimal Rp10.000).');
+      if (row.harga > 100000000) fail('Harga sewa per hari terlalu besar.');
       var dup = store.all('Unit').filter(function (u) { return String(u.tnkb).replace(/\s/g, '') === row.tnkb.replace(/\s/g, '') && String(u.id) !== String(x.id || ''); })[0];
       if (dup) fail('Nomor polisi ' + row.tnkb + ' sudah terdaftar.');
       if (x.id) {
@@ -1262,11 +1352,18 @@ function vrCreateLogic(store) {
       var v = req.nilai || {};
       ['nama_app', 'jam_layanan', 'qris', 'driver', 'kota', 'info_bulanan', 'rek_bca', 'linkaja', 'dana', 'gopay', 'ovo', 'bandara', 'outlet', 'promo']
         .forEach(function (k) { if (k in v) setSetting(k, txt(v[k], 1500)); });
-      ['tarif_motor', 'tarif_mobil5', 'tarif_mobil7', 'batas_bayar_jam', 'maks_hari', 'poin_per_rp'].forEach(function (k) {
+      ['tarif_motor', 'tarif_mobil5', 'tarif_mobil7', 'tarif_mobil9', 'tarif_niaga', 'batas_bayar_jam', 'maks_hari', 'poin_per_rp'].forEach(function (k) {
         if (k in v) { var n = Math.round(num(v[k])); if (n <= 0) fail('Nilai ' + k + ' harus lebih dari 0.'); setSetting(k, n); }
       });
       if ('poin_min_tukar' in v) setSetting('poin_min_tukar', Math.max(0, Math.round(num(v.poin_min_tukar))));
       if ('poin_maks_persen' in v) { var mp = num(v.poin_maks_persen); if (mp <= 0 || mp > 100) fail('Maksimal potongan poin 1 sampai 100 persen.'); setSetting('poin_maks_persen', mp); }
+      if ('biaya_admin' in v) { var ba = num(v.biaya_admin); if (ba < 0 || ba > 100) fail('Biaya layanan admin harus 0 sampai 100 persen.'); setSetting('biaya_admin', ba); }
+      if ('promo_event' in v) {
+        var pe = Array.isArray(v.promo_event) ? v.promo_event : parseJson(v.promo_event, null);
+        if (!Array.isArray(pe)) fail('Data promo tidak valid.');
+        if (pe.length > 20) fail('Maksimal 20 promo / event.');
+        setSetting('promo_event', JSON.stringify(promoEvent({ promo_event: pe }).map(function (p, i) { p.id = p.id || ('E' + Date.now().toString(36) + i); return p; })));
+      }
       if ('komisi' in v) { var c = num(v.komisi); if (c < 0 || c >= 100) fail('Komisi harus 0 sampai 99 persen.'); setSetting('komisi', c); }
       if ('admin_wa' in v) setSetting('admin_wa', vrNormWa(v.admin_wa));
       if ('monitor_pin_baru' in v && String(v.monitor_pin_baru) !== '') {
@@ -1320,6 +1417,7 @@ function vrSeed() {
   var Unit = U.map(function (r) {
     return { id: r[0], pemilik_id: r[1], jenis: r[2], merk: r[3], model: r[4], tahun: r[5], warna: r[6], tnkb: r[7], transmisi: 'Otomatis',
       kapasitas: VR_JENIS[r[2]].kapasitas, kota: r[8], foto: '', fitur: '', jarak_km: r[9], charging: r[10], bagasi: r[11],
+      harga: { motor: 50000, mobil5: 320000, mobil7: 410000 }[r[2]],
       status: r[0] === 'U0012' ? 'menunggu' : 'aktif', tersedia: 'ya', diubah: iso(now - 20 * 24 * H) };
   });
   var Member = [
@@ -1327,8 +1425,9 @@ function vrSeed() {
     { id: 'M002', nama: 'Sari Lestari', wa: '6285700000002', alamat: 'Jl. Kawi 3, Malang', kota: 'Malang', pin: '', status: 'menunggu', catatan: '', dibuat: iso(now - 3 * H) }
   ];
   function bk(id, unit, pem, mem, nama, hp, lay, mulaiOff, dur, status, extra, waktuMs) {
-    var u = unit ? U.filter(function (r) { return r[0] === unit; })[0] : null, tarif = u ? { motor: 55000, mobil5: 350000, mobil7: 450000 }[u[2]] : 0;
-    var h = vrHitung(tarif * dur, 15), mulai = vrAddDays(today, mulaiOff), w = waktuMs || now - 2 * H;
+    var u = unit ? U.filter(function (r) { return r[0] === unit; })[0] : null, hm = u ? { motor: 50000, mobil5: 320000, mobil7: 410000 }[u[2]] : 0, tarif = vrHargaFinal(hm, 10);
+    var h = { total: tarif * dur, bagian_pemilik: hm * dur }; h.komisi = h.total - h.bagian_pemilik;
+    var mulai = vrAddDays(today, mulaiOff), w = waktuMs || now - 2 * H;
     var riw = [{ s: status === 'menunggu_harga' ? 'menunggu_harga' : 'menunggu_bayar', t: iso(w), oleh: 'perental' }];
     if (['lunas', 'berjalan', 'selesai'].indexOf(status) >= 0) riw.push({ s: 'lunas', t: iso(w + 0.5 * H), oleh: 'pengelola' });
     if (status === 'berjalan' || status === 'selesai') riw.push({ s: 'berjalan', t: iso(w + 20 * H), oleh: 'pengelola' });
@@ -1841,6 +1940,78 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     });
   }
 
+  /* Galeri foto layar penuh: geser antar foto (maks 5), cubit / ketuk 2x untuk zoom, geser saat diperbesar. */
+  function zoomGallery(fotos, start) {
+    fotos = (fotos || []).slice(0, 5); if (!fotos.length) return;
+    var ov = document.createElement('div');
+    ov.className = 'zg';
+    ov.innerHTML = '<div class="zg-track">' + fotos.map(function (f) { return '<div class="zg-slide"><img src="' + esc(f) + '" alt="" draggable="false"></div>'; }).join('') + '</div>' +
+      '<button class="zg-x" aria-label="Tutup">&times;</button><div class="zg-n"></div>';
+    document.body.appendChild(ov);
+    var track = ov.querySelector('.zg-track'), n = ov.querySelector('.zg-n'), idx = Math.max(0, Math.min(fotos.length - 1, start || 0));
+    function setIdx(i) { idx = i; n.textContent = (i + 1) + ' / ' + fotos.length; }
+    requestAnimationFrame(function () { track.scrollLeft = idx * track.clientWidth; setIdx(idx); });
+    track.addEventListener('scroll', function () { var i = Math.round(track.scrollLeft / track.clientWidth); if (i !== idx) { reset(); setIdx(i); } });
+    var Z = { s: 1, x: 0, y: 0, img: null }, pts = {}, start0 = null, lastTap = 0;
+    function apply() { if (Z.img) Z.img.style.transform = 'translate(' + Z.x + 'px,' + Z.y + 'px) scale(' + Z.s + ')'; track.style.overflowX = Z.s > 1.01 ? 'hidden' : 'auto'; }
+    function reset() { if (Z.img) { Z.img.style.transition = 'transform .2s'; Z.s = 1; Z.x = 0; Z.y = 0; apply(); var im = Z.img; setTimeout(function () { im.style.transition = ''; }, 220); } }
+    function clamp() {
+      if (!Z.img) return; var r = Z.img.parentNode.getBoundingClientRect(), mx = r.width * (Z.s - 1) / 2, my = r.height * (Z.s - 1) / 2;
+      Z.x = Math.max(-mx, Math.min(mx, Z.x)); Z.y = Math.max(-my, Math.min(my, Z.y));
+    }
+    function dist() { var a = Object.keys(pts).map(function (k) { return pts[k]; }); return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); }
+    track.addEventListener('pointerdown', function (e) {
+      var img = e.target.closest('.zg-slide') && e.target.closest('.zg-slide').querySelector('img'); if (!img) return;
+      if (Z.img !== img) { reset(); Z = { s: 1, x: 0, y: 0, img: img }; }
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var k = Object.keys(pts).length;
+      if (k === 2) start0 = { d: dist(), s: Z.s };
+      else if (k === 1) {
+        start0 = { px: e.clientX, py: e.clientY, x: Z.x, y: Z.y };
+        var now = Date.now();
+        if (now - lastTap < 300) { Z.img.style.transition = 'transform .2s'; if (Z.s > 1.01) { Z.s = 1; Z.x = 0; Z.y = 0; } else Z.s = 2.5; clamp(); apply(); var im = Z.img; setTimeout(function () { im.style.transition = ''; }, 220); lastTap = 0; }
+        else lastTap = now;
+      }
+      if (Z.s > 1.01 || k === 2) try { track.setPointerCapture(e.pointerId); } catch (er) { /* abaikan */ }
+    });
+    track.addEventListener('pointermove', function (e) {
+      if (!pts[e.pointerId] || !Z.img) return;
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var k = Object.keys(pts).length;
+      if (k === 2 && start0 && start0.d) { Z.s = Math.max(1, Math.min(5, start0.s * dist() / start0.d)); clamp(); apply(); e.preventDefault(); }
+      else if (k === 1 && Z.s > 1.01 && start0 && 'px' in start0) { Z.x = start0.x + (e.clientX - start0.px); Z.y = start0.y + (e.clientY - start0.py); clamp(); apply(); e.preventDefault(); }
+    }, { passive: false });
+    function up(e) { delete pts[e.pointerId]; var k = Object.keys(pts).length; if (k === 1) { var p = pts[Object.keys(pts)[0]]; start0 = { px: p.x, py: p.y, x: Z.x, y: Z.y }; } else if (!k) { start0 = null; if (Z.s <= 1.01) reset(); } }
+    track.addEventListener('pointerup', up); track.addEventListener('pointercancel', up);
+    track.addEventListener('wheel', function (e) { if (!Z.img) { var sl = e.target.closest('.zg-slide'); if (!sl) return; Z = { s: 1, x: 0, y: 0, img: sl.querySelector('img') }; } Z.s = Math.max(1, Math.min(5, Z.s * (e.deltaY < 0 ? 1.15 : 0.87))); clamp(); apply(); e.preventDefault(); }, { passive: false });
+    function close() { ov.remove(); document.removeEventListener('keydown', key); }
+    function key(e) { if (e.key === 'Escape') close(); }
+    ov.querySelector('.zg-x').onclick = close;
+    document.addEventListener('keydown', key);
+  }
+
+  /* Cek pembaruan aplikasi (APK): tampilkan ajakan update bila ada versi baru. */
+  function cekUpdate() {
+    if (DEMO || !NATIVE || !NATIVE.appVersion) return;
+    var mine = 0, app = '';
+    try { mine = Number(NATIVE.appVersion()) || 0; app = NATIVE.appFlavor ? String(NATIVE.appFlavor()) : ''; } catch (e) { return; }
+    api('versiApp').then(function (d) {
+      if (!d || !d.versi || d.versi <= mine) return;
+      var url = (d.url && (d.url[app] || d.url.perental)) || 'https://vasttravel.pages.dev/';
+      if (document.getElementById('vt-upd')) return;
+      var el = document.createElement('div');
+      el.id = 'vt-upd';
+      el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:84px;z-index:9999;background:#0B3D2A;color:#fff;border-radius:16px;padding:14px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:14px;line-height:1.45';
+      el.innerHTML = '<div style="font-weight:700;font-size:15px;margin-bottom:2px">Pembaruan tersedia (v1.0.' + esc(d.versi) + ')</div>' +
+        '<div style="opacity:.85">' + esc(d.catatan || 'Versi baru Vast Travel sudah tersedia. Perbarui agar fitur & perbaikan terbaru aktif.') + '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:10px"><a href="' + esc(url) + '" style="flex:1;text-align:center;background:#B6EE2A;color:#0B3D2A;font-weight:700;padding:10px;border-radius:10px;text-decoration:none">Perbarui sekarang</a>' +
+        '<button type="button" style="background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:10px;padding:10px 12px">Nanti</button></div>';
+      el.querySelector('button').onclick = function () { el.remove(); };
+      document.body.appendChild(el);
+    }).catch(function () {});
+  }
+  if (!DEMO) window.addEventListener('load', function () { setTimeout(cekUpdate, 2500); });
+
   window.VR = { DEMO: DEMO, CFG: CFG, api: api, rp: rp, esc: esc, wa: wa, tgl: tgl, waktu: waktu, sameMonth: sameMonth, sapaan: sapaan,
     unitNama: unitNama, judulBooking: judulBooking, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, MSG: MSG,
     cached: cached, loadFast: loadFast, uiBusy: uiBusy, clearCached: clearCached,
@@ -1848,7 +2019,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     vehicleSvg: vehicleSvg, unitImg: unitImg, models: models, modelOf: modelOf, modelFoto: modelFoto, brands: brands, modelImg: modelImg, imgUrl: imgUrl, warnaHex: warnaHex, fotoList: fotoList, pickPhotos: pickPhotos, scenery: scenery,
     LOGO: LOGO, LOGO_LIGHT: LOGO_LIGHT, brand: brand, ic: ic, toast: toast, sheet: sheet, closeSheet: closeSheet, confirm: confirmBox, copy: copyText,
     lsGet: lsGet, lsSet: lsSet, lsDel: lsDel, demoBanner: demoBanner, bindDemoReset: bindDemoReset, busy: busy, waBtn: waBtn,
-    onPush: function () { poll(); }, notifStart: notifStart, notifPoll: poll, openNotif: openNotif, NATIVE: NATIVE };
+    onPush: function () { poll(); cekUpdate(); }, cekUpdate: cekUpdate, zoomGallery: zoomGallery, notifStart: notifStart, notifPoll: poll, openNotif: openNotif, NATIVE: NATIVE };
 
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|claudeusercontent|androidplatform/.test(location.hostname)) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
@@ -2104,7 +2275,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
   function renderArmada() {
     var d = S.d, F = { menunggu: 'Menunggu verifikasi', aktif: 'Aktif', nonaktif: 'Nonaktif', semua: 'Semua' };
     var list = d.unit.filter(function (u) { return S.af === 'semua' || u.status === S.af; });
-    var h = shortHero('Armada', d.unit.filter(function (u) { return u.status === 'aktif'; }).length + ' unit aktif') + '<main><div class="tiles" style="grid-template-columns:repeat(3,1fr)">' + Object.keys(VR_JENIS).map(function (j) { return '<div class="tile"><div class="k">' + VR_JENIS[j].pendek + '</div><div class="v">' + d.unit.filter(function (u) { return u.jenis === j && u.status === 'aktif'; }).length + '</div></div>'; }).join('') + '</div>' +
+    var h = shortHero('Armada', d.unit.filter(function (u) { return u.status === 'aktif'; }).length + ' unit aktif') + '<main><div class="tiles" style="grid-template-columns:repeat(3,1fr)">' + Object.keys(VR_KATEGORI).map(function (k) { return '<div class="tile"><div class="k">' + VR_KATEGORI[k].label + '</div><div class="v">' + d.unit.filter(function (u) { return u.kategori === k && u.status === 'aktif'; }).length + '</div></div>'; }).join('') + '</div>' +
       '<div class="chips">' + Object.keys(F).map(function (k) { return '<button class="chip" data-af="' + k + '" aria-pressed="' + (S.af === k) + '">' + F[k] + '<span class="n">' + d.unit.filter(function (u) { return k === 'semua' || u.status === k; }).length + '</span></button>'; }).join('') +
       '<button class="chip" data-af="katalog" aria-pressed="' + (S.af === 'katalog') + '">Katalog brand & tipe<span class="n">' + (d.model_all || []).length + '</span></button></div>';
     if (S.af === 'katalog') return renderKatalog(h);
@@ -2112,13 +2283,15 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       var p = pemilikOf(u.pemilik_id), f = V.fotoList(u);
       return '<div class="card stack"><div class="row">' + V.unitImg(u, 'uimg sm') + '<div class="grow"><b>' + esc(V.unitNama(u)) + '</b> <span class="xs muted">' + esc(u.tahun) + '</span>' +
         '<div class="xs muted">' + VR_JENIS[u.jenis].pendek + ' · ' + esc(u.warna) + ' · <b>' + esc(u.tnkb) + '</b> · ' + esc(u.kota) + '</div><div class="xs">Pemilik: ' + esc(p.nama) + ' (' + esc(u.pemilik_id) + ')</div>' +
-        '<div class="xs muted">' + (u.jarak_km ? '±' + u.jarak_km + ' km · ' : '') + esc(u.charging || '') + (u.bagasi ? ' · bagasi ' + esc(u.bagasi) : '') + '</div></div></div>' +
-        (f.length ? '<div class="photos">' + f.map(function (x) { return '<a class="ph" href="' + esc(x) + '" target="_blank" rel="noopener"><img src="' + esc(x) + '" alt=""></a>'; }).join('') + '</div>' : '<div class="xs" style="color:var(--amber)">Belum ada foto unit</div>') +
+        '<div class="xs muted">' + (u.jarak_km ? '±' + u.jarak_km + ' km · ' : '') + esc(u.charging || '') + (u.bagasi ? ' · bagasi ' + esc(u.bagasi) : '') + ' · ' + u.kapasitas + ' penumpang</div>' +
+        '<div class="xs">Harga mitra <b>' + V.rp(u.harga_mitra) + '</b>/hari · tampil ke penyewa <b>' + V.rp(u.harga_final) + '</b>' + (u.harga ? '' : ' <span class="tag wait">tarif standar</span>') + '</div></div></div>' +
+        (f.length ? '<div class="photos">' + f.map(function (x, i) { return '<button type="button" class="ph" data-zg="' + u.id + '" data-zi="' + i + '" style="padding:0;border:0;cursor:zoom-in"><img src="' + esc(x) + '" alt=""></button>'; }).join('') + '</div>' : '<div class="xs" style="color:var(--amber)">Belum ada foto unit</div>') +
         '<div class="row between wrapflex"><span class="tag ' + (u.status === 'aktif' ? '' : u.status === 'nonaktif' ? 'no' : 'wait') + '">' + F[u.status] + (u.tersedia ? '' : ' · disembunyikan pemilik') + '</span>' +
         '<div class="row adm" style="gap:6px">' + (u.status !== 'aktif' ? '<button class="btn sm" data-us="aktif" data-id="' + u.id + '">Setujui</button>' : '') + (u.status !== 'nonaktif' ? '<button class="btn sm ghost" data-us="nonaktif" data-id="' + u.id + '">Nonaktifkan</button>' : '') + '</div></div></div>';
     }).join('') : '<div class="empty"><b>Tidak ada unit</b></div>';
     app.innerHTML = h + '</main>'; bindHero();
     app.querySelectorAll('[data-af]').forEach(function (x) { x.onclick = function () { S.af = x.dataset.af; render(); }; });
+    app.querySelectorAll('[data-zg]').forEach(function (x) { x.onclick = function () { var u = d.unit.filter(function (z) { return z.id === x.dataset.zg; })[0]; if (u) V.zoomGallery(V.fotoList(u), Number(x.dataset.zi) || 0); }; });
     app.querySelectorAll('[data-us]').forEach(function (x) {
       x.onclick = function () {
         V.busy(x, true);
@@ -2294,8 +2467,13 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       return '<label class="f">' + label + (hint ? ' <span class="hint">' + hint + '</span>' : '') + (type === 'area' ? '<textarea data-k="' + k + '">' + esc(s[k] || '') + '</textarea>' : '<input data-k="' + k + '" value="' + esc(s[k] || '') + '"' + (type ? ' inputmode="' + type + '"' : '') + '>') + '</label>';
     };
     app.innerHTML = shortHero('Pengaturan', 'Tarif, pembayaran, layanan & poin') + '<main>' +
-      '<div class="card stack"><h3>Tarif harian</h3><div class="xs muted">Mobil termasuk driver; harga sama untuk lepas kunci. Antar bandara, city tour & tour wisata ditentukan per permintaan.</div>' +
-      f('tarif_motor', 'Motor listrik', '', 'numeric') + f('tarif_mobil5', 'Mobil 5 seat', '', 'numeric') + f('tarif_mobil7', 'Mobil 7 seat', '', 'numeric') + f('komisi', 'Potongan admin (%)', 'dari nilai sewa', 'decimal') + f('info_bulanan', 'Info sewa bulanan', '', 'area') + '</div>' +
+      '<div class="card stack"><h3>Harga sewa & biaya layanan</h3><div class="xs muted">Harga sewa harian ditentukan oleh mitra (pemilik unit). Sistem otomatis menambahkan biaya layanan di bawah ini, sehingga harga yang tampil ke penyewa sudah termasuk semuanya.</div>' +
+      f('biaya_admin', 'Biaya layanan admin (%)', 'ditambahkan ke harga mitra, mis. 5 / 10 / 15', 'decimal') +
+      '<div class="note small" id="ba-ex"></div>' +
+      f('komisi', 'Potongan admin layanan perjalanan (%)', 'antar bandara, city tour & tour wisata (harga dari pengelola)', 'decimal') + '</div>' +
+      '<div class="card stack"><h3>Tarif standar</h3><div class="xs muted">Hanya dipakai untuk unit lama yang belum diisi harganya oleh mitra.</div>' +
+      f('tarif_motor', 'Motor listrik', '', 'numeric') + f('tarif_mobil5', 'Mobil 5 seat', '', 'numeric') + f('tarif_mobil7', 'Mobil 7 seat', '', 'numeric') + f('tarif_mobil9', 'Mobil 8+ seat', '', 'numeric') + f('tarif_niaga', 'Mobil niaga', '', 'numeric') + f('info_bulanan', 'Info sewa bulanan', '', 'area') + '</div>' +
+      '<div class="card stack"><div class="row between"><h3>Promo & Event Wisata</h3><button class="btn sm" id="pe-add">' + V.ic('plus') + ' Tambah</button></div><div class="xs muted">Voucher hotel, tiket tempat wisata, kuliner, atau event. Tampil di menu Promo & Beranda aplikasi penyewa.</div><div id="pe-list"></div></div>' +
       '<div class="card stack"><h3>Metode pembayaran</h3><div class="xs muted">Isi nomor & nama pemilik akun. Metode yang kosong tidak ditampilkan ke penyewa.</div>' +
       f('rek_bca', 'Bank BCA', 'nomor rekening a.n. ...') + f('linkaja', 'LinkAja', 'nomor a.n. ...') + f('dana', 'DANA', 'nomor a.n. ...') + f('gopay', 'GoPay', 'nomor a.n. ...') + f('ovo', 'OVO', 'nomor a.n. ...') +
       f('qris', 'QRIS', 'link gambar QRIS publik (Google Drive / hosting gambar)') + f('batas_bayar_jam', 'Batas waktu bayar (jam)', 'booking batal otomatis bila lewat', 'numeric') + f('maks_hari', 'Maksimal sewa harian (hari)', 'lebih dari ini = bulanan', 'numeric') + '</div>' +
@@ -2324,6 +2502,61 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     };
     document.getElementById('out').onclick = tanyaKeluar;
     app.querySelectorAll('[data-cp]').forEach(function (x) { x.onclick = function () { V.copy(x.dataset.cp); }; });
+    var bai = app.querySelector('[data-k="biaya_admin"]'), bex = document.getElementById('ba-ex');
+    function contoh() { var p2 = Number(bai.value) || 0; bex.innerHTML = 'Contoh: mitra mengisi <b>Rp300.000</b>/hari → tampil ke penyewa <b>' + V.rp(vrHargaFinal(300000, p2)) + '</b>/hari (biaya layanan ' + V.rp(vrHargaFinal(300000, p2) - 300000) + ').'; }
+    if (bai) { bai.oninput = contoh; contoh(); }
+    peDraw();
+    document.getElementById('pe-add').onclick = function () { peForm(-1); };
+  }
+  /* ---------- Promo & Event Wisata (editor pengelola) ---------- */
+  function peList() { try { var a = JSON.parse(S.d.pengaturan.promo_event || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function peSave(list, msg) {
+    return V.api('adminPengaturan', { pin: S.pin, nilai: { promo_event: list } }).then(function () { S.d.pengaturan.promo_event = JSON.stringify(list); V.toast(msg || 'Promo tersimpan.'); peDraw(); load(); });
+  }
+  function peDraw() {
+    var el = document.getElementById('pe-list'); if (!el) return;
+    var L = peList();
+    el.innerHTML = L.length ? L.map(function (p, i) {
+      return '<div class="card row" style="align-items:flex-start">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:10px">' : '<span class="ndot">' + V.ic('star') + '</span>') +
+        '<div class="grow"><b class="small">' + esc(p.judul) + '</b>' + (p.aktif === false ? ' <span class="tag no">nonaktif</span>' : '') + '<div class="xs muted">' + esc([p.kategori, p.berlaku].filter(Boolean).join(' · ')) + '</div></div>' +
+        '<button class="btn sm ghost" data-pe="' + i + '">Ubah</button></div>';
+    }).join('') : '<div class="xs muted">Belum ada promo / event.</div>';
+    el.querySelectorAll('[data-pe]').forEach(function (b) { b.onclick = function () { peForm(Number(b.dataset.pe)); }; });
+  }
+  function peForm(i) {
+    var L = peList(), x = i >= 0 ? JSON.parse(JSON.stringify(L[i])) : { judul: '', kategori: 'Hotel', ket: '', berlaku: '', link: '', foto: '', aktif: true }, up = false;
+    V.sheet('<h2>' + (i >= 0 ? 'Ubah promo / event' : 'Tambah promo / event') + '</h2>' +
+      '<label class="f">Judul<input id="pe-j" maxlength="80" value="' + esc(x.judul) + '" placeholder="Voucher menginap 20% Hotel ..."></label>' +
+      '<label class="f">Kategori<select id="pe-k">' + ['Hotel', 'Wisata', 'Kuliner', 'Event', 'Transportasi', 'Lainnya'].map(function (k) { return '<option' + (x.kategori === k ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '</select></label>' +
+      '<label class="f">Keterangan<textarea id="pe-t" maxlength="300" placeholder="Syarat & cara klaim">' + esc(x.ket) + '</textarea></label>' +
+      '<label class="f">Masa berlaku <span class="hint">opsional</span><input id="pe-b" maxlength="60" value="' + esc(x.berlaku) + '" placeholder="s.d. 31 Des 2026"></label>' +
+      '<label class="f">Link <span class="hint">opsional: situs / wa.me/62… ; kosong = tombol chat admin</span><input id="pe-l" value="' + esc(x.link) + '"></label>' +
+      '<div class="stack"><b class="small">Gambar</b><div id="pe-img"></div><button type="button" class="btn sm soft" id="pe-up">Unggah gambar</button></div>' +
+      '<label class="check small"><input type="checkbox" id="pe-a"' + (x.aktif !== false ? ' checked' : '') + '> <span>Tampilkan di aplikasi penyewa</span></label>' +
+      '<button class="btn go block" id="pe-s">Simpan</button>' + (i >= 0 ? '<button class="btn ghost block" id="pe-d" style="color:var(--red)">Hapus promo ini</button>' : ''), function (el) {
+      function keep() { x.judul = el.querySelector('#pe-j').value.trim(); x.kategori = el.querySelector('#pe-k').value; x.ket = el.querySelector('#pe-t').value.trim(); x.berlaku = el.querySelector('#pe-b').value.trim(); x.link = el.querySelector('#pe-l').value.trim(); x.aktif = el.querySelector('#pe-a').checked; }
+      function img() {
+        el.querySelector('#pe-img').innerHTML = x.foto ? '<img src="' + esc(x.foto) + '" alt="" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px"><button type="button" class="btn sm ghost" id="pe-rmimg" style="margin-top:6px">Hapus gambar</button>' : '<div class="xs muted">Belum ada gambar</div>';
+        var rmi = el.querySelector('#pe-rmimg'); if (rmi) rmi.onclick = function () { x.foto = ''; img(); };
+      }
+      img();
+      el.querySelector('#pe-up').onclick = function () {
+        var bt = this;
+        V.pickPhotos(1).then(function (list) {
+          if (!list.length) return; up = true; V.busy(bt, true, 'Mengunggah...');
+          return V.api('adminUploadFoto', { pin: S.pin, data: list[0] }).then(function (r) { x.foto = r.url; img(); V.toast('Gambar terunggah.'); })
+            .catch(function (e) { V.toast(e.message, true); }).then(function () { up = false; V.busy(bt, false); });
+        });
+      };
+      el.querySelector('#pe-s').onclick = function () {
+        if (up) return; keep();
+        if (!x.judul) return V.toast('Isi judul promo.', true);
+        var bt = this, list = peList(); if (i >= 0) list[i] = x; else list.unshift(x);
+        V.busy(bt, true); peSave(list).then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); });
+      };
+      var dl = el.querySelector('#pe-d');
+      if (dl) dl.onclick = function () { var bt = this, list = peList(); list.splice(i, 1); V.busy(bt, true); peSave(list, 'Promo dihapus.').then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); }); };
+    });
   }
 
   function render() { if (!S.d) return; if (S.tab !== 'peta' && S.tab !== 'beranda') stopLive(); else if (S.live && !document.body.contains(S.live.el)) stopLive();
