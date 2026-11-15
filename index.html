@@ -474,6 +474,9 @@ body.ro .adm { display: none !important; }
 .payhint { font: 600 11px var(--f-body); color: var(--muted, #6b7d75); text-align: center; }
 .konf { border: 2px solid #7c3aed; background: #faf5ff; }
 .paylist .pgrp { font: 800 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #6b7d75); padding: 6px 2px 0; }
+.pilihbar { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 20; display: flex; gap: 8px; justify-content: space-between; background: var(--card, #fff); border: 1px solid var(--line); border-radius: 14px; padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+.ckp { display: flex; align-items: center; gap: 8px; font: 700 13px var(--f-body); color: var(--red, #c0392b); }
+.ckp input { width: 20px; height: 20px; accent-color: var(--red, #c0392b); }
 
 </style>
 </head>
@@ -517,7 +520,7 @@ var VR_TABLES = {
     'lokasi', 'tujuan', 'catatan', 'tarif', 'total', 'komisi', 'bagian_pemilik', 'metode', 'bayar_lapor', 'status', 'unit_siap',
     'driver', 'payout', 'payout_waktu', 'riwayat', 'diubah', 'tipe', 'jenis_unit', 'penumpang', 'bandara', 'harga_waktu',
     'diskon_poin', 'bayar', 'poin_didapat', 'biaya_driver', 'bagian_driver', 'mitra_ok', 'driver_ok', 'payout_driver', 'payout_driver_waktu',
-    'terima_waktu', 'alasan'],
+    'terima_waktu', 'alasan', 'sembunyi'],
   Notif: ['id', 'waktu', 'untuk', 'judul', 'isi', 'ref'],
   Poin: ['id', 'waktu', 'hp', 'delta', 'booking_id', 'ket'],
   Pengaturan: ['kunci', 'nilai'],
@@ -543,6 +546,9 @@ var VR_DEFAULTS = {
   poin_per_rp: '1000', poin_min_tukar: '1000', poin_maks_persen: '50'
 };
 var VR_EMPTY_OK = ['promo_event', 'qris', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'driver', 'promo', 'outlet'];
+/* Gambar QR per metode bayar (QR DANA, GoPay, dll.) diunggah pengelola: kunci "qr_<set>" */
+var VR_QR_KEYS = ['qr_rek_bca', 'qr_rek_mandiri', 'qr_rek_bri', 'qr_rek_bni', 'qr_rek_bsi', 'qr_dana', 'qr_ovo', 'qr_gopay', 'qr_linkaja', 'qr_shopeepay'];
+VR_EMPTY_OK = VR_EMPTY_OK.concat(VR_QR_KEYS);
 var VR_PUBLIC_SETTINGS = ['nama_app', 'admin_wa', 'jam_layanan', 'qris', 'info_bulanan', 'batas_bayar_jam', 'maks_hari'];
 var VR_PAY = [
   { k: 'BCA', label: 'Transfer Bank BCA', set: 'rek_bca', warna: '#0060AF', grup: 'bank' },
@@ -757,10 +763,11 @@ function vrCreateLogic(store) {
     o.bandara = vrList(s.bandara);
     o.outlet = vrParsePairs(s.outlet).map(function (z) { return { nama: z.nama, alamat: z.nilai }; });
     o.promo = vrParsePairs(s.promo).map(function (z) { return { judul: z.nama, sub: z.nilai }; });
-    o.bayar = VR_PAY.map(function (p) { return { k: p.k, label: p.label, warna: p.warna, grup: p.grup, akun: s[p.set] || '' }; })
-      .filter(function (p) { return p.akun; });
+    function qrOf(p) { return p.set === 'qris' ? (s.qris || '') : (s['qr_' + p.set] || ''); }
+    o.bayar = VR_PAY.map(function (p) { return { k: p.k, label: p.label, warna: p.warna, grup: p.grup, akun: s[p.set] || '', qr: qrOf(p) }; })
+      .filter(function (p) { return p.akun || p.qr; });
     /* Semua metode (bank, e-wallet, QRIS) selalu ditampilkan; yang belum diisi pengelola: nomor dikirim admin lewat WhatsApp */
-    o.bayar_semua = VR_PAY.map(function (p) { return { k: p.k, label: p.label, warna: p.warna, grup: p.grup, akun: s[p.set] || '' }; });
+    o.bayar_semua = VR_PAY.map(function (p) { return { k: p.k, label: p.label, warna: p.warna, grup: p.grup, akun: s[p.set] || '', qr: qrOf(p) }; });
     o.poin = { per_rp: num(s.poin_per_rp) || 1000, min: num(s.poin_min_tukar) || 0, maks_persen: num(s.poin_maks_persen) || 50 };
     o.model = models(false);
     return o;
@@ -807,7 +814,7 @@ function vrCreateLogic(store) {
       unit_siap: yes(b.unit_siap), driver: b.driver, payout: b.payout === 'sudah' ? 'sudah' : 'belum', payout_waktu: String(b.payout_waktu || ''),
       harga_waktu: String(b.harga_waktu || ''), biaya_driver: num(b.biaya_driver), bagian_driver: num(b.bagian_driver),
       mitra_ok: String(b.mitra_ok || ''), driver_ok: String(b.driver_ok || ''), payout_driver: b.payout_driver === 'sudah' ? 'sudah' : 'belum',
-      payout_driver_waktu: String(b.payout_driver_waktu || ''), terima_waktu: String(b.terima_waktu || ''), alasan: String(b.alasan || ''), riwayat: parseJson(b.riwayat, []), diubah: String(b.diubah)
+      payout_driver_waktu: String(b.payout_driver_waktu || ''), arsip: tersembunyi(b, 'admin'), terima_waktu: String(b.terima_waktu || ''), alasan: String(b.alasan || ''), riwayat: parseJson(b.riwayat, []), diubah: String(b.diubah)
     };
   }
   /* Versi untuk pemilik unit: tanpa identitas & kontak perental */
@@ -816,9 +823,17 @@ function vrCreateLogic(store) {
     return { id: o.id, waktu: o.waktu, unit_id: o.unit_id, unit: o.unit, tnkb: o.tnkb, layanan: o.layanan, tipe: o.tipe, tgl_mulai: o.tgl_mulai,
       durasi: o.durasi, tgl_selesai: o.tgl_selesai, jam: o.jam, total: nilai, komisi: nilai - o.bagian_pemilik, bagian_pemilik: o.bagian_pemilik,
       status: o.status, unit_siap: o.unit_siap, driver: o.driver, payout: o.payout, payout_waktu: o.payout_waktu, kota: o.unit ? o.unit.kota : '',
-      mitra_ok: o.mitra_ok, bayar_lapor: o.bayar_lapor, terima_waktu: o.terima_waktu, harga_waktu: o.harga_waktu, alasan: o.alasan, lokasi: o.lokasi };
+      mitra_ok: o.mitra_ok, bayar_lapor: o.bayar_lapor, arsip: tersembunyi(b, 'pemilik'), terima_waktu: o.terima_waktu, harga_waktu: o.harga_waktu, alasan: o.alasan, lokasi: o.lokasi };
   }
 
+  /* Hapus order dari daftar (per peran). Data tetap tersimpan untuk laporan & keuangan. */
+  function tersembunyi(b, peran) { return (',' + String(b.sembunyi || '') + ',').indexOf(',' + peran + ',') >= 0; }
+  function sembunyikan(b, peran) {
+    if (tersembunyi(b, peran)) return;
+    var a = String(b.sembunyi || '').split(',').filter(Boolean); a.push(peran);
+    store.update('Booking', 'id', b.id, { sembunyi: a.join(','), diubah: nowIso() });
+  }
+  var VR_BISA_HAPUS = ['batal', 'selesai', 'menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'];
   function byId(t, id) { id = String(id || '').toUpperCase(); return store.all(t).filter(function (r) { return String(r.id).toUpperCase() === id; })[0]; }
   function findUnit(id) { return byId('Unit', id); }
   function findBooking(id) { return byId('Booking', id); }
@@ -1005,6 +1020,21 @@ function vrCreateLogic(store) {
     return o;
   }
 
+  function kunciNotif(req) {
+    var keys = {};
+    if (req.peran === 'pengelola') { authAdmin(req, true); keys.admin = 1; }
+    else if (req.peran === 'pemilik') { keys['P:' + String(authPemilik(req).id)] = 1; }
+    else if (req.peran === 'driver') { keys['D:' + authDriver(req).wa] = 1; }
+    else {
+      var hp = vrNormWa(req.hp), ids = (req.ids || []).map(String), isMember = false;
+      if (req.member_id) { var m = authMember(req); hp = vrNormWa(m.wa); isMember = true; }
+      store.all('Booking').forEach(function (b) {
+        if (vrNormWa(b.hp) === hp && (isMember || ids.indexOf(String(b.id)) >= 0)) keys['B:' + b.id] = 1;
+      });
+      if (isMember) keys['H:' + hp] = 1;
+    }
+    return keys;
+  }
   var actions = {
     /* ---------- PERENTAL ---------- */
     /* Versi aplikasi terbaru (diisi otomatis setiap rilis APK baru) */
@@ -1140,7 +1170,7 @@ function vrCreateLogic(store) {
     },
     cekBooking: function (req) {
       var ids = (req.ids || []).map(String), hp = vrNormWa(req.hp);
-      return { booking: store.all('Booking').filter(function (b) { return ids.indexOf(String(b.id)) >= 0 && vrNormWa(b.hp) === hp; }).map(bookingOut), poin: saldoPoin(hp) };
+      return { booking: store.all('Booking').filter(function (b) { return ids.indexOf(String(b.id)) >= 0 && vrNormWa(b.hp) === hp && !tersembunyi(b, 'perental'); }).map(bookingOut), poin: saldoPoin(hp) };
     },
     poinSaya: function (req) {
       var m = authMember(req), hp = vrNormWa(m.wa);
@@ -1165,7 +1195,7 @@ function vrCreateLogic(store) {
     },
     dataMember: function (req) {
       var m = authMember(req), id = String(m.id), wa = vrNormWa(m.wa);
-      return { member: memberOut(m), poin: saldoPoin(wa), booking: store.all('Booking').filter(function (b) { return String(b.member_id) === id || vrNormWa(b.hp) === wa; }).slice(-100).reverse().map(bookingOut) };
+      return { member: memberOut(m), poin: saldoPoin(wa), booking: store.all('Booking').filter(function (b) { return (String(b.member_id) === id || vrNormWa(b.hp) === wa) && !tersembunyi(b, 'perental'); }).slice(-100).reverse().map(bookingOut) };
     },
 
     /* ---------- NOTIFIKASI ---------- */
@@ -1244,6 +1274,7 @@ function vrCreateLogic(store) {
       var own = null;
       if (req.pemilik_id) own = String(authPemilik(req).id); else authAdmin(req, true);
       var list = store.all('Booking').filter(function (b) { return bookingAktifLacak(b) && (!own || String(b.pemilik_id) === own); }).map(liveItem);
+      if (own) list.forEach(function (x) { x.nama = 'Penyewa'; });
       var out = { aktif: list, waktu: nowIso() };
       if (req.trail) {
         var b = findBooking(req.trail);
@@ -1274,19 +1305,37 @@ function vrCreateLogic(store) {
       else store.insert('Perangkat', row);
       return { ok: true };
     },
+    /* Denyut ringan: waktu notifikasi terbaru untuk akun ini (dipakai aplikasi untuk sinkron instan) */
+    denyut: function (req) {
+      var keys = kunciNotif(req), all = store.all('Notif');
+      for (var i = all.length - 1; i >= 0; i--) if (keys[String(all[i].untuk)]) return { t: String(all[i].waktu) };
+      return { t: '' };
+    },
+    hapusBooking: function (req) {
+      var peran = String(req.peran || ''), ids = (req.ids || []).map(String).slice(0, 300), n = 0, own = null, hp = '', isMember = false, s = settings();
+      if (peran === 'pengelola') authAdmin(req);
+      else if (peran === 'pemilik') own = String(authPemilik(req).id);
+      else if (peran === 'perental') {
+        if (req.member_id) { hp = vrNormWa(authMember(req).wa); isMember = true; } else hp = vrNormWa(req.hp);
+        if (hp.length < 10) fail('Nomor tidak valid.');
+      } else fail('Peran tidak dikenal.');
+      ids.forEach(function (id) {
+        var b = findBooking(id); if (!b) return;
+        if (own && String(b.pemilik_id) !== own) return;
+        if (peran === 'perental' && vrNormWa(b.hp) !== hp) return;
+        if (VR_BISA_HAPUS.indexOf(b.status) < 0) return;
+        if (b.status !== 'batal' && b.status !== 'selesai') {
+          if (peran === 'pemilik') return; /* mitra hanya menghapus order batal / selesai */
+          if (String(b.bayar_lapor || '')) return; /* sudah membayar: tidak bisa dihapus */
+          batalkan(b, peran === 'pengelola' ? 'pengelola' : 'perental', peran === 'pengelola' ? 'Dihapus pengelola' : 'Dibatalkan penyewa');
+          b = findBooking(id);
+        }
+        sembunyikan(b, peran === 'pengelola' ? 'admin' : peran); n++;
+      });
+      return { dihapus: n };
+    },
     notif: function (req) {
-      var keys = {}, since = String(req.since || '');
-      if (req.peran === 'pengelola') { authAdmin(req, true); keys.admin = 1; }
-      else if (req.peran === 'pemilik') { keys['P:' + String(authPemilik(req).id)] = 1; }
-      else if (req.peran === 'driver') { keys['D:' + authDriver(req).wa] = 1; }
-      else {
-        var hp = vrNormWa(req.hp), ids = (req.ids || []).map(String), isMember = false;
-        if (req.member_id) { var m = authMember(req); hp = vrNormWa(m.wa); isMember = true; }
-        store.all('Booking').forEach(function (b) {
-          if (vrNormWa(b.hp) === hp && (isMember || ids.indexOf(String(b.id)) >= 0)) keys['B:' + b.id] = 1;
-        });
-        if (isMember) keys['H:' + hp] = 1;
-      }
+      var keys = kunciNotif(req), since = String(req.since || '');
       var all = store.all('Notif'), out = [];
       for (var i = all.length - 1; i >= 0 && out.length < 40; i--) {
         var n = all[i];
@@ -1624,6 +1673,12 @@ function vrCreateLogic(store) {
         if (pe.length > 20) fail('Maksimal 20 promo / event.');
         setSetting('promo_event', JSON.stringify(promoEvent({ promo_event: pe }).map(function (p, i) { p.id = p.id || ('E' + Date.now().toString(36) + i); return p; })));
       }
+      VR_QR_KEYS.forEach(function (k) {
+        if (!(k in v)) return; var q = String(v[k] || '').trim();
+        if (q && !/^(https?:\/\/|img\/)/i.test(q) && !(store.allowDataFoto && /^data:image/.test(q))) fail('Gambar QR tidak valid.');
+        setSetting(k, q.slice(0, store.allowDataFoto ? 2000000 : 500));
+      });
+      if ('qris' in v && String(v.qris || '') && store.allowDataFoto) setSetting('qris', String(v.qris).slice(0, 2000000));
       if ('komisi' in v) { var c = num(v.komisi); if (c < 0 || c >= 100) fail('Komisi harus 0 sampai 99 persen.'); setSetting('komisi', c); }
       if ('admin_wa' in v) setSetting('admin_wa', vrNormWa(v.admin_wa));
       if ('monitor_pin_baru' in v && String(v.monitor_pin_baru) !== '') {
@@ -2072,7 +2127,8 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     // cfg: { peran, payload: fn -> object auth, badge: element id, onNew: fn }
     NT.cfg = cfg;
     if (NATIVE && NATIVE.requestPermission) { try { NATIVE.requestPermission(); } catch (e) { /* abaikan */ } }
-    poll(); clearInterval(NT.timer); NT.timer = setInterval(function () { if (document.visibilityState === 'visible') poll(); }, NATIVE ? 20000 : 12000);
+    poll(); clearInterval(NT.timer); NT.timer = setInterval(function () { if (document.visibilityState === 'visible') poll(); }, 45000);
+    NT.dt = null; denyut();
     if (!NT.vis) { NT.vis = 1; document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { poll(); segarData(); } }); }
   }
   function poll() {
@@ -2097,6 +2153,62 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
         if (NT.cfg.onNew) NT.cfg.onNew(fresh);
       }
     }).catch(function () { /* diam */ });
+  }
+  /* Denyut ringan: cek tiap 3 detik (saat aplikasi aktif dipakai) apakah ada kejadian baru untuk akun ini,
+     lalu segarkan data saat itu juga -> semua aplikasi sinkron hampir realtime. */
+  var aktifT = Date.now();
+  ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function (ev) { window.addEventListener(ev, function () { aktifT = Date.now(); }, { passive: true, capture: true }); });
+  function denyut() {
+    clearTimeout(NT.dtT);
+    var jeda = Date.now() - aktifT < 120000 ? 3000 : 12000;
+    NT.dtT = setTimeout(denyut, jeda);
+    if (!NT.cfg || document.visibilityState !== 'visible' || NT.dtBusy) return;
+    var pl = NT.cfg.payload(); if (!pl) return;
+    NT.dtBusy = true;
+    api('denyut', Object.assign({ peran: NT.cfg.peran }, pl)).then(function (d) {
+      var t = d && d.t || '';
+      if (NT.dt !== null && t && t > NT.dt) { poll(); segarData(); }
+      NT.dt = t;
+    }).catch(function () { /* diam */ }).then(function () { NT.dtBusy = false; });
+  }
+  /* ---------- Pilih & hapus order (centang) ---------- */
+  function bisaHapus(b, peran) {
+    if (b.status === 'batal' || b.status === 'selesai') return true;
+    if (peran === 'pemilik') return false;
+    return ['menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && !b.bayar_lapor;
+  }
+  function pilihBar(st, list, peran) {
+    var ok = list.filter(function (b) { return bisaHapus(b, peran); });
+    if (!ok.length && !st.on) return '';
+    if (!st.on) return '<div class="row" style="justify-content:flex-end"><button class="btn sm ghost" data-pl="on">' + ic('check') + ' Pilih & hapus order</button></div>';
+    var n = Object.keys(st.ids).filter(function (k) { return st.ids[k]; }).length;
+    return '<div class="pilihbar"><button class="btn sm ghost" data-pl="all">' + (n === ok.length && n ? 'Batal pilih semua' : 'Pilih semua (' + ok.length + ')') + '</button>' +
+      '<button class="btn sm" style="background:var(--red);color:#fff" data-pl="del"' + (n ? '' : ' disabled') + '>Hapus (' + n + ')</button><button class="btn sm ghost" data-pl="off">Selesai</button></div>';
+  }
+  function pilihBox(st, b, peran) {
+    if (!st.on || !bisaHapus(b, peran)) return '';
+    return '<label class="ckp"><input type="checkbox" data-pk="' + esc(b.id) + '"' + (st.ids[b.id] ? ' checked' : '') + '> Pilih order ini</label>';
+  }
+  /* onDel(ids) -> Promise */
+  function pilihBind(root, st, list, peran, rerender, onDel) {
+    root.querySelectorAll('[data-pk]').forEach(function (x) { x.onchange = function () { st.ids[x.dataset.pk] = x.checked; rerender(); }; });
+    root.querySelectorAll('[data-pl]').forEach(function (x) {
+      x.onclick = function () {
+        var k = x.dataset.pl, ok = list.filter(function (b) { return bisaHapus(b, peran); });
+        if (k === 'on') { st.on = true; st.ids = {}; }
+        else if (k === 'off') { st.on = false; st.ids = {}; }
+        else if (k === 'all') { var all = ok.every(function (b) { return st.ids[b.id]; }); st.ids = {}; if (!all) ok.forEach(function (b) { st.ids[b.id] = true; }); }
+        else if (k === 'del') {
+          var ids = Object.keys(st.ids).filter(function (i) { return st.ids[i]; });
+          var pend = list.filter(function (b) { return st.ids[b.id] && b.status !== 'batal' && b.status !== 'selesai'; }).length;
+          return confirmBox('Hapus ' + ids.length + ' order dari daftar?' + (pend ? ' ' + pend + ' order yang masih menunggu akan dibatalkan.' : ''), 'Ya, hapus').then(function () {
+            busy(x, true, 'Menghapus...');
+            return onDel(ids).then(function (r) { st.on = false; st.ids = {}; toast((r && r.dihapus || 0) + ' order dihapus.'); rerender(); }).catch(function (e) { busy(x, false); toast(e.message, true); });
+          });
+        }
+        rerender();
+      };
+    });
   }
   /* Push masuk / aplikasi dibuka lagi: segarkan data layar saat itu juga */
   var segarT = null;
@@ -2304,7 +2416,8 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     vehicleSvg: vehicleSvg, unitImg: unitImg, models: models, modelOf: modelOf, modelFoto: modelFoto, brands: brands, modelImg: modelImg, imgUrl: imgUrl, warnaHex: warnaHex, fotoList: fotoList, pickPhotos: pickPhotos, scenery: scenery,
     LOGO: LOGO, LOGO_LIGHT: LOGO_LIGHT, brand: brand, ic: ic, toast: toast, sheet: sheet, closeSheet: closeSheet, confirm: confirmBox, copy: copyText,
     lsGet: lsGet, lsSet: lsSet, lsDel: lsDel, demoBanner: demoBanner, bindDemoReset: bindDemoReset, busy: busy, waBtn: waBtn,
-    onPush: function () { poll(); segarData(); cekUpdate(); }, alur: alur, bisaBayar: bisaBayar, cekUpdate: cekUpdate, zoomGallery: zoomGallery, notifStart: notifStart, notifPoll: poll, openNotif: openNotif, NATIVE: NATIVE };
+    bisaHapus: bisaHapus, pilihBar: pilihBar, pilihBox: pilihBox, pilihBind: pilihBind,
+    onPush: function () { poll(); segarData(); cekUpdate(); }, segarkan: segarData, alur: alur, bisaBayar: bisaBayar, cekUpdate: cekUpdate, zoomGallery: zoomGallery, notifStart: notifStart, notifPoll: poll, openNotif: openNotif, NATIVE: NATIVE };
 
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|claudeusercontent|androidplatform/.test(location.hostname)) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
@@ -2375,7 +2488,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       S.ro = MON || !!d.monitor; document.body.classList.toggle('ro', S.ro);
       var c = counts(); setBadge('b-bk', c.cek + c.setuju + c.payout); setBadge('b-ar', c.unit);
       if (!S.notif) { S.notif = 1; V.notifStart({ peran: 'pengelola', app: MON ? 'Vast Travel Monitor' : 'Vast Travel Pengelola', payload: function () { return { pin: S.pin }; }, onNew: function () { load(); } }); }
-      if (dariCache !== 'diam') render();
+      if (dariCache !== 'diam' && S.tab !== 'peta') render();
     }, function (e) {
       if (/PIN|monitor/.test(e.message)) { pinDel(); S.pin = null; V.toast(e.message, true); return renderLogin(); }
       app.innerHTML = '<div class="empty" style="padding-top:30vh"><b>Gagal memuat</b>' + esc(e.message) + '</div><div style="padding:16px"><button class="btn block" id="rt">Coba lagi</button></div>';
@@ -2458,8 +2571,10 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     payout: ['Belum diteruskan', belumPayout],
     selesai: ['Selesai', function (b) { return b.status === 'selesai'; }],
     batal: ['Batal', function (b) { return b.status === 'batal'; }],
-    semua: ['Semua', function () { return true; }]
+    semua: ['Semua', function () { return true; }],
+    arsip: ['Dihapus', function (b) { return b.arsip; }]
   };
+  function bfList(k) { return S.d.booking.filter(function (b) { return k === 'arsip' ? b.arsip : !b.arsip; }).filter(BF[k][1]); }
   function bookingCard(b) {
     var p = b.pemilik_id ? pemilikOf(b.pemilik_id) : null, waP = function (t) { return V.wa(b.hp, t); }, act = '';
     if (b.status === 'menunggu_harga') act += '<button class="btn block" data-harga="' + b.id + '">' + ic('tag') + ' Tentukan harga, unit & driver</button>';
@@ -2510,16 +2625,21 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
   }
   function renderBooking() {
     var d = S.d, q = S.q.toLowerCase();
-    var list = d.booking.filter(BF[S.bf][1]).filter(function (b) { return !q || (b.id + ' ' + b.nama + ' ' + b.hp + ' ' + V.judulBooking(b) + ' ' + b.tnkb).toLowerCase().indexOf(q) >= 0; });
+    var list = bfList(S.bf).filter(function (b) { return !q || (b.id + ' ' + b.nama + ' ' + b.hp + ' ' + V.judulBooking(b) + ' ' + b.tnkb).toLowerCase().indexOf(q) >= 0; });
     var h = shortHero('Booking', list.length + ' ' + BF[S.bf][0].toLowerCase()) + '<main><label class="f"><input id="q" type="search" placeholder="Cari no. booking, nama, WA, unit, nopol" value="' + esc(S.q) + '"></label>' +
-      '<div class="chips">' + Object.keys(BF).map(function (k) { return '<button class="chip" data-bf="' + k + '" aria-pressed="' + (S.bf === k) + '">' + BF[k][0] + '<span class="n">' + d.booking.filter(BF[k][1]).length + '</span></button>'; }).join('') + '</div>';
+      '<div class="chips">' + Object.keys(BF).map(function (k) { return '<button class="chip" data-bf="' + k + '" aria-pressed="' + (S.bf === k) + '">' + BF[k][0] + '<span class="n">' + bfList(k).length + '</span></button>'; }).join('') + '</div>';
+    var PL = S.pl = S.pl || { on: false, ids: {} };
+    if (!S.ro && S.bf !== 'arsip') h += V.pilihBar(PL, list.slice(0, 150), 'pengelola');
     h += '<div class="row" style="justify-content:flex-end"><button class="btn sm ghost" id="csv">' + ic('list') + ' Unduh CSV (' + list.length + ')</button></div>';
-    h += list.length ? '<div class="bk-grid">' + list.slice(0, 150).map(bookingCard).join('') + '</div>' : '<div class="empty"><b>Tidak ada booking</b></div>';
+    h += list.length ? '<div class="bk-grid">' + list.slice(0, 150).map(function (b) { return bookingCard(b).replace('<div class="card stack bk l-' + V.stClass(b) + '">', '<div class="card stack bk l-' + V.stClass(b) + '">' + (S.bf !== 'arsip' ? V.pilihBox(PL, b, 'pengelola') : '')); }).join('') + '</div>' : '<div class="empty"><b>Tidak ada booking</b></div>';
     app.innerHTML = h + '</main>'; bindHero();
     document.getElementById('csv').onclick = function () { unduhCsv(list); };
     app.querySelectorAll('[data-lacak]').forEach(function (x) { x.onclick = function () { S.lvSel = x.dataset.lacak; go('peta'); }; });
     var qi = document.getElementById('q'); qi.oninput = function () { S.q = qi.value; clearTimeout(qi._t); qi._t = setTimeout(function () { renderBooking(); var n = document.getElementById('q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 350); };
-    app.querySelectorAll('[data-bf]').forEach(function (x) { x.onclick = function () { S.bf = x.dataset.bf; render(); }; });
+    app.querySelectorAll('[data-bf]').forEach(function (x) { x.onclick = function () { S.bf = x.dataset.bf; S.pl = null; render(); }; });
+    V.pilihBind(app, PL, list.slice(0, 150), 'pengelola', function () { var y = window.scrollY; renderBooking(); window.scrollTo(0, y); }, function (ids) {
+      return V.api('hapusBooking', { pin: S.pin, peran: 'pengelola', ids: ids }).then(function (r) { load(); S.d.booking.forEach(function (b) { if (ids.indexOf(b.id) >= 0) { b.arsip = true; if (b.status !== 'selesai') b.status = 'batal'; } }); return r; });
+    });
     app.querySelectorAll('[data-a]').forEach(function (x) { x.onclick = function () { aksi(x, x.dataset.id, x.dataset.a); }; });
     app.querySelectorAll('[data-pay]').forEach(function (x) { x.onclick = function () { payout(x.dataset.pay); }; });
     app.querySelectorAll('[data-payd]').forEach(function (x) { x.onclick = function () { payoutDriver(x.dataset.payd); }; });
@@ -2805,6 +2925,11 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     var s = S.d.pengaturan, f = function (k, label, hint, type) {
       return '<label class="f">' + label + (hint ? ' <span class="hint">' + hint + '</span>' : '') + (type === 'area' ? '<textarea data-k="' + k + '">' + esc(s[k] || '') + '</textarea>' : '<input data-k="' + k + '" value="' + esc(s[k] || '') + '"' + (type ? ' inputmode="' + type + '"' : '') + '>') + '</label>';
     };
+    function fq(k, label, hint) {
+      var q = s['qr_' + k] || '';
+      return '<div class="row" style="gap:8px;align-items:flex-end">' + f(k, label, hint).replace('<label class="f">', '<label class="f grow" style="margin:0">') +
+        '<button type="button" class="btn sm ' + (q ? 'soft' : 'ghost') + '" data-qr="' + k + '" style="flex:none;min-width:64px;padding:4px 8px">' + (q ? '<img src="' + esc(q) + '" style="width:30px;height:30px;object-fit:contain;border-radius:4px"> QR' : V.ic('plus') + ' QR') + '</button></div>';
+    }
     app.innerHTML = shortHero('Pengaturan', 'Tarif, pembayaran, layanan & poin') + '<main>' +
       '<div class="card stack"><h3>Harga sewa & biaya layanan</h3><div class="xs muted">Harga sewa harian ditentukan oleh mitra (pemilik unit). Sistem otomatis menambahkan biaya layanan di bawah ini, sehingga harga yang tampil ke penyewa sudah termasuk semuanya.</div>' +
       f('biaya_admin', 'Biaya layanan admin (%)', 'ditambahkan ke harga mitra, mis. 5 / 10 / 15', 'decimal') +
@@ -2814,10 +2939,12 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       f('tarif_motor', 'Motor listrik', '', 'numeric') + f('tarif_mobil5', 'Mobil 5 seat', '', 'numeric') + f('tarif_mobil7', 'Mobil 7 seat', '', 'numeric') + f('tarif_mobil9', 'Mobil 8+ seat', '', 'numeric') + f('tarif_niaga', 'Mobil niaga', '', 'numeric') + f('tarif_driver', 'Driver per hari', 'untuk driver yang belum mengisi tarifnya sendiri (sudah final)', 'numeric') + f('info_bulanan', 'Info sewa bulanan', '', 'area') + '</div>' +
       '<div class="card stack"><div class="row between"><h3>Promo & Event Wisata</h3><button class="btn sm" id="pe-add">' + V.ic('plus') + ' Tambah</button></div><div class="xs muted">Voucher hotel, tiket tempat wisata, kuliner, atau event. Tampil di menu Promo & Beranda aplikasi penyewa.</div><div id="pe-list"></div></div>' +
       '<div class="card stack"><h3>Metode pembayaran</h3><div class="xs muted">Isi nomor & nama pemilik akun. Metode yang kosong tidak ditampilkan ke penyewa. Penyewa memilih langsung dari daftar ini (bisa digulir) saat membayar.</div>' +
-      '<b class="small">Transfer bank</b>' + f('rek_bca', 'Bank BCA', 'nomor rekening a.n. ...') + f('rek_mandiri', 'Bank Mandiri', 'nomor rekening a.n. ...') + f('rek_bri', 'Bank BRI', 'nomor rekening a.n. ...') + f('rek_bni', 'Bank BNI', 'nomor rekening a.n. ...') + f('rek_bsi', 'Bank BSI', 'nomor rekening a.n. ...') +
-      '<b class="small">E-wallet</b>' + f('dana', 'DANA', 'nomor a.n. ...') + f('ovo', 'OVO', 'nomor a.n. ...') + f('gopay', 'GoPay', 'nomor a.n. ...') + f('linkaja', 'LinkAja', 'nomor a.n. ...') + f('shopeepay', 'ShopeePay', 'nomor a.n. ...') +
+      '<div class="xs muted">Punya QR code (QR DANA, GoPay, QR rekening, dll.)? Ketuk <b>QR</b> di samping metode untuk mengunggah gambarnya — langsung tampil di jendela pembayaran penyewa.</div>' +
       '<b class="small">QRIS</b><div class="row" style="gap:10px;align-items:center"><div id="qr-prev" style="width:84px;height:84px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;overflow:hidden;flex:none" class="xs muted">' + (s.qris ? '<img src="' + esc(V.imgUrl ? V.imgUrl(s.qris) : s.qris) + '" style="width:100%;height:100%;object-fit:contain">' : 'belum ada') + '</div><div class="stack grow"><button class="btn sm soft" id="qr-up" type="button">' + V.ic('plus') + ' Unggah gambar QRIS</button>' + (s.qris ? '<button class="linkbtn small" id="qr-del" type="button" style="color:var(--red);align-self:flex-start">Hapus QRIS</button>' : '') + '</div></div>' +
-      '<input type="hidden" data-k="qris" id="qr-val" value="' + esc(s.qris || '') + '">' + f('batas_bayar_jam', 'Batas waktu bayar (jam)', 'dihitung sejak order disetujui; batal otomatis bila lewat', 'numeric') + f('batas_konfirmasi_jam', 'Batas konfirmasi ketersediaan (jam)', 'mitra / driver / persetujuan admin; batal otomatis bila lewat', 'numeric') + f('maks_hari', 'Maksimal sewa harian (hari)', 'lebih dari ini = bulanan', 'numeric') + '</div>' +
+      '<input type="hidden" data-k="qris" id="qr-val" value="' + esc(s.qris || '') + '">' +
+      '<b class="small">Transfer bank</b>' + fq('rek_bca', 'Bank BCA', 'nomor rekening a.n. ...') + fq('rek_mandiri', 'Bank Mandiri', 'nomor rekening a.n. ...') + fq('rek_bri', 'Bank BRI', 'nomor rekening a.n. ...') + fq('rek_bni', 'Bank BNI', 'nomor rekening a.n. ...') + fq('rek_bsi', 'Bank BSI', 'nomor rekening a.n. ...') +
+      '<b class="small">E-wallet</b>' + fq('dana', 'DANA', 'nomor a.n. ...') + fq('ovo', 'OVO', 'nomor a.n. ...') + fq('gopay', 'GoPay', 'nomor a.n. ...') + fq('linkaja', 'LinkAja', 'nomor a.n. ...') + fq('shopeepay', 'ShopeePay', 'nomor a.n. ...') +
+      f('batas_bayar_jam', 'Batas waktu bayar (jam)', 'pesanan belum dibayar batal otomatis bila lewat', 'numeric') + f('batas_konfirmasi_jam', 'Batas konfirmasi ketersediaan (jam)', 'mitra / driver / persetujuan admin; batal otomatis bila lewat', 'numeric') + f('maks_hari', 'Maksimal sewa harian (hari)', 'lebih dari ini = bulanan', 'numeric') + '</div>' +
       '<div class="card stack"><h3>Sistem poin</h3>' + f('poin_per_rp', 'Transaksi per 1 poin (Rp)', 'default 1000 → Rp1.000 = 1 poin', 'numeric') + f('poin_min_tukar', 'Minimal penukaran (poin)', '1 poin = Rp1', 'numeric') + f('poin_maks_persen', 'Maksimal potongan (%)', 'dari total transaksi', 'decimal') + '</div>' +
       '<div class="card stack"><h3>Layanan & tampilan</h3>' + f('bandara', 'Daftar bandara', 'pisahkan dengan ;') + f('outlet', 'Lokasi outlet', 'Nama=alamat;Nama2=alamat2', 'area') + f('promo', 'Banner promo', 'Judul=keterangan;Judul2=keterangan2', 'area') +
       f('kota', 'Kota layanan', 'pisahkan dengan ;') + f('jam_layanan', 'Jam layanan') + '</div>' +
@@ -2848,6 +2975,23 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     if (bai) { bai.oninput = contoh; contoh(); }
     peDraw();
     document.getElementById('pe-add').onclick = function () { peForm(-1); };
+    app.querySelectorAll('[data-qr]').forEach(function (x) {
+      x.onclick = function () {
+        var k = 'qr_' + x.dataset.qr, cur = S.d.pengaturan[k] || '';
+        function unggah() {
+          V.pickPhotos(1).then(function (list) {
+            if (!list.length) return; V.busy(x, true, '...');
+            return V.api('adminUploadFoto', { pin: S.pin, data: list[0] }).then(function (r) { var nv = {}; nv[k] = r.url; return V.api('adminPengaturan', { pin: S.pin, nilai: nv }).then(function () { S.d.pengaturan[k] = r.url; V.toast('QR tersimpan & langsung tampil di pembayaran penyewa.'); renderAtur(); }); })
+              .catch(function (e) { V.busy(x, false); V.toast(e.message, true); });
+          });
+        }
+        if (!cur) return unggah();
+        V.sheet('<h2>QR ' + esc(x.dataset.qr.replace('rek_', '').toUpperCase()) + '</h2><img src="' + esc(cur) + '" style="max-width:100%;max-height:50vh;object-fit:contain;display:block;margin:0 auto"><button class="btn block" id="qg">Ganti gambar QR</button><button class="btn ghost block" id="qh" style="color:var(--red)">Hapus QR</button>', function (el) {
+          el.querySelector('#qg').onclick = function () { V.closeSheet(); unggah(); };
+          el.querySelector('#qh').onclick = function () { var nv = {}; nv[k] = ''; V.api('adminPengaturan', { pin: S.pin, nilai: nv }).then(function () { S.d.pengaturan[k] = ''; V.closeSheet(); V.toast('QR dihapus.'); renderAtur(); }).catch(function (e) { V.toast(e.message, true); }); };
+        });
+      };
+    });
     var qu = document.getElementById('qr-up'), qd = document.getElementById('qr-del');
     if (qu) qu.onclick = function () {
       V.pickPhotos(1).then(function (list) {
