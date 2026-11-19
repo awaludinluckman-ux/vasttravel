@@ -498,6 +498,25 @@ body.ro .adm { display: none !important; }
 .evdots { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
 .evdots i { width: 7px; height: 7px; border-radius: 50%; background: #c9d6cf; transition: .2s; }
 .evdots i.on { width: 20px; border-radius: 4px; background: var(--g500); }
+/* Minta Antar */
+.antmap { height: 300px; background: var(--g50); }
+.anttik { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 12px; border: 1.5px solid transparent; }
+.anttik.on { border-color: var(--g500); background: var(--g50); }
+.anttik .dot { flex: none; width: 24px; height: 24px; border-radius: 50%; color: #fff; font: 800 12px var(--f-body); display: grid; place-items: center; margin-top: 18px; }
+.antres { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.antopt { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 8px 10px; font: 600 12.5px var(--f-body); color: var(--ink); cursor: pointer; }
+.antpin { width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); display: grid; place-items: center; color: #fff; font: 800 13px sans-serif; margin: -30px 0 0 -15px; }
+.antpin span { transform: rotate(45deg); }
+.rute { display: flex; flex-direction: column; gap: 4px; }
+.rute .rt { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.rute .rt i { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; }
+.tktab { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tktab th { text-align: left; font: 700 11.5px var(--f-body); color: var(--muted); padding: 4px; }
+.tktab td { padding: 3px 4px; }
+.tktab input[inputmode] { width: 100%; min-width: 74px; padding: 8px; border: 1.5px solid var(--line); border-radius: 10px; font: 600 13px var(--f-body); }
+.anttik input[name=q] { padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; font: 600 14px var(--f-body); background: var(--card); color: var(--ink); }
+.anttik input[name=q]:focus { outline: none; border-color: var(--g500); }
+.antmap .leaflet-container, .antmap.leaflet-container { font: inherit; }
 
 </style>
 </head>
@@ -542,7 +561,7 @@ var VR_TABLES = {
     'lokasi', 'tujuan', 'catatan', 'tarif', 'total', 'komisi', 'bagian_pemilik', 'metode', 'bayar_lapor', 'status', 'unit_siap',
     'driver', 'payout', 'payout_waktu', 'riwayat', 'diubah', 'tipe', 'jenis_unit', 'penumpang', 'bandara', 'harga_waktu',
     'diskon_poin', 'bayar', 'poin_didapat', 'biaya_driver', 'bagian_driver', 'mitra_ok', 'driver_ok', 'payout_driver', 'payout_driver_waktu',
-    'terima_waktu', 'alasan', 'sembunyi'],
+    'terima_waktu', 'alasan', 'sembunyi', 'jarak', 'titik', 'driver_tolak', 'unit_tolak'],
   Notif: ['id', 'waktu', 'untuk', 'judul', 'isi', 'ref'],
   Poin: ['id', 'waktu', 'hp', 'delta', 'booking_id', 'ket'],
   Pengaturan: ['kunci', 'nilai'],
@@ -565,9 +584,10 @@ var VR_DEFAULTS = {
   bandara: 'Juanda Surabaya (SUB);Abdulrachman Saleh Malang (MLG);Dhoho Kediri (DHX)',
   outlet: 'Outlet Vast Travel Malang=Kota Malang',
   promo: 'Sewa Mobil Listrik Lebih Hemat!=Kumpulkan poin tiap transaksi;Antar Jemput Bandara=Harga sesuai rute;Tour Wisata Malang Raya=Tanya harga paket',
-  poin_per_rp: '1000', poin_min_tukar: '1000', poin_maks_persen: '50'
+  poin_per_rp: '1000', poin_min_tukar: '1000', poin_maks_persen: '50',
+  tarif_km: '', fee_antar: '10', bagi_supir_antar: '60', faktor_jalan: '1.3', antar_maks_km: '150'
 };
-var VR_EMPTY_OK = ['musim_libur', 'promo_event', 'qris', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'driver', 'promo', 'outlet'];
+var VR_EMPTY_OK = ['tarif_km', 'musim_libur', 'promo_event', 'qris', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'driver', 'promo', 'outlet'];
 /* Gambar QR per metode bayar (QR DANA, GoPay, dll.) diunggah pengelola: kunci "qr_<set>" */
 var VR_QR_KEYS = ['qr_rek_bca', 'qr_rek_mandiri', 'qr_rek_bri', 'qr_rek_bni', 'qr_rek_bsi', 'qr_dana', 'qr_ovo', 'qr_gopay', 'qr_linkaja', 'qr_shopeepay'];
 VR_EMPTY_OK = VR_EMPTY_OK.concat(VR_QR_KEYS);
@@ -664,6 +684,45 @@ function vrHargaPeriode(hFinal, hMitra, mulai, durasi, app) {
   }
   return { final: f, mitra: Math.min(m, f), hari: hari, naik: naik };
 }
+/* ---------- Minta Antar: tarif per km per kategori kendaraan ---------- */
+var VR_TARIF_KM = {
+  motor: { dasar: 5000, km: 2500, min: 10000 }, mobil5: { dasar: 10000, km: 4000, min: 25000 }, mobil7: { dasar: 12000, km: 5000, min: 30000 },
+  mobil9: { dasar: 15000, km: 6000, min: 40000 }, niaga: { dasar: 15000, km: 5500, min: 40000 }
+};
+var VR_FEE_ANTAR_MOTOR_MAKS = 8; /* ojek online: potongan aplikasi maks 8% (Perpres 27/2026 & Kepmenhub) */
+function vrTarifKm(v) {
+  var a = v;
+  if (typeof a === 'string') { try { a = JSON.parse(a || '{}'); } catch (e) { a = {}; } }
+  a = a && typeof a === 'object' ? a : {};
+  var o = {};
+  Object.keys(VR_TARIF_KM).forEach(function (j) {
+    var d = VR_TARIF_KM[j], x = a[j] || {}, g = function (k) { var n = Math.round(Number(x[k])); return isFinite(n) && n >= 0 && String(x[k] === undefined ? '' : x[k]) !== '' ? n : d[k]; };
+    o[j] = { dasar: g('dasar'), km: g('km'), min: g('min'), aktif: x.aktif === undefined ? true : !!x.aktif };
+  });
+  return o;
+}
+function vrHaversine(a, b) {
+  var R = 6371, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+  var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+/* Jarak tempuh perkiraan = jarak garis lurus antar titik x faktor jalan, dibulatkan 0,1 km */
+function vrJarak(titik, faktor) {
+  var t = 0; for (var i = 1; i < (titik || []).length; i++) t += vrHaversine(titik[i - 1], titik[i]);
+  return Math.round(t * (Number(faktor) || 1.3) * 10) / 10;
+}
+function vrFeeAntar(app, jenis) { var f = Math.max(0, Math.min(100, Number(app.fee_antar) || 0)); return jenis === 'motor' ? Math.min(f, VR_FEE_ANTAR_MOTOR_MAKS) : f; }
+/* Harga Minta Antar. app: {tarif_km, fee_antar, bagi_supir_antar, tarif_weekend, musim_libur}
+   dasar = tarif dasar + km x tarif per km (min. tarif minimum) -> bagian mitra (supir + pemilik unit); total = dasar + fee pengelola, dibulatkan ke Rp1.000 */
+function vrHargaAntar(app, jenis, km, tgl) {
+  var T = vrTarifKm(app.tarif_km)[jenis];
+  if (!T) return null;
+  var dasar = Math.max(T.min, Math.round(T.dasar + T.km * Math.max(0, Number(km) || 0))), fee = vrFeeAntar(app, jenis);
+  var final = vrHargaFinal(dasar, fee), p = tgl ? vrHargaPeriode(final, dasar, tgl, 1, app) : { final: final, mitra: dasar, naik: [] };
+  var bagi = Math.max(0, Math.min(100, Number(app.bagi_supir_antar === undefined || app.bagi_supir_antar === '' ? 60 : app.bagi_supir_antar)));
+  var supir = Math.round(p.mitra * bagi / 100);
+  return { tarif: T, km: Math.round((Number(km) || 0) * 10) / 10, dasar: dasar, fee: fee, total: p.final, mitra: p.mitra, supir: supir, pemilik: p.mitra - supir, komisi: p.final - p.mitra, naik: p.naik };
+}
 function vrHargaFinal(hargaMitra, persen) {
   hargaMitra = Math.round(Number(hargaMitra) || 0);
   if (hargaMitra <= 0) return 0;
@@ -674,7 +733,8 @@ var VR_LAYANAN = {
   lepas: { label: 'Lepas kunci', ket: 'Kemudikan sendiri. Khusus member terverifikasi.', tipe: 'harian' },
   bandara: { label: 'Antar Bandara', ket: 'Antar / jemput bandara dengan driver. Harga ditentukan pengelola sesuai rute.', tipe: 'trip' },
   citytour: { label: 'City Tour', ket: 'Keliling dalam kota dengan driver. Harga ditentukan pengelola.', tipe: 'trip' },
-  wisata: { label: 'Tour Wisata', ket: 'Kunjungi spot wisata pilihan. Harga ditentukan pengelola sesuai jarak & jumlah titik.', tipe: 'trip' }
+  wisata: { label: 'Tour Wisata', ket: 'Kunjungi spot wisata pilihan. Harga ditentukan pengelola sesuai jarak & jumlah titik.', tipe: 'trip' },
+  antar: { label: 'Minta Antar', ket: 'Antar ke titik tujuan Anda dengan supir Vast Travel. Tarif dihitung per km.', tipe: 'antar' }
 };
 var VR_STATUS_LABEL = {
   menunggu_harga: 'Menunggu harga', menunggu_mitra: 'Cek ketersediaan', menunggu_setuju: 'Menunggu persetujuan', menunggu_bayar: 'Menunggu pembayaran', lunas: 'Lunas, terkonfirmasi', berjalan: 'Sedang berjalan',
@@ -753,7 +813,7 @@ function vrCreateLogic(store) {
   function tarifOf(s, jenis) { return num(s[(VR_JENIS[jenis] || VR_JENIS.mobil5).tarifKey]); }
   function komisiOf(s) { var k = num(s.komisi); return k >= 0 && k < 100 ? k : 15; }
   function biayaAdminOf(s) { var k = num(s.biaya_admin); return k >= 0 && k <= 100 ? k : 10; }
-  function appHarga(s) { return { tarif_weekend: num(s.tarif_weekend), musim_libur: s.musim_libur }; }
+  function appHarga(s) { return { tarif_weekend: num(s.tarif_weekend), musim_libur: s.musim_libur, tarif_km: s.tarif_km, fee_antar: s.fee_antar, bagi_supir_antar: s.bagi_supir_antar }; }
   function biayaDriverOf(s) { if (String(s.biaya_driver || '') === '') return biayaAdminOf(s); var k = num(s.biaya_driver); return k >= 0 && k <= 100 ? k : biayaAdminOf(s); }
   /* Harga per hari sebuah unit: mitra = harga yang diisi pemilik; final = yang dibayar penyewa (sudah termasuk biaya layanan).
      Unit lama yang belum diisi harganya memakai tarif standar pengelola (sudah final). */
@@ -813,6 +873,11 @@ function vrCreateLogic(store) {
     o.tarif_weekend = Math.max(0, Math.round(num(s.tarif_weekend)));
     o.musim_libur = vrMusimList(s.musim_libur).filter(function (m) { return m.selesai >= vrToday(); });
     o.promo_event = promoEvent(s).filter(function (p) { return p.aktif; }).slice(0, 5);
+    o.tarif_km = vrTarifKm(s.tarif_km);
+    o.fee_antar = num(s.fee_antar);
+    o.bagi_supir_antar = String(s.bagi_supir_antar) === '' ? 60 : num(s.bagi_supir_antar);
+    o.faktor_jalan = num(s.faktor_jalan) || 1.3;
+    o.antar_maks_km = num(s.antar_maks_km) || 150;
     o.kota = vrList(s.kota);
     o.bandara = vrList(s.bandara);
     o.outlet = vrParsePairs(s.outlet).map(function (z) { return { nama: z.nama, alamat: z.nilai }; });
@@ -879,6 +944,7 @@ function vrCreateLogic(store) {
       unit_siap: yes(b.unit_siap), driver: b.driver, payout: b.payout === 'sudah' ? 'sudah' : 'belum', payout_waktu: String(b.payout_waktu || ''),
       harga_waktu: String(b.harga_waktu || ''), biaya_driver: num(b.biaya_driver), bagian_driver: num(b.bagian_driver),
       mitra_ok: String(b.mitra_ok || ''), driver_ok: String(b.driver_ok || ''), payout_driver: b.payout_driver === 'sudah' ? 'sudah' : 'belum',
+      jarak: num(b.jarak), titik: parseJson(b.titik, []) || [],
       payout_driver_waktu: String(b.payout_driver_waktu || ''), arsip: tersembunyi(b, 'admin'), terima_waktu: String(b.terima_waktu || ''), alasan: String(b.alasan || ''), riwayat: parseJson(b.riwayat, []), diubah: String(b.diubah)
     };
   }
@@ -888,7 +954,8 @@ function vrCreateLogic(store) {
     return { id: o.id, waktu: o.waktu, unit_id: o.unit_id, unit: o.unit, tnkb: o.tnkb, layanan: o.layanan, tipe: o.tipe, tgl_mulai: o.tgl_mulai,
       durasi: o.durasi, tgl_selesai: o.tgl_selesai, jam: o.jam, total: nilai, komisi: nilai - o.bagian_pemilik, bagian_pemilik: o.bagian_pemilik,
       status: o.status, unit_siap: o.unit_siap, driver: o.driver, payout: o.payout, payout_waktu: o.payout_waktu, kota: o.unit ? o.unit.kota : '',
-      mitra_ok: o.mitra_ok, bayar_lapor: o.bayar_lapor, arsip: tersembunyi(b, 'pemilik'), terima_waktu: o.terima_waktu, harga_waktu: o.harga_waktu, alasan: o.alasan, lokasi: o.lokasi };
+      mitra_ok: o.mitra_ok, bayar_lapor: o.bayar_lapor, arsip: tersembunyi(b, 'pemilik'), terima_waktu: o.terima_waktu, harga_waktu: o.harga_waktu, alasan: o.alasan, lokasi: o.lokasi,
+      tujuan: o.layanan === 'antar' ? o.tujuan : '', jarak: o.jarak, titik: o.layanan === 'antar' ? o.titik : [], jenis_unit: o.jenis_unit, penumpang: o.penumpang };
   }
 
   /* Hapus order dari daftar (per peran). Data tetap tersimpan untuk laporan & keuangan. */
@@ -917,13 +984,13 @@ function vrCreateLogic(store) {
   }
   var VR_KUNCI = ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar', 'lunas', 'berjalan'];
   function mengunci(b, s) {
-    if (!b.unit_id || VR_KUNCI.indexOf(b.status) < 0) return false;
+    if (!b.unit_id || VR_KUNCI.indexOf(b.status) < 0 || String(b.layanan) === 'antar') return false;
     return !kedaluwarsa(b, s);
   }
   function driverSibuk(nama, mulai, selesai, kecualiId, s) {
     nama = String(nama || '').toLowerCase(); if (!nama) return false;
     return store.all('Booking').some(function (b) {
-      return String(b.driver || '').toLowerCase() === nama && String(b.id) !== String(kecualiId || '') && VR_KUNCI.indexOf(b.status) >= 0 && !kedaluwarsa(b, s) &&
+      return String(b.driver || '').toLowerCase() === nama && String(b.id) !== String(kecualiId || '') && String(b.layanan) !== 'antar' && VR_KUNCI.indexOf(b.status) >= 0 && !kedaluwarsa(b, s) &&
         vrOverlap(mulai, selesai, vrDateKey(b.tgl_mulai), vrDateKey(b.tgl_selesai));
     });
   }
@@ -965,7 +1032,7 @@ function vrCreateLogic(store) {
     var s = settings(), dur = Math.max(1, num(b.durasi)), d = namaDriver ? driverByNama(s, namaDriver) : null;
     var hd = hargaDriver(s, d), trip = (b.tipe || (VR_LAYANAN[b.layanan] || {}).tipe) === 'trip';
     var patch = { driver: d ? d.nama : txt(namaDriver, 80) };
-    if (!butuhDriver(b)) return patch;
+    if (!butuhDriver(b) || String(b.layanan) === 'antar') return patch;
     var biaya = num(b.biaya_driver), total = num(b.total), bp = num(b.bagian_pemilik);
     var pd = vrHargaPeriode(hd.final, hd.mitra, vrDateKey(b.tgl_mulai), dur, appHarga(s));
     if (ubahTotal && !trip) { biaya = pd.final; total = total - num(b.biaya_driver) + biaya; }
@@ -984,15 +1051,64 @@ function vrCreateLogic(store) {
     if (!b || b.status !== 'menunggu_mitra') return bookingOut(b);
     if (b.mitra_ok !== 'ya') return bookingOut(b);
     if (butuhDriver(b) && (!b.driver || b.driver_ok !== 'ya')) return bookingOut(b);
-    var o = changeStatus(b, 'menunggu_setuju', oleh);
-    if (String(b.bayar_lapor || '')) notify('admin', 'Siap divalidasi', 'Unit' + (butuhDriver(b) ? ' & driver' : '') + ' tersedia dan penyewa sudah membayar ' + b.id + ' (' + b.nama + '). Validasi pembayaran.', b.id); else
-    notify('admin', 'Siap disetujui', 'Unit' + (butuhDriver(b) ? ' & driver' : '') + ' tersedia untuk ' + b.id + ' (' + b.nama + '). Setujui order.', b.id);
-    notifPerental(b, 'Unit tersedia', 'Mitra mengonfirmasi ketersediaan ' + unitLabel(b) + ' (' + b.id + ').' + (String(b.bayar_lapor || '') ? ' Pembayaran Anda segera divalidasi.' : ' Silakan bayar agar segera diproses.'));
+    /* Mitra (dan supir) sudah menerima: order langsung lanjut ke pembayaran. Pengelola menerima laporan dan tetap bisa menolak / membatalkan. */
+    var sudah = String(b.bayar_lapor || ''), sp = butuhDriver(b) ? ' & supir ' + b.driver : '';
+    var o = changeStatus(b, 'menunggu_bayar', oleh, { harga_waktu: nowIso() });
+    notify('admin', 'Laporan: order diterima mitra', 'Mitra' + sp + ' menerima ' + b.id + ' (' + b.nama + ', ' + ringkas(b) + ', ' + rp(num(b.total)) + '). ' +
+      (sudah ? 'Penyewa sudah membayar - validasi pembayaran.' : 'Menunggu pembayaran penyewa.') + ' Anda tetap bisa menolak / membatalkan order.', b.id);
+    notifPerental(b, 'Order diterima', 'Mitra' + sp + ' menerima order ' + b.id + '.' + (sudah ? ' Pembayaran Anda sedang divalidasi.' : ' Silakan bayar ' + rp(num(b.total) - num(b.diskon_poin)) + ' agar segera diproses.'));
+    notifPemilik(b, 'Order terkonfirmasi', unitLabel(b) + ' (' + b.id + ') terkonfirmasi, ' + (sudah ? 'pembayaran sedang divalidasi.' : 'menunggu pembayaran penyewa.'));
+    if (b.driver) notifDriver(b, 'Order terkonfirmasi', 'Order ' + b.id + ' terkonfirmasi, ' + (sudah ? 'pembayaran sedang divalidasi.' : 'menunggu pembayaran penyewa.'));
     return o;
   }
-  function mintaKonfirmasi(b) {
-    notifPemilik(b, 'Order baru - cek ketersediaan', unitLabel(b) + ', ' + vrDateKey(b.tgl_mulai) + ' (' + num(b.durasi) + ' hari). Konfirmasi tersedia / tidak.');
-    if (b.driver) notifDriver(b, 'Order baru - konfirmasi', 'Anda dipilih untuk ' + b.id + ', ' + vrDateKey(b.tgl_mulai) + ' (' + num(b.durasi) + ' hari). Konfirmasi siap / tidak.');
+  function tglWib(iso) { var t = Date.parse(iso); return isFinite(t) ? new Date(t + 7 * 3600000).toISOString().slice(0, 10) : vrDateKey(iso); }
+  function rentangRekap(req) {
+    var dari = vrDateKey(req.dari), sampai = vrDateKey(req.sampai), basis = req.basis === 'jadwal' ? 'jadwal' : 'order';
+    if (!dari || !sampai) fail('Pilih rentang tanggal rekap.');
+    if (sampai < dari) fail('Tanggal akhir harus setelah tanggal awal.');
+    if (vrAddDays(dari, 370) < sampai) fail('Rentang rekap maksimal 1 tahun.');
+    return { dari: dari, sampai: sampai, basis: basis };
+  }
+  function dalamRentang(b, r) { var t = r.basis === 'jadwal' ? vrDateKey(b.tgl_mulai) : tglWib(b.waktu); return t >= r.dari && t <= r.sampai; }
+  function barisRekap(b, untuk) {
+    var o = bookingOut(b), u = o.unit, lunas = ['lunas', 'berjalan', 'selesai'].indexOf(o.status) >= 0;
+    var x = { id: o.id, tgl_order: tglWib(o.waktu), tgl_mulai: o.tgl_mulai, durasi: o.durasi, jam: o.jam, layanan: (VR_LAYANAN[o.layanan] || {}).label || o.layanan,
+      unit: u ? (u.merk + ' ' + u.model) : (VR_JENIS[o.jenis_unit] || {}).pendek || '-', tnkb: o.tnkb || '', status: o.status, status_label: VR_STATUS_LABEL[o.status] || o.status,
+      lunas: lunas, jarak: o.jarak, driver: o.driver || '', bagian_pemilik: o.bagian_pemilik, payout: o.payout, payout_waktu: o.payout_waktu };
+    if (untuk === 'pemilik') { x.nilai = o.total - o.biaya_driver; x.komisi = x.nilai - o.bagian_pemilik; return x; }
+    x.nama = o.nama; x.hp = o.hp; x.total = o.total; x.diskon_poin = o.diskon_poin; x.bayar = o.bayar; x.metode = o.metode || ''; x.komisi = o.komisi;
+    x.bagian_driver = o.bagian_driver; x.payout_driver = o.payout_driver; x.pemilik_id = o.pemilik_id;
+    return x;
+  }
+  function ringkas(b) {
+    if (String(b.layanan) === 'antar') return 'Minta Antar ' + String(num(b.jarak)).replace('.', ',') + ' km, ' + vrDateKey(b.tgl_mulai) + (b.jam ? ' ' + b.jam : '') + ' dari ' + txt(b.lokasi, 60);
+    return (VR_LAYANAN[b.layanan] || {}).label + ', ' + vrDateKey(b.tgl_mulai) + ' (' + num(b.durasi) + ' hari)';
+  }
+  function mintaKonfirmasi(b, hanyaPemilik) {
+    notifPemilik(b, String(b.layanan) === 'antar' ? 'Order Minta Antar - terima / tolak' : 'Order baru - cek ketersediaan', unitLabel(b) + ' · ' + ringkas(b) + '. Konfirmasi terima / tolak di aplikasi.');
+    if (hanyaPemilik) return;
+    if (b.driver) notifDriver(b, 'Order baru - terima / tolak', 'Anda dipilih untuk ' + b.id + ': ' + ringkas(b) + '. Pendapatan Anda ' + rp(num(b.bagian_driver)) + '. Konfirmasi di aplikasi.');
+    else if (butuhDriver(b)) tawarkanDriver(b);
+  }
+  function daftarTolak(v) { return String(v || '').split('|').map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean); }
+  /* Order tanpa supir pilihan: ditawarkan ke semua supir yang bisa; supir pertama yang mengambil mendapat order */
+  function tawarkanDriver(b) {
+    var s = settings(), tolak = daftarTolak(b.driver_tolak), mulai = vrDateKey(b.tgl_mulai), selesai = vrDateKey(b.tgl_selesai);
+    drivers(s).forEach(function (d) {
+      if (!d.wa || tolak.indexOf(d.nama.toLowerCase()) >= 0) return;
+      if (String(b.layanan) !== 'antar' && driverSibuk(d.nama, mulai, selesai, b.id, s)) return;
+      notify('D:' + d.wa, 'Order tersedia - ambil sekarang', ringkas(b) + '. Pendapatan ' + rp(num(b.bagian_driver)) + '. Buka mode Supir lalu ketuk "Ambil".', b.id);
+    });
+  }
+  function pilihUnitAntar(jenis, tgl, kecuali, s) {
+    var hari = {};
+    store.all('Booking').forEach(function (b) { if (String(b.layanan) === 'antar' && vrDateKey(b.tgl_mulai) === tgl && VR_KUNCI.indexOf(b.status) >= 0) hari[b.unit_id] = (hari[b.unit_id] || 0) + 1; });
+    var L = store.all('Unit').filter(function (u) {
+      if (!unitAktif(u) || u.jenis !== jenis || (kecuali || []).indexOf(String(u.id)) >= 0) return false;
+      var p = byId('Pemilik', u.pemilik_id);
+      return p && p.status === 'aktif' && !bentrok(u.id, tgl, vrAddDays(tgl, 1), '', s);
+    }).sort(function (a, b) { return (hari[a.id] || 0) - (hari[b.id] || 0) || (String(a.id) < String(b.id) ? -1 : 1); });
+    return L[0] || null;
   }
 
   /* ---------- Poin ---------- */
@@ -1254,6 +1370,58 @@ function vrCreateLogic(store) {
       notify('admin', 'Permintaan ' + VR_LAYANAN[layanan].label, P.nama + ', ' + mulai + ' - tentukan harga (' + id + ')', id);
       return { booking: bookingOut(findBooking(id)) };
     },
+    /* Minta Antar: antar ke titik tujuan, tarif per km per kategori kendaraan (diatur pengelola) */
+    buatAntar: function (req) {
+      var s = settings(), app = appHarga(s), jenis = String(req.jenis_unit || ''), TK = vrTarifKm(s.tarif_km);
+      if (!TK[jenis] || !TK[jenis].aktif) fail('Pilih jenis kendaraan.');
+      var P = perentalDari(req);
+      var raw = Array.isArray(req.titik) ? req.titik : parseJson(req.titik, []);
+      var titik = (Array.isArray(raw) ? raw : []).slice(0, 5).map(function (t) {
+        return { lat: Math.round(num(t && t.lat) * 1e6) / 1e6, lng: Math.round(num(t && t.lng) * 1e6) / 1e6, nama: txt(t && t.nama, 160) };
+      });
+      if (titik.length < 2) fail('Tentukan titik jemput dan tujuan di peta.');
+      titik.forEach(function (t, i) {
+        if (!t.lat || !t.lng || Math.abs(t.lat) > 90 || Math.abs(t.lng) > 180) fail((i ? (i === titik.length - 1 ? 'Titik tujuan' : 'Titik singgah ' + i) : 'Titik jemput') + ' belum ditentukan di peta.');
+        if (!t.nama) t.nama = t.lat.toFixed(5) + ', ' + t.lng.toFixed(5);
+      });
+      var km = vrJarak(titik, num(s.faktor_jalan) || 1.3), maks = num(s.antar_maks_km) || 150;
+      if (km < 0.3) fail('Titik jemput dan tujuan terlalu dekat.');
+      if (km > maks) fail('Jarak ' + String(km).replace('.', ',') + ' km melebihi batas Minta Antar (' + maks + ' km). Gunakan sewa harian dengan driver.');
+      var tgl = vrDateKey(req.tgl_mulai) || vrToday();
+      if (tgl < vrToday()) fail('Tanggal tidak boleh sebelum hari ini.');
+      var jam = txt(req.jam, 10); if (!jam) fail('Isi jam penjemputan.');
+      var pen = Math.max(1, Math.floor(num(req.penumpang)) || 1), kap = jenis === 'motor' ? 1 : VR_JENIS[jenis].kapasitas;
+      if (pen > kap) fail('Jumlah penumpang melebihi kapasitas ' + VR_JENIS[jenis].pendek + ' (maks ' + kap + ').');
+      var u;
+      if (txt(req.unit_id, 20)) {
+        u = findUnit(req.unit_id);
+        var pm = u ? byId('Pemilik', u.pemilik_id) : null;
+        if (!unitAktif(u) || u.jenis !== jenis || !pm || pm.status !== 'aktif') fail('Unit tidak tersedia. Pilih unit lain atau Otomatis.');
+        if (bentrok(u.id, tgl, vrAddDays(tgl, 1), '', s)) fail('Unit sedang disewa di tanggal tersebut. Pilih unit lain atau Otomatis.');
+      } else {
+        u = pilihUnitAntar(jenis, tgl, [], s);
+        if (!u) fail('Belum ada ' + VR_JENIS[jenis].pendek + ' yang tersedia di tanggal tersebut. Coba jenis kendaraan lain.');
+      }
+      var drv = null;
+      if (txt(req.driver, 80)) { drv = driverByNama(s, req.driver); if (!drv) fail('Supir tidak ditemukan. Pilih supir lain atau Terdekat.'); }
+      var h = vrHargaAntar(app, jenis, km, tgl), id = newBookingId();
+      var tujuan = titik.slice(1).map(function (t, i, a) { return (i === a.length - 1 ? 'Tujuan: ' : 'Singgah ' + (i + 1) + ': ') + t.nama; }).join('\n');
+      store.insert('Booking', {
+        id: id, waktu: nowIso(), unit_id: String(u.id), pemilik_id: String(u.pemilik_id), member_id: P.member ? String(P.member.id) : '',
+        nama: P.nama, hp: P.hp, layanan: 'antar', tipe: 'antar', jenis_unit: jenis, penumpang: pen, bandara: '',
+        tgl_mulai: tgl, durasi: 1, tgl_selesai: vrAddDays(tgl, 1), jam: jam,
+        lokasi: titik[0].nama, tujuan: tujuan, catatan: txt(req.catatan, 300), tarif: h.total, total: h.total, komisi: h.komisi,
+        bagian_pemilik: h.pemilik, diskon_poin: 0, bayar: h.total, poin_didapat: 0, metode: '', bayar_lapor: '', status: 'menunggu_mitra',
+        unit_siap: 'tidak', driver: drv ? drv.nama : '', payout: 'belum', payout_waktu: '', harga_waktu: nowIso(),
+        biaya_driver: h.supir, bagian_driver: h.supir, mitra_ok: '', driver_ok: '', payout_driver: 'belum', payout_driver_waktu: '', terima_waktu: '', alasan: '',
+        jarak: h.km, titik: JSON.stringify(titik), driver_tolak: '', unit_tolak: '',
+        riwayat: JSON.stringify([{ s: 'menunggu_mitra', t: nowIso(), oleh: 'perental' }]), diubah: nowIso()
+      });
+      var nb = findBooking(id);
+      notify('admin', 'Order Minta Antar', P.nama + ' - ' + VR_JENIS[jenis].pendek + ', ' + String(h.km).replace('.', ',') + ' km, total ' + rp(h.total) + (drv ? ', supir ' + drv.nama : ', supir terdekat') + ' (' + id + ')', id);
+      mintaKonfirmasi(nb);
+      return { booking: bookingOut(findBooking(id)) };
+    },
     pakaiPoin: function (req) {
       var m = authMember(req), b = findBooking(req.id), app = publicApp();
       if (!b || vrNormWa(b.hp) !== vrNormWa(m.wa)) fail('Booking tidak ditemukan.');
@@ -1348,15 +1516,40 @@ function vrCreateLogic(store) {
         var x = { id: o.id, waktu: o.waktu, unit: o.unit, tnkb: o.tnkb, layanan: o.layanan, tipe: o.tipe, jenis_unit: o.jenis_unit, penumpang: o.penumpang, bandara: o.bandara,
           tgl_mulai: o.tgl_mulai, durasi: o.durasi, tgl_selesai: o.tgl_selesai, jam: o.jam, lokasi: o.lokasi, tujuan: o.tujuan, catatan: o.catatan, status: o.status,
           bayar_lapor: o.bayar_lapor, unit_siap: o.unit_siap, driver: o.driver, driver_ok: o.driver_ok, bagian_driver: o.bagian_driver, payout_driver: o.payout_driver,
-          payout_driver_waktu: o.payout_driver_waktu, nama: o.nama, hp: awal ? '' : o.hp };
+          payout_driver_waktu: o.payout_driver_waktu, nama: o.nama, hp: awal ? '' : o.hp, jarak: o.jarak, titik: o.titik, total: o.total };
         return x;
       }
+      var tawaran = store.all('Booking').filter(function (b) {
+        if (!butuhDriver(b) || String(b.driver || '') || ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar', 'lunas'].indexOf(b.status) < 0) return false;
+        if (kedaluwarsa(b, s) || vrDateKey(b.tgl_mulai) < vrToday() || daftarTolak(b.driver_tolak).indexOf(d.nama.toLowerCase()) >= 0) return false;
+        return String(b.layanan) === 'antar' || !driverSibuk(d.nama, vrDateKey(b.tgl_mulai), vrDateKey(b.tgl_selesai), b.id, s);
+      }).map(out).sort(function (a, b) { return (a.tgl_mulai + a.jam) < (b.tgl_mulai + b.jam) ? -1 : 1; });
       var mine = store.all('Booking').filter(function (b) { return String(b.driver).toLowerCase() === d.nama.toLowerCase(); });
       var tugas = mine.filter(function (b) { return VR_KUNCI.indexOf(b.status) >= 0 && !kedaluwarsa(b, s); })
         .map(out).sort(function (a, b) { return a.tgl_mulai < b.tgl_mulai ? -1 : 1; });
       var lalu = mine.filter(function (b) { return b.status === 'selesai'; }).slice(-10).reverse().map(out);
       return { driver: { nama: d.nama, wa: d.wa, tarif: d.tarif, harga_mitra: hd.mitra, harga_final: hd.final, standar: !hd.dariMitra },
-        biaya_admin: biayaDriverOf(s), tugas: tugas, selesai: lalu, admin_wa: vrNormWa(s.admin_wa) };
+        biaya_admin: biayaDriverOf(s), tugas: tugas, selesai: lalu, tawaran: tawaran, admin_wa: vrNormWa(s.admin_wa) };
+    },
+    /* Supir mengambil order yang ditawarkan (tanpa supir pilihan). Supir pertama yang mengambil mendapat order. */
+    driverAmbil: function (req) {
+      var d = authDriver(req), s = settings(), b = findBooking(req.id);
+      if (!b) fail('Order tidak ditemukan.');
+      if (String(b.driver || '')) fail(String(b.driver).toLowerCase() === d.nama.toLowerCase() ? 'Order ini sudah Anda ambil.' : 'Order sudah diambil supir lain.');
+      if (!butuhDriver(b) || ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar', 'lunas'].indexOf(b.status) < 0 || kedaluwarsa(b, s)) fail('Order ini sudah tidak tersedia.');
+      if (String(b.layanan) !== 'antar' && driverSibuk(d.nama, vrDateKey(b.tgl_mulai), vrDateKey(b.tgl_selesai), b.id, s)) fail('Anda sudah ada jadwal di tanggal tersebut.');
+      addRiwayat(b, 'driver_ambil', 'driver ' + d.nama, { driver: d.nama, driver_ok: 'ya' });
+      notify('admin', 'Supir mengambil order', d.nama + ' mengambil ' + b.id + ' (' + ringkas(b) + ').', b.id);
+      notifPerental(b, 'Supir ditemukan', 'Supir Anda untuk ' + b.id + ': ' + d.nama + '.');
+      cekKonfirmasi(b.id, 'driver ' + d.nama);
+      return { ok: true };
+    },
+    driverLewati: function (req) {
+      var d = authDriver(req), b = findBooking(req.id);
+      if (!b) fail('Order tidak ditemukan.');
+      var L = daftarTolak(b.driver_tolak); if (L.indexOf(d.nama.toLowerCase()) < 0) L.push(d.nama.toLowerCase());
+      store.update('Booking', 'id', b.id, { driver_tolak: L.join('|') });
+      return { ok: true };
     },
     /* Driver mengisi tarif hariannya sendiri (pola sama dengan harga unit mitra) */
     driverTarif: function (req) {
@@ -1383,10 +1576,12 @@ function vrCreateLogic(store) {
         notify('admin', 'Driver siap', d.nama + ' siap untuk ' + b.id + '.', b.id);
         return { booking: cekKonfirmasi(b.id, 'driver ' + d.nama) };
       }
-      addRiwayat(b, 'driver_tolak', 'driver ' + d.nama, { driver_ok: 'tolak', driver: '', alasan: txt(req.alasan, 200) });
+      var DT = daftarTolak(b.driver_tolak); DT.push(d.nama.toLowerCase());
+      addRiwayat(b, 'driver_tolak', 'driver ' + d.nama, { driver_ok: 'tolak', driver: '', alasan: txt(req.alasan, 200), driver_tolak: DT.join('|') });
       if (b.status === 'menunggu_setuju') changeStatus(findBooking(b.id), 'menunggu_mitra', 'driver ' + d.nama);
       notify('admin', 'Driver tidak bisa', d.nama + ' tidak bisa untuk ' + b.id + (txt(req.alasan, 120) ? ' (' + txt(req.alasan, 120) + ')' : '') + '. Tugaskan driver lain.', b.id);
-      notifPerental(b, 'Driver diganti', 'Driver pilihan Anda berhalangan untuk ' + b.id + '. Pengelola sedang mencarikan driver pengganti.');
+      notifPerental(b, 'Driver diganti', 'Driver pilihan Anda berhalangan untuk ' + b.id + '. Order ditawarkan ke supir lain.');
+      tawarkanDriver(findBooking(b.id));
       return { ok: true };
     },
     kirimLokasi: function (req) {
@@ -1606,6 +1801,16 @@ function vrCreateLogic(store) {
         return { booking: bookingForOwner(findBooking(b.id)) };
       }
       var al = txt(req.alasan, 200) || 'Unit tidak tersedia';
+      if (String(b.layanan) === 'antar') {
+        var UT = String(b.unit_tolak || '').split('|').filter(Boolean); UT.push(String(b.unit_id));
+        var u2 = pilihUnitAntar(b.jenis_unit, vrDateKey(b.tgl_mulai), UT, settings());
+        if (u2) {
+          addRiwayat(b, 'unit_ganti', 'pemilik', { unit_id: String(u2.id), pemilik_id: String(u2.pemilik_id), mitra_ok: '', unit_tolak: UT.join('|') });
+          notify('admin', 'Unit Minta Antar dialihkan', p.nama + ' menolak (' + al + '). ' + b.id + ' dialihkan ke ' + u2.merk + ' ' + u2.model + '.', b.id);
+          mintaKonfirmasi(findBooking(b.id), true);
+          return { booking: null, dialihkan: true };
+        }
+      }
       store.update('Booking', 'id', b.id, { mitra_ok: 'tolak' });
       batalkan(findBooking(b.id), 'pemilik', 'Unit tidak tersedia dari mitra (' + al + ')');
       notify('admin', 'Mitra menolak order', p.nama + ': ' + al + ' (' + b.id + ').', b.id);
@@ -1697,6 +1902,7 @@ function vrCreateLogic(store) {
         return { booking: o };
       }
       if (a === 'setujui') {
+        if (b.status === 'menunggu_bayar') return { booking: bookingOut(b) };
         if (b.status !== 'menunggu_setuju' && b.status !== 'menunggu_mitra') fail('Order tidak sedang menunggu persetujuan.');
         if (b.status === 'menunggu_mitra' && !req.wakil) fail('Mitra' + (butuhDriver(b) ? ' / driver' : '') + ' belum mengonfirmasi ketersediaan.');
         if (butuhDriver(b) && !b.driver) fail('Tugaskan driver terlebih dahulu.');
@@ -1848,6 +2054,20 @@ function vrCreateLogic(store) {
       if ('poin_min_tukar' in v) setSetting('poin_min_tukar', Math.max(0, Math.round(num(v.poin_min_tukar))));
       if ('poin_maks_persen' in v) { var mp = num(v.poin_maks_persen); if (mp <= 0 || mp > 100) fail('Maksimal potongan poin 1 sampai 100 persen.'); setSetting('poin_maks_persen', mp); }
       if ('biaya_admin' in v) { var ba = num(v.biaya_admin); if (ba < 0 || ba > 100) fail('Biaya layanan admin harus 0 sampai 100 persen.'); setSetting('biaya_admin', ba); }
+      if ('tarif_km' in v) {
+        var tk = parseJson(v.tarif_km, null);
+        if (!tk || typeof tk !== 'object') fail('Data tarif per km tidak valid.');
+        Object.keys(VR_TARIF_KM).forEach(function (j) {
+          var x = tk[j] || {}, nm = VR_JENIS[j].pendek;
+          ['dasar', 'km', 'min'].forEach(function (k) { if (x[k] !== undefined && String(x[k]) !== '' && (num(x[k]) < 0 || num(x[k]) > 10000000)) fail('Tarif ' + nm + ' tidak valid.'); });
+          if (x.aktif !== false && x.km !== undefined && num(x.km) <= 0) fail('Isi tarif per km untuk ' + nm + ' (atau nonaktifkan).');
+        });
+        setSetting('tarif_km', JSON.stringify(vrTarifKm(tk)));
+      }
+      if ('fee_antar' in v) { var fa = num(v.fee_antar); if (fa < 0 || fa > 50) fail('Fee pengelola Minta Antar 0 sampai 50 persen.'); setSetting('fee_antar', fa); }
+      if ('bagi_supir_antar' in v) { var bs = num(v.bagi_supir_antar); if (bs < 0 || bs > 100) fail('Bagian supir 0 sampai 100 persen.'); setSetting('bagi_supir_antar', bs); }
+      if ('faktor_jalan' in v) { var fj = num(v.faktor_jalan); if (fj < 1 || fj > 3) fail('Faktor jalan 1 sampai 3.'); setSetting('faktor_jalan', fj); }
+      if ('antar_maks_km' in v) { var mk = num(v.antar_maks_km); if (mk < 1 || mk > 1000) fail('Jarak maksimal 1 sampai 1000 km.'); setSetting('antar_maks_km', Math.round(mk)); }
       if ('promo_event' in v) {
         var pe = Array.isArray(v.promo_event) ? v.promo_event : parseJson(v.promo_event, null);
         if (!Array.isArray(pe)) fail('Data promo tidak valid.');
@@ -1868,6 +2088,17 @@ function vrCreateLogic(store) {
       }
       if (v.admin_pin_baru) { if (!/^\d{4,8}$/.test(String(v.admin_pin_baru))) fail('PIN pengelola harus 4 sampai 8 angka.'); setSetting('admin_pin', String(v.admin_pin_baru)); }
       return { ok: true };
+    },
+    /* Rekap order & transaksi per rentang tanggal (unduh PDF di aplikasi) */
+    rekapPemilik: function (req) {
+      var p = authPemilik(req), r = rentangRekap(req);
+      var L = store.all('Booking').filter(function (b) { return String(b.pemilik_id) === String(p.id) && dalamRentang(b, r); }).map(function (b) { return barisRekap(b, 'pemilik'); });
+      return { pemilik: { id: String(p.id), nama: p.nama, bank: p.bank || '' }, dari: r.dari, sampai: r.sampai, basis: r.basis, baris: L };
+    },
+    adminRekap: function (req) {
+      authAdmin(req, true); var r = rentangRekap(req);
+      var L = store.all('Booking').filter(function (b) { return dalamRentang(b, r); }).map(function (b) { return barisRekap(b, 'admin'); });
+      return { dari: r.dari, sampai: r.sampai, basis: r.basis, baris: L, nama_app: settings().nama_app || 'Vast Travel' };
     }
   };
 
@@ -1957,7 +2188,7 @@ function vrSeed() {
   return { Pengaturan: Pengaturan, Pemilik: Pemilik, Unit: Unit, Member: Member, Booking: Booking, Poin: Poin, Notif: Notif };
 }
 
-if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLogic, vrSeed: vrSeed, VR_JENIS: VR_JENIS, vrAddDays: vrAddDays, vrToday: vrToday, vrHargaPeriode: vrHargaPeriode };
+if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLogic, vrSeed: vrSeed, VR_JENIS: VR_JENIS, vrAddDays: vrAddDays, vrToday: vrToday, vrHargaPeriode: vrHargaPeriode, vrHargaAntar: vrHargaAntar, vrJarak: vrJarak, vrTarifKm: vrTarifKm };
 
 </script>
 <script>
@@ -2031,7 +2262,16 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
   function sapaan() { var h = new Date().getHours(); return h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam'; }
 
   function unitNama(u, b) { return u ? (u.merk + ' ' + u.model) : (b && VR_JENIS[b.jenis_unit] ? VR_JENIS[b.jenis_unit].label : 'Kendaraan'); }
-  function judulBooking(b) { return b.tipe === 'trip' ? VR_LAYANAN[b.layanan].label : unitNama(b.unit, b); }
+  function isTrip(b) { return b && (b.tipe === 'trip' || b.tipe === 'antar' || b.layanan === 'antar'); }
+  function isAntar(b) { return b && b.layanan === 'antar'; }
+  function km(n) { return (Math.round((Number(n) || 0) * 10) / 10).toLocaleString('id-ID') + ' km'; }
+  function judulBooking(b) { return isAntar(b) ? 'Minta Antar · ' + km(b.jarak) : b.tipe === 'trip' ? VR_LAYANAN[b.layanan].label : unitNama(b.unit, b); }
+  /* Link Google Maps rute (jemput -> singgah -> tujuan) */
+  function ruteUrl(b) {
+    var t = (b && b.titik) || []; if (t.length < 2) return '';
+    var f = function (x) { return x.lat + ',' + x.lng; };
+    return 'https://www.google.com/maps/dir/?api=1&origin=' + f(t[0]) + '&destination=' + f(t[t.length - 1]) + (t.length > 2 ? '&waypoints=' + t.slice(1, -1).map(f).join('%7C') : '') + '&travelmode=driving';
+  }
   function statusLabel(b) {
     if (['menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && b.bayar_lapor) return 'Verifikasi bayar';
     if (b.status === 'lunas' && b.unit_siap) return 'Lunas, unit siap';
@@ -2048,27 +2288,34 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     var done = [b.status !== 'menunggu_harga', !!b.bayar_lapor || lanjut, b.status === 'menunggu_setuju' || (b.status === 'menunggu_bayar' && !!b.harga_waktu) || lanjut,
       lanjut, (b.status === 'lunas' && b.unit_siap) || b.status === 'berjalan' || b.status === 'selesai', b.status === 'berjalan' || b.status === 'selesai', b.status === 'selesai'];
     var c = done.indexOf(false); if (c < 0) c = done.length;
-    var L = ALUR.slice(); if (b.tipe === 'trip') { L[0] = 'Harga'; L[5] = 'Dijemput'; L[6] = 'Selesai'; }
+    var L = ALUR.slice(); if (isAntar(b)) { L[2] = 'Mitra & supir'; L[4] = 'Siap jemput'; L[5] = 'Dijemput'; L[6] = 'Sampai'; } else if (b.tipe === 'trip') { L[0] = 'Harga'; L[5] = 'Dijemput'; L[6] = 'Selesai'; }
     return '<div class="alur">' + L.map(function (t, i) { var d = done[i]; return '<span class="as' + (d ? ' done' : i === c ? ' cur' : '') + '"><i>' + (d ? '✓' : '') + '</i>' + t + '</span>'; }).join('') + '</div>';
   }
   function bisaBayar(b) { return ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && b.total > 0; }
   function pill(b) { return '<span class="pill st-' + esc(stClass(b)) + '">' + esc(statusLabel(b)) + '</span>'; }
   function jadwal(b) {
-    if (b.tipe === 'trip') return tgl(b.tgl_mulai, true) + (b.jam ? ' pukul ' + b.jam : '') + (b.durasi > 1 ? ' (' + b.durasi + ' hari)' : '');
+    if (isTrip(b)) return tgl(b.tgl_mulai, true) + (b.jam ? ' pukul ' + b.jam : '') + (b.durasi > 1 && !isAntar(b) ? ' (' + b.durasi + ' hari)' : '');
     return tgl(b.tgl_mulai, true) + (b.jam ? ' pukul ' + b.jam : '') + ' s/d ' + tgl(b.tgl_selesai, true) + ' (' + b.durasi + ' hari)';
   }
   function detailTrip(b) {
     var a = [];
     if (b.bandara) a.push('Bandara: ' + b.bandara);
     if (b.penumpang) a.push('Penumpang: ' + b.penumpang + ' orang');
+    if (isAntar(b)) { String(b.tujuan || '').split('\n').filter(Boolean).forEach(function (x) { a.push(x); }); if (b.jarak) a.push('Jarak: ± ' + km(b.jarak)); if (ruteUrl(b)) a.push('Rute: ' + ruteUrl(b)); return a; }
     if (b.tujuan) a.push((b.layanan === 'wisata' ? 'Spot wisata: ' : 'Tujuan: ') + String(b.tujuan).split('\n').filter(Boolean).join(', '));
     return a;
   }
 
+  function kvTrip(b) {
+    return detailTrip(b).map(function (x) {
+      var i = x.indexOf(': '), k = x.slice(0, i), v = x.slice(i + 2);
+      return '<dt>' + esc(k) + '</dt><dd>' + (/^https?:/.test(v) ? '<a href="' + esc(v) + '" target="_blank" rel="noopener">Buka rute di Google Maps</a>' : esc(v)) + '</dd>';
+    }).join('');
+  }
   /* Pesan WhatsApp standar. Perental dan pemilik unit tidak pernah menerima kontak satu sama lain. */
   var MSG = {
     bookingKeAdmin: function (b) {
-      var t = '*' + (b.tipe === 'trip' ? 'PERMINTAAN ' + VR_LAYANAN[b.layanan].label.toUpperCase() : 'BOOKING BARU') + ' - VAST TRAVEL*\nNo: ' + b.id;
+      var t = '*' + (isTrip(b) ? 'PERMINTAAN ' + VR_LAYANAN[b.layanan].label.toUpperCase() : 'BOOKING BARU') + ' - VAST TRAVEL*\nNo: ' + b.id;
       t += b.unit ? '\nUnit: ' + unitNama(b.unit) + ' (' + b.unit.warna + ') - ' + VR_JENIS[b.unit.jenis].label : '\nKendaraan: ' + unitNama(null, b);
       t += '\nLayanan: ' + VR_LAYANAN[b.layanan].label + '\nJadwal: ' + jadwal(b) + '\nJemput/serah terima: ' + b.lokasi;
       detailTrip(b).forEach(function (x) { t += '\n' + x; });
@@ -2081,7 +2328,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     keperental: function (b) {
       var s = {
         menunggu_harga: 'sedang kami hitung harganya. Kami kabari segera.',
-        menunggu_mitra: 'sedang kami cek ketersediaan unit' + (b.layanan !== 'lepas' ? ' & driver' : '') + '. Kami kabari segera.',
+        menunggu_mitra: 'sedang menunggu konfirmasi mitra' + (b.layanan !== 'lepas' ? ' & supir' : '') + '. Kami kabari segera.',
         menunggu_setuju: 'unit tersedia dan sedang menunggu persetujuan pengelola.',
         menunggu_bayar: b.bayar_lapor ? 'sedang kami verifikasi pembayarannya.' : 'menunggu pembayaran sebesar *' + rp(b.bayar) + '*. Silakan bayar lewat aplikasi Vast Travel.',
         lunas: 'sudah *LUNAS dan terkonfirmasi*. Unit kami siapkan sesuai jadwal.',
@@ -2089,7 +2336,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
         selesai: 'sudah *selesai*. Terima kasih sudah memakai Vast Travel!' + (b.poin_didapat ? ' Anda mendapat ' + b.poin_didapat + ' poin.' : ''),
         batal: '*dibatalkan*. Bila sudah membayar, tim kami akan menghubungi untuk pengembalian dana.'
       }[b.status] || 'berstatus ' + statusLabel(b) + '.';
-      var t = 'Halo ' + b.nama + ', ' + (b.tipe === 'trip' ? 'permintaan ' + VR_LAYANAN[b.layanan].label : 'booking') + ' Vast Travel *' + b.id + '* ' + s +
+      var t = 'Halo ' + b.nama + ', ' + (isTrip(b) ? 'permintaan ' + VR_LAYANAN[b.layanan].label : 'booking') + ' Vast Travel *' + b.id + '* ' + s +
         '\n\nKendaraan: ' + unitNama(b.unit, b) + (b.unit ? ' (' + b.unit.warna + ')' : '') + '\nLayanan: ' + VR_LAYANAN[b.layanan].label + '\nJadwal: ' + jadwal(b) + '\nJemput: ' + b.lokasi;
       detailTrip(b).forEach(function (x) { t += '\n' + x; });
       if (b.driver) t += '\nDriver: ' + b.driver;
@@ -2187,6 +2434,9 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
   function brand(sub) { return '<div class="brand-logo"><span class="mchip"><img src="' + imgUrl('logo-mark.png') + '" alt=""></span><img class="word" src="' + imgUrl('logo-word-white.png') + '" alt="Vast Travel">' + (sub ? '<span class="role">' + esc(sub) + '</span>' : '') + '</div>'; }
 
   var ICON = {
+    down: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+    route: '<circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5"/>',
+    report: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
     car: '<path d="M5 16h14M4 16l1.6-5.2A2 2 0 0 1 7.5 9.4h9a2 2 0 0 1 1.9 1.4L20 16v3h-2.5M4 16v3h2.5M7 19a1.5 1.5 0 1 0 3 0M14 19a1.5 1.5 0 1 0 3 0"/>',
     cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6"/>',
     pin: '<path d="M12 21s-7-6.3-7-11.5A7 7 0 0 1 19 9.5C19 14.7 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',
@@ -2649,8 +2899,172 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') setTimeout(cekUpdate, 800); });
   }
 
+  /* ---------- PDF sederhana (tanpa pustaka luar): tabel rekap ---------- */
+  var PDF_W = { d: .556, s: .278, p: .278, U: .70, l: .53, i: .24, m: .86 };
+  function pdfLebar(t, size) {
+    var w = 0; t = String(t);
+    for (var i = 0; i < t.length; i++) {
+      var c = t.charAt(i);
+      w += /[0-9]/.test(c) ? PDF_W.d : c === ' ' ? PDF_W.s : /[.,:;'|!]/.test(c) ? PDF_W.p : /[ilj]/.test(c) ? PDF_W.i : /[mwMW]/.test(c) ? PDF_W.m : /[A-Z]/.test(c) ? PDF_W.U : PDF_W.l;
+    }
+    return w * size * 1.04;
+  }
+  function pdfTeks(t) {
+    return String(t == null ? '' : t).replace(/[–—]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/→/g, '->').replace(/…/g, '...')
+      .replace(/[^\x20-\x7e\xa0-\xff]/g, '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  }
+  function pdfPotong(t, maxW, size) {
+    t = String(t == null ? '' : t); if (pdfLebar(t, size) <= maxW) return t;
+    while (t.length > 1 && pdfLebar(t + '...', size) > maxW) t = t.slice(0, -1);
+    return t + '...';
+  }
+  /* opt: { judul, sub, info: [[label, nilai]], kolom: [{t, w, kanan}], baris: [[..]], total: [..] , landscape } -> string biner PDF */
+  function buatPdf(opt) {
+    var W = opt.landscape === false ? 595 : 842, H = opt.landscape === false ? 842 : 595, M = 32, tw = W - 2 * M;
+    var sumW = opt.kolom.reduce(function (a, k) { return a + k.w; }, 0), kol = opt.kolom.map(function (k) { return { t: k.t, w: k.w / sumW * tw, kanan: k.kanan }; });
+    var FS = 7.6, RH = 15, pages = [], cur = null, y0;
+    function halBaru(pertama) {
+      cur = { ops: [], first: pertama }; pages.push(cur);
+      return pertama ? H - 150 - (opt.info && opt.info.length ? Math.ceil(opt.info.length / 4) * 44 + 10 : 0) : H - 60;
+    }
+    var y = halBaru(true), rows = opt.baris.slice(); if (opt.total) rows.push({ total: opt.total });
+    var layout = [];
+    pages[0].rowsStart = y;
+    rows.forEach(function (r) {
+      if (y - RH < 46) { y = halBaru(false); cur.rowsStart = y; }
+      (cur.rows = cur.rows || []).push(r); y -= RH;
+    });
+    if (!rows.length) cur.rows = [];
+    var n = pages.length, out = [];
+    function T(x, yy, t, size, bold, rgb) { return 'BT /' + (bold ? 'F2' : 'F1') + ' ' + size + ' Tf ' + (rgb || '0.12 0.16 0.22') + ' rg ' + x.toFixed(1) + ' ' + yy.toFixed(1) + ' Td (' + pdfTeks(t) + ') Tj ET'; }
+    function rect(x, yy, w, h, rgb) { return rgb + ' rg ' + x.toFixed(1) + ' ' + yy.toFixed(1) + ' ' + w.toFixed(1) + ' ' + h.toFixed(1) + ' re f'; }
+    function header(o, yy) {
+      o.push(rect(M, yy - 4, tw, RH, '0.06 0.36 0.22'));
+      var x = M; kol.forEach(function (k) { var t = pdfPotong(k.t, k.w - 6, FS); o.push(T(k.kanan ? x + k.w - 3 - pdfLebar(t, FS) : x + 3, yy + 1, t, FS, true, '1 1 1')); x += k.w; });
+    }
+    pages.forEach(function (pg, pi) {
+      var o = [];
+      if (pg.first) {
+        o.push(rect(0, H - 92, W, 92, '0.04 0.24 0.16'));
+        o.push(rect(0, H - 96, W, 4, '0.71 0.93 0.16'));
+        o.push(T(M, H - 44, opt.judul, 18, true, '1 1 1'));
+        o.push(T(M, H - 64, opt.sub || '', 10, false, '0.85 0.95 0.88'));
+        if (opt.kanan) o.push(T(W - M - pdfLebar(opt.kanan, 10), H - 44, opt.kanan, 10, true, '0.71 0.93 0.16'));
+        if (opt.info) {
+          var bw = (tw - 3 * 8) / 4;
+          opt.info.forEach(function (it, i) {
+            var cx = M + (i % 4) * (bw + 8), cy = H - 150 - Math.floor(i / 4) * 44;
+            o.push(rect(cx, cy, bw, 38, '0.94 0.98 0.95'));
+            o.push(rect(cx, cy, 3, 38, '0.13 0.69 0.30'));
+            o.push(T(cx + 10, cy + 24, it[0], 7.5, false, '0.35 0.42 0.5'));
+            o.push(T(cx + 10, cy + 9, pdfPotong(it[1], bw - 16, 11), 11, true));
+          });
+        }
+      } else {
+        o.push(T(M, H - 36, opt.judul + ' - ' + (opt.sub || ''), 9, true, '0.35 0.42 0.5'));
+      }
+      var yy = pg.rowsStart;
+      header(o, yy); yy -= RH;
+      (pg.rows || []).forEach(function (r, ri) {
+        var tot = r && r.total, cells = tot ? r.total : r;
+        if (tot) o.push(rect(M, yy - 4, tw, RH, '0.86 0.95 0.89')); else if (ri % 2) o.push(rect(M, yy - 4, tw, RH, '0.97 0.98 0.98'));
+        var x = M; kol.forEach(function (k, ci) { var t = pdfPotong(cells[ci], k.w - 6, FS); o.push(T(k.kanan ? x + k.w - 3 - pdfLebar(t, FS) : x + 3, yy + 1, t, FS, !!tot)); x += k.w; });
+        yy -= RH;
+      });
+      if (!(pg.rows || []).length && pg.first) o.push(T(M + 3, yy, 'Tidak ada order pada rentang tanggal ini.', 9, false, '0.4 0.45 0.5'));
+      var kaki = (opt.kaki || '') + '   Halaman ' + (pi + 1) + ' / ' + n;
+      o.push('0.85 0.87 0.9 RG 0.5 w ' + M + ' 34 m ' + (W - M) + ' 34 l S');
+      o.push(T(M, 22, kaki, 7.5, false, '0.45 0.5 0.55'));
+      out.push(o.join('\n'));
+    });
+    /* rakit objek PDF */
+    var objs = [], kids = [];
+    objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+    objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+    objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+    out.forEach(function (c, i) {
+      var po = 5 + i * 2, co = po + 1; kids.push(po + ' 0 R');
+      objs[po] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' + co + ' 0 R >>';
+      objs[co] = '<< /Length ' + c.length + ' >>\nstream\n' + c + '\nendstream';
+    });
+    objs[2] = '<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + kids.length + ' >>';
+    var pdf = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n', off = [];
+    for (var i = 1; i < objs.length; i++) { off[i] = pdf.length; pdf += i + ' 0 obj\n' + objs[i] + '\nendobj\n'; }
+    var xref = pdf.length;
+    pdf += 'xref\n0 ' + objs.length + '\n0000000000 65535 f \n';
+    for (i = 1; i < objs.length; i++) pdf += ('0000000000' + off[i]).slice(-10) + ' 00000 n \n';
+    pdf += 'trailer\n<< /Size ' + objs.length + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+    return pdf;
+  }
+  /* Simpan / bagikan PDF: di APK lewat jembatan native (tersimpan di folder Download & langsung dibuka), di browser diunduh */
+  function simpanPdf(bin, nama) {
+    var b64 = btoa(bin);
+    if (!DEMO && NATIVE && NATIVE.simpanPdf) {
+      try { var r = NATIVE.simpanPdf(b64, nama); toast(r || 'PDF tersimpan di folder Download.'); return; } catch (e) { toast('Gagal menyimpan PDF: ' + e.message, true); return; }
+    }
+    if (NATIVE && !NATIVE.simpanPdf) { toast('Perbarui aplikasi ke versi terbaru untuk mengunduh PDF.', true); return; }
+    var arr = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i) & 255;
+    var url = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' })), a = document.createElement('a');
+    a.href = url; a.download = nama; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 2000);
+    toast('PDF diunduh: ' + nama);
+  }
+
+  /* ---------- Rekap order & transaksi (mitra & pengelola) ---------- */
+  function senin(d) { var t = new Date(d + 'T00:00:00'), w = (t.getDay() + 6) % 7; return vrAddDays(d, -w); }
+  function rentangPreset(k) {
+    var h = vrToday(), s = senin(h), m1 = h.slice(0, 8) + '01';
+    var bl = new Date(h.slice(0, 4), Number(h.slice(5, 7)) - 2, 1), blk = bl.getFullYear() + '-' + ('0' + (bl.getMonth() + 1)).slice(-2) + '-01';
+    return ({ minggu: [s, vrAddDays(s, 6)], minggu_lalu: [vrAddDays(s, -7), vrAddDays(s, -1)], bulan: [m1, vrAddDays(vrAddDays(m1, 31).slice(0, 8) + '01', -1)],
+      bulan_lalu: [blk, vrAddDays(m1, -1)], hari30: [vrAddDays(h, -29), h] })[k];
+  }
+  function tglPdf(d) { d = String(d || ''); return d.length >= 10 ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(2, 4) : '-'; }
+  function rekapOpen(cfg) {
+    var R = cfg.state = cfg.state || { preset: 'minggu', basis: 'order' };
+    if (!R.dari) { var pr = rentangPreset(R.preset); R.dari = pr[0]; R.sampai = pr[1]; }
+    var PRE = [['minggu', 'Minggu ini'], ['minggu_lalu', 'Minggu lalu'], ['bulan', 'Bulan ini'], ['bulan_lalu', 'Bulan lalu'], ['hari30', '30 hari'], ['pilih', 'Pilih tanggal']];
+    sheet('<h2>' + ic('cal') + ' Rekap order & transaksi</h2><p class="small muted" style="margin:-4px 0 10px">' + esc(cfg.sub || '') + '</p>' +
+      '<div class="chips" style="display:flex;flex-wrap:wrap;gap:6px">' + PRE.map(function (p) { return '<button type="button" class="chip" data-rp="' + p[0] + '" aria-pressed="' + (R.preset === p[0]) + '">' + p[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="grid" style="margin-top:10px"><label class="f">Dari<input type="date" id="rk-dari" value="' + R.dari + '"></label><label class="f">Sampai<input type="date" id="rk-sampai" value="' + R.sampai + '"></label></div>' +
+      '<label class="f">Berdasarkan<select id="rk-basis"><option value="order"' + (R.basis === 'order' ? ' selected' : '') + '>Tanggal order dibuat</option><option value="jadwal"' + (R.basis === 'jadwal' ? ' selected' : '') + '>Tanggal pemakaian / jadwal</option></select></label>' +
+      '<div id="rk-hasil" class="stack" style="margin-top:6px"><div class="empty">Memuat rekap...</div></div>' +
+      '<button class="btn go block" id="rk-pdf" disabled>' + ic('down') + ' Unduh PDF</button>', function (el) {
+      var data = null;
+      function muat() {
+        var box = el.querySelector('#rk-hasil'), btn = el.querySelector('#rk-pdf'); btn.disabled = true; data = null;
+        if (!R.dari || !R.sampai) { box.innerHTML = '<div class="empty">Pilih tanggal awal & akhir.</div>'; return; }
+        box.innerHTML = '<div class="empty">Memuat rekap...</div>';
+        api(cfg.aksi, Object.assign({ dari: R.dari, sampai: R.sampai, basis: R.basis }, cfg.payload())).then(function (d) {
+          data = d; var x = cfg.olah(d);
+          box.innerHTML = '<div class="kpis" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">' + x.info.map(function (i) { return '<div class="card" style="padding:10px"><div class="xs muted">' + esc(i[0]) + '</div><b class="num">' + esc(i[1]) + '</b></div>'; }).join('') + '</div>' +
+            '<div class="xs muted" style="margin:4px 2px">' + d.baris.length + ' order · ' + esc(tgl(d.dari)) + ' s/d ' + esc(tgl(d.sampai)) + '</div>' +
+            (d.baris.length ? '<div class="card" style="padding:0;max-height:260px;overflow:auto">' + d.baris.slice().reverse().slice(0, 60).map(function (b) {
+              return '<div class="row" style="padding:8px 10px;border-bottom:1px solid var(--line);gap:8px"><div class="grow"><b class="small">' + esc(b.layanan) + ' · ' + esc(b.unit) + '</b><div class="xs muted">' + esc(b.id) + ' · ' + esc(tgl(b.tgl_order)) + ' · ' + esc(b.status_label) + '</div></div><b class="small num">' + rp(cfg.nilai(b)) + '</b></div>';
+            }).join('') + '</div>' : '<div class="empty">Tidak ada order pada rentang ini.</div>');
+          btn.disabled = false;
+        }).catch(function (e) { box.innerHTML = '<div class="note bad">' + esc(e.message) + '</div>'; });
+      }
+      el.querySelectorAll('[data-rp]').forEach(function (b) {
+        b.onclick = function () {
+          R.preset = b.dataset.rp; el.querySelectorAll('[data-rp]').forEach(function (z) { z.setAttribute('aria-pressed', z === b); });
+          if (R.preset !== 'pilih') { var r = rentangPreset(R.preset); R.dari = r[0]; R.sampai = r[1]; el.querySelector('#rk-dari').value = R.dari; el.querySelector('#rk-sampai').value = R.sampai; muat(); }
+          else el.querySelector('#rk-dari').focus();
+        };
+      });
+      ['rk-dari', 'rk-sampai'].forEach(function (i) { el.querySelector('#' + i).onchange = function () { R.dari = el.querySelector('#rk-dari').value; R.sampai = el.querySelector('#rk-sampai').value; R.preset = 'pilih'; el.querySelectorAll('[data-rp]').forEach(function (z) { z.setAttribute('aria-pressed', z.dataset.rp === 'pilih'); }); muat(); }; });
+      el.querySelector('#rk-basis').onchange = function () { R.basis = this.value; muat(); };
+      el.querySelector('#rk-pdf').onclick = function () {
+        if (!data) return;
+        var x = cfg.olah(data), nama = (cfg.file || 'Rekap-VastTravel') + '_' + data.dari + '_sd_' + data.sampai + '.pdf';
+        var bin = buatPdf({ judul: cfg.judul, sub: 'Periode ' + tgl(data.dari) + ' s/d ' + tgl(data.sampai) + ' · berdasarkan ' + (data.basis === 'jadwal' ? 'tanggal pemakaian' : 'tanggal order'),
+          kanan: 'VAST TRAVEL', info: x.info, kolom: x.kolom, baris: x.baris, total: x.total, kaki: 'Dicetak ' + tgl(vrToday()) + ' ' + new Date().toTimeString().slice(0, 5) + ' dari aplikasi Vast Travel.' });
+        simpanPdf(bin, nama);
+      };
+      muat();
+    });
+  }
+
   window.VR = { DEMO: DEMO, CFG: CFG, api: api, rp: rp, esc: esc, wa: wa, tgl: tgl, waktu: waktu, sameMonth: sameMonth, sapaan: sapaan,
-    unitNama: unitNama, judulBooking: judulBooking, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, MSG: MSG,
+    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
     cached: cached, loadFast: loadFast, uiBusy: uiBusy, clearCached: clearCached,
     trackStart: trackStart, trackStop: trackStop, trackOn: trackOn, liveMap: liveMap, lokLabel: lokLabel, lokWarna: lokWarna,
     vehicleSvg: vehicleSvg, unitImg: unitImg, models: models, modelOf: modelOf, modelFoto: modelFoto, brands: brands, modelImg: modelImg, imgUrl: imgUrl, warnaHex: warnaHex, fotoList: fotoList, pickPhotos: pickPhotos, scenery: scenery,
@@ -2764,10 +3178,11 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     var h = '<header class="hero">' + V.scenery() + heroTop() + '<div class="hello"><h1>Halo, ' + (S.ro ? 'Tim Monitor' : 'Pengelola') + ' 👋' + (S.ro ? '<span class="ro-badge">hanya lihat</span>' : '') + '</h1><p>' + V.sapaan() + '! ' + (S.ro ? aksi + ' booking sedang menunggu tindakan pengelola.' : 'Ada ' + aksi + ' hal yang perlu ditindaklanjuti.') + '</p></div></header>' +
       '<div class="float"><div class="statcard"><div><b class="num">' + rp(pend).replace('Rp ', 'Rp') + '</b><span>Pendapatan admin bulan ini</span></div><div><b>' + aksi + '</b><span>Perlu tindakan</span></div><div data-q="peta" style="cursor:pointer"><b>' + B.filter(function (b) { return b.status === 'berjalan'; }).length + '</b><span>Sedang berjalan ›</span></div></div></div>' + V.demoBanner() + '<main>';
     if (WEB || WIDE.matches) h += '<div class="hook-web"><img src="' + V.imgUrl('img/hook.jpg') + '" alt="Vast Travel - Sewa kendaraan listrik untuk semua kebutuhan"></div>';
-    var Q = [['b:cek', 'wallet', 'Verifikasi Bayar', c.cek], ['b:setuju', 'check', 'Setujui Order', c.setuju], ['b:payout', 'send', 'Teruskan Dana', c.payout], ['armada', 'car', 'Armada', c.unit],
+    var Q = [['b:cek', 'wallet', 'Verifikasi Bayar', c.cek], ['b:setuju', 'check', 'Order Baru', c.setuju], ['b:payout', 'send', 'Teruskan Dana', c.payout], ['armada', 'car', 'Armada', c.unit],
       ['u:pemilik', 'key', 'Mitra Pemilik', c.mitra], ['u:member', 'users', 'Member', c.member], ['peta', 'pin', 'Peta Live', B.filter(function (b) { return b.status === 'berjalan'; }).length], S.ro ? ['atur', 'gear', 'Akun'] : ['chat', 'help', 'Chat', d.chat_belum || 0]];
     if (!S.ro && !(d.app.bayar || []).length) h += '<div class="note warn"><b>Metode pembayaran belum diisi.</b> Penyewa hanya bisa meminta nomor rekening lewat WhatsApp. <button class="linkbtn" data-q="atur">Isi rekening, e-wallet & QRIS</button></div>';
-    h += '<div class="qgrid">' + Q.map(function (q) { return '<button class="q" data-q="' + q[0] + '"><span class="qi">' + ic(q[1]) + '</span>' + q[2] + (q[3] ? '<span class="n">' + q[3] + '</span>' : '') + '</button>'; }).join('') + '</div>';
+    h += '<div class="qgrid">' + Q.map(function (q) { return '<button class="q" data-q="' + q[0] + '"><span class="qi">' + ic(q[1]) + '</span>' + q[2] + (q[3] ? '<span class="n">' + q[3] + '</span>' : '') + '</button>'; }).join('') + '</div>' +
+      '<button class="card row" id="rk-open" style="width:100%;text-align:left;cursor:pointer;gap:12px;border:1.5px solid var(--g500)"><span class="qi" style="flex:none;width:40px;height:40px;border-radius:12px;background:var(--g50);color:var(--g700);display:grid;place-items:center">' + ic('report') + '</span><span class="grow"><b>Rekap order & transaksi</b><span class="xs muted" style="display:block">Per minggu, bulan, atau tanggal pilihan · unduh PDF</span></span>' + ic('chev') + '</button>';
     h += '<div class="tiles"><div class="tile hot"><div class="k">Omzet sewa bulan ini</div><div class="v">' + rp(sum(bulan, 'total')) + '</div></div>' +
       '<div class="tile' + (hold.length ? ' alert' : '') + '"><div class="k">Dana belum diteruskan</div><div class="v">' + rp(sum(hold, 'bagian_pemilik')) + '</div></div>' +
       '<div class="tile"><div class="k">Mulai hari ini</div><div class="v">' + sah.filter(function (b) { return b.tgl_mulai === today; }).length + '</div></div>' +
@@ -2788,6 +3203,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       app.querySelectorAll('[data-bk]').forEach(function (x) { x.onclick = function () { S.q = x.dataset.bk; S.bf = 'semua'; go('booking'); }; });
       startLive('mini-map');
     }
+    var rko = document.getElementById('rk-open'); if (rko) rko.onclick = rekapAdmin;
     app.querySelectorAll('[data-q]').forEach(function (x) {
       x.onclick = function () {
         var q = x.dataset.q;
@@ -2802,7 +3218,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
   /* ---------------- BOOKING ---------------- */
   var BF = {
     tindakan: ['Perlu tindakan', perluTindakan],
-    setuju: ['Setujui order', perluSetuju],
+    setuju: ['Order baru', perluSetuju],
     konfirmasi: ['Cek ketersediaan', function (b) { return b.status === 'menunggu_mitra'; }],
     harga: ['Tentukan harga', function (b) { return b.status === 'menunggu_harga'; }],
     cek: ['Cek bukti bayar', sudahBayar],
@@ -2822,9 +3238,9 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     var aktif = ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar', 'lunas', 'berjalan'].indexOf(b.status) >= 0;
     if (b.status === 'menunggu_mitra' || b.status === 'menunggu_setuju') {
       var okM = b.mitra_ok === 'ya', okD = !butuhDriver(b) || (b.driver && b.driver_ok === 'ya');
-      act += '<div class="card stack" style="padding:10px;margin:0"><b class="small">Konfirmasi ketersediaan</b>' +
-        '<div class="row between small"><span>Mitra ' + esc(p ? p.nama : '') + '</span>' + (okM ? '<span class="tag">' + ic('check') + ' tersedia</span>' : '<span class="row" style="gap:6px"><span class="tag wait">menunggu</span>' + (p ? V.waBtn(V.wa(p.wa, 'Halo ' + p.nama + ', mohon konfirmasi ketersediaan ' + V.unitNama(b.unit, b) + ' (' + (b.tnkb || '') + ') untuk ' + V.jadwal(b) + ' (order ' + b.id + ') di aplikasi Vast Travel Mitra. Terima kasih.'), 'WA', 'sm') : '') + '<button class="btn sm ghost" data-wakil="mitra" data-id="' + b.id + '">Catat ✓</button></span>') + '</div>' +
-        (butuhDriver(b) ? '<div class="row between small"><span>Driver ' + esc(b.driver || '-') + '</span>' + (!b.driver ? '<span class="tag no">' + (b.driver_ok === 'tolak' ? 'menolak, pilih lagi' : 'belum dipilih') + '</span>' : okD ? '<span class="tag">' + ic('check') + ' siap</span>' : '<span class="row" style="gap:6px"><span class="tag wait">menunggu</span><button class="btn sm ghost" data-wakil="driver" data-id="' + b.id + '">Catat ✓</button></span>') + '</div>' : '') + '</div>';
+      act += '<div class="card stack" style="padding:10px;margin:0"><b class="small">Laporan: konfirmasi mitra' + (butuhDriver(b) ? ' & supir' : '') + '</b><div class="xs muted">Order langsung lanjut ke pembayaran setelah diterima. Anda tetap bisa menolak / membatalkan.</div>' +
+        '<div class="row between small"><span>Mitra ' + esc(p ? p.nama : '') + '</span>' + (okM ? '<span class="tag">' + ic('check') + ' diterima</span>' : '<span class="row" style="gap:6px"><span class="tag wait">menunggu</span>' + (p ? V.waBtn(V.wa(p.wa, 'Halo ' + p.nama + ', mohon konfirmasi ketersediaan ' + V.unitNama(b.unit, b) + ' (' + (b.tnkb || '') + ') untuk ' + V.jadwal(b) + ' (order ' + b.id + ') di aplikasi Vast Travel Mitra. Terima kasih.'), 'WA', 'sm') : '') + '<button class="btn sm ghost" data-wakil="mitra" data-id="' + b.id + '">Catat ✓</button></span>') + '</div>' +
+        (butuhDriver(b) ? '<div class="row between small"><span>Driver ' + esc(b.driver || '-') + '</span>' + (!b.driver ? '<span class="tag no">' + (b.driver_ok === 'tolak' ? 'menolak, ditawarkan ke supir lain' : 'ditawarkan ke semua supir') + '</span>' : okD ? '<span class="tag">' + ic('check') + ' diterima</span>' : '<span class="row" style="gap:6px"><span class="tag wait">menunggu</span><button class="btn sm ghost" data-wakil="driver" data-id="' + b.id + '">Catat ✓</button></span>') + '</div>' : '') + '</div>';
       if (b.status === 'menunggu_setuju' && !b.bayar_lapor) act += '<button class="btn block soft" data-a="setujui" data-id="' + b.id + '">' + ic('check') + ' Setujui order · ingatkan penyewa bayar</button>';
       if (b.tipe === 'trip') act += '<button class="linkbtn small" style="align-self:flex-start" data-harga="' + b.id + '">Ubah harga / unit / driver</button>';
     }
@@ -2849,12 +3265,14 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     if (b.payout_driver === 'sudah') act += '<span class="tag" style="align-self:flex-start">Biaya driver diteruskan ' + V.waktu(b.payout_driver_waktu) + '</span>';
     if (b.payout === 'sudah' && p) act += '<div class="row between"><span class="tag">Dana diteruskan ' + V.waktu(b.payout_waktu) + '</span>' + V.waBtn(V.wa(p.wa, V.MSG.payoutKePemilik(b, p)), 'Bukti ke pemilik', 'sm') + '</div>';
     act += '<div class="row-btn"><button class="btn sm ghost" data-ch="R:' + esc(b.hp) + '" data-chn="' + esc(b.nama) + '">' + ic('help') + ' Chat penyewa</button>' + (p ? '<button class="btn sm ghost" data-ch="P:' + esc(p.id) + '" data-chn="' + esc(p.nama) + '">' + ic('key') + ' Chat mitra</button>' : '') + '</div>';
-    if (b.status !== 'selesai' && b.status !== 'batal') act += '<button class="linkbtn small" style="color:var(--red);align-self:flex-start" data-a="batal" data-id="' + b.id + '">Batalkan booking</button>';
+    if (b.status !== 'selesai' && b.status !== 'batal') act += ['menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && !b.bayar_lapor ?
+      '<button class="btn sm ghost" style="color:var(--red);align-self:flex-start;border-color:var(--red)" data-a="batal" data-id="' + b.id + '">✕ Tolak order</button>' :
+      '<button class="linkbtn small" style="color:var(--red);align-self:flex-start" data-a="batal" data-id="' + b.id + '">Batalkan booking</button>';
     return '<div class="card stack bk l-' + V.stClass(b) + '"><div class="row">' + V.unitImg(b.unit || { jenis: b.jenis_unit, warna: 'Putih' }, 'uimg sm') + '<div class="grow"><div class="row between wrapflex"><b>' + esc(V.judulBooking(b)) + '</b>' + V.pill(b) + '</div>' +
       '<div class="xs muted"><span class="oid">' + esc(b.id) + '</span>' + (b.tnkb ? ' · ' + esc(b.tnkb) : '') + ' · ' + V.waktu(b.waktu) + '</div></div></div>' +
       '<dl class="kv"><dt>Penyewa</dt><dd>' + esc(b.nama) + ' · <a href="' + V.wa(b.hp) + '" target="_blank" rel="noopener">' + esc(b.hp) + '</a>' + (b.member_id ? ' <span class="tag">' + esc(b.member_id) + '</span>' : '') + '</dd>' +
-      '<dt>Layanan</dt><dd>' + VR_LAYANAN[b.layanan].label + (b.tipe === 'trip' ? ' · ' + VR_JENIS[b.jenis_unit].pendek : '') + '</dd><dt>Jadwal</dt><dd>' + esc(V.jadwal(b)) + '</dd><dt>Jemput</dt><dd>' + esc(b.lokasi) + '</dd>' +
-      V.detailTrip(b).map(function (x) { var i = x.indexOf(': '); return '<dt>' + esc(x.slice(0, i)) + '</dt><dd>' + esc(x.slice(i + 2)) + '</dd>'; }).join('') + (b.catatan ? '<dt>Catatan</dt><dd>' + esc(b.catatan) + '</dd>' : '') +
+      '<dt>Layanan</dt><dd>' + VR_LAYANAN[b.layanan].label + (V.isTrip(b) ? ' · ' + VR_JENIS[b.jenis_unit].pendek : '') + (b.layanan === 'antar' ? ' · ± ' + V.km(b.jarak) : '') + '</dd><dt>Jadwal</dt><dd>' + esc(V.jadwal(b)) + '</dd><dt>Jemput</dt><dd>' + esc(b.lokasi) + '</dd>' +
+      V.kvTrip(b) + (b.catatan ? '<dt>Catatan</dt><dd>' + esc(b.catatan) + '</dd>' : '') +
       (b.unit ? '<dt>Unit</dt><dd>' + esc(V.unitNama(b.unit)) + ' · ' + esc(p ? p.nama : '') + (b.unit_siap ? ' <span class="tag">Unit siap</span>' : '') + '</dd>' : '') +
       (butuhDriver(b) ? '<dt>Driver</dt><dd>' + (b.driver ? esc(b.driver) : '<span class="muted">dipilihkan pengelola</span>') + '</dd>' : '') +
       (b.terima_waktu ? '<dt>Diterima</dt><dd>' + V.waktu(b.terima_waktu) + '</dd>' : '') + (b.alasan && b.status === 'batal' ? '<dt>Alasan</dt><dd>' + esc(b.alasan) + '</dd>' : '') +
@@ -3173,7 +3591,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
 
   function renderAtur() {
     if (S.ro) return renderAturRO();
-    var s = S.d.pengaturan, f = function (k, label, hint, type) {
+    var s = S.d.pengaturan, TKM = vrTarifKm(s.tarif_km), f = function (k, label, hint, type) {
       return '<label class="f">' + label + (hint ? ' <span class="hint">' + hint + '</span>' : '') + (type === 'area' ? '<textarea data-k="' + k + '">' + esc(s[k] || '') + '</textarea>' : '<input data-k="' + k + '" value="' + esc(s[k] || '') + '"' + (type ? ' inputmode="' + type + '"' : '') + '>') + '</label>';
     };
     function fq(k, label, hint) {
@@ -3191,6 +3609,13 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       '<div class="card stack"><h3>Harga dinamis</h3><div class="xs muted">Kenaikan otomatis untuk harga unit & supir pada hari tertentu. Bila weekend jatuh di musim liburan, dipakai persentase yang lebih tinggi.</div>' +
       f('tarif_weekend', 'Kenaikan tarif weekend — Sabtu & Minggu (%)', '0 = tidak ada kenaikan', 'numeric') +
       '<div class="row between"><b class="small">Musim liburan</b><button class="btn sm" id="ml-add" type="button">' + V.ic('plus') + ' Tambah periode</button></div><div id="ml-list" class="stack"></div></div>' +
+      '<div class="card stack" id="tk-card"><h3>' + V.ic('route') + ' Minta Antar — tarif per km</h3><div class="xs muted">Harga = tarif dasar + (jarak × tarif per km), minimal sebesar tarif minimum, lalu ditambah fee pengelola. Matikan centang untuk menyembunyikan kategori dari penyewa.</div>' +
+      '<div style="overflow-x:auto"><table class="tktab"><thead><tr><th>Kategori</th><th>Aktif</th><th>Tarif dasar</th><th>Per km</th><th>Minimum</th></tr></thead><tbody>' +
+      Object.keys(TKM).map(function (j) { var t = TKM[j]; return '<tr><td><b class="small">' + VR_JENIS[j].pendek + '</b></td><td><input type="checkbox" data-ta="' + j + '"' + (t.aktif ? ' checked' : '') + '></td>' +
+        ['dasar', 'km', 'min'].map(function (k) { return '<td><input inputmode="numeric" data-tk="' + j + ':' + k + '" value="' + t[k] + '"></td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' +
+      f('fee_antar', 'Fee pengelola Minta Antar (%)', 'motor otomatis maks 8% sesuai aturan ojek online', 'numeric') + f('bagi_supir_antar', 'Bagian supir dari tarif (%)', 'sisanya untuk mitra pemilik unit', 'numeric') +
+      '<div class="grid">' + f('faktor_jalan', 'Faktor jalan', 'jarak garis lurus × faktor, mis. 1.3', 'decimal') + f('antar_maks_km', 'Jarak maksimal (km)', '', 'numeric') + '</div>' +
+      '<div class="note small" id="tk-ex"></div></div>' +
       '<div class="card stack"><h3>Tarif standar</h3><div class="xs muted">Hanya dipakai untuk unit lama yang belum diisi harganya oleh mitra.</div>' +
       f('tarif_motor', 'Motor listrik', '', 'numeric') + f('tarif_mobil5', 'Mobil 5 seat', '', 'numeric') + f('tarif_mobil7', 'Mobil 7 seat', '', 'numeric') + f('tarif_mobil9', 'Mobil 8+ seat', '', 'numeric') + f('tarif_niaga', 'Mobil niaga', '', 'numeric') + f('tarif_driver', 'Driver per hari', 'untuk driver yang belum mengisi tarifnya sendiri (sudah final)', 'numeric') + f('info_bulanan', 'Info sewa bulanan', '', 'area') + '</div>' +
       '<div class="card stack"><div class="row between"><h3>Promo & Event Wisata</h3><button class="btn sm" id="pe-add">' + V.ic('plus') + ' Tambah</button></div><div class="xs muted">Maksimal 5 promo. Tampil sebagai slide (geser ke samping) di menu Promo & Beranda aplikasi penyewa.</div><div id="pe-list"></div></div>' +
@@ -3218,6 +3643,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     document.getElementById('sv').onclick = function () {
       var b = this, v = {};
       app.querySelectorAll('[data-k]').forEach(function (x) { v[x.dataset.k] = x.value; });
+      v.tarif_km = tkBaca();
       var np = document.getElementById('np').value; if (np) v.admin_pin_baru = np;
       var mp = document.getElementById('mp').value.trim(); if (mp) v.monitor_pin_baru = mp;
       V.busy(b, true);
@@ -3229,6 +3655,18 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
     var bai = app.querySelector('[data-k="biaya_admin"]'), bex = document.getElementById('ba-ex');
     function contoh() { var p2 = Number(bai.value) || 0; bex.innerHTML = 'Contoh: mitra mengisi <b>Rp300.000</b>/hari → tampil ke penyewa <b>' + V.rp(vrHargaFinal(300000, p2)) + '</b>/hari (biaya layanan ' + V.rp(vrHargaFinal(300000, p2) - 300000) + ').'; }
     if (bai) { bai.oninput = contoh; contoh(); }
+    function tkBaca() {
+      var o = {}; Object.keys(TKM).forEach(function (j) { o[j] = { aktif: app.querySelector('[data-ta="' + j + '"]').checked }; });
+      app.querySelectorAll('[data-tk]').forEach(function (x) { var p2 = x.dataset.tk.split(':'); o[p2[0]][p2[1]] = Number(String(x.value).replace(/\D/g, '')) || 0; });
+      return o;
+    }
+    function tkContoh() {
+      var ex = document.getElementById('tk-ex'); if (!ex) return;
+      var o = { tarif_km: tkBaca(), fee_antar: (app.querySelector('[data-k="fee_antar"]') || {}).value, bagi_supir_antar: (app.querySelector('[data-k="bagi_supir_antar"]') || {}).value };
+      var h5 = vrHargaAntar(o, 'mobil5', 10, ''), hm = vrHargaAntar(o, 'motor', 10, '');
+      ex.innerHTML = 'Contoh 10 km: <b>Mobil 5 seat ' + V.rp(h5.total) + '</b> (supir ' + V.rp(h5.supir) + ', pemilik ' + V.rp(h5.pemilik) + ', pengelola ' + V.rp(h5.komisi) + ') · <b>Motor ' + V.rp(hm.total) + '</b> (fee ' + hm.fee + '%).';
+    }
+    app.querySelectorAll('#tk-card input').forEach(function (x) { x.addEventListener('input', tkContoh); x.addEventListener('change', tkContoh); }); tkContoh();
     var bdi = app.querySelector('[data-k="biaya_driver"]'), bdx = document.getElementById('bd-ex');
     function contohD() { var p2 = Number(bdi.value) || 0; bdx.innerHTML = 'Contoh: supir mengisi <b>Rp200.000</b>/hari → tampil ke penyewa <b>' + V.rp(vrHargaFinal(200000, p2)) + '</b>/hari (fee pengelola ' + V.rp(vrHargaFinal(200000, p2) - 200000) + ').'; }
     if (bdi) { bdi.oninput = contohD; contohD(); }
@@ -3344,6 +3782,29 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
 
   function render() { if (!S.d) return; if (S.tab !== 'peta' && S.tab !== 'beranda') stopLive(); else if (S.live && !document.body.contains(S.live.el)) stopLive();
     ({ beranda: renderBeranda, booking: renderBooking, armada: renderArmada, user: renderUser, atur: renderAtur, peta: renderPeta, chat: renderChat })[S.tab](); }
+  /* ---------------- REKAP ORDER & TRANSAKSI -> PDF ---------------- */
+  function rekapAdmin() {
+    V.rekapOpen({ aksi: 'adminRekap', payload: function () { return { pin: S.pin }; }, judul: 'Rekap Order & Transaksi', sub: 'Vast Travel · semua mitra & layanan',
+      file: 'Rekap-VastTravel', state: S.rk = S.rk || { preset: 'minggu', basis: 'order' }, nilai: function (b) { return b.lunas ? b.bayar : 0; },
+      olah: function (d) {
+        var L = d.baris, ok = L.filter(function (b) { return b.lunas; }), sum = function (a, f) { return a.reduce(function (t, b) { return t + f(b); }, 0); };
+        var omzet = sum(ok, function (b) { return b.bayar; }), kom = sum(ok, function (b) { return b.komisi - b.diskon_poin; }), mit = sum(ok, function (b) { return b.bagian_pemilik; }), sup = sum(ok, function (b) { return b.bagian_driver; });
+        var mBelum = sum(ok.filter(function (b) { return b.payout !== 'sudah'; }), function (b) { return b.bagian_pemilik; }), sBelum = sum(ok.filter(function (b) { return b.driver && b.payout_driver !== 'sudah'; }), function (b) { return b.bagian_driver; });
+        var pend = L.filter(function (b) { return ['menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0; });
+        return {
+          info: [['Jumlah order', String(L.length)], ['Lunas / berjalan / selesai', String(ok.length)], ['Belum bayar / proses', String(pend.length)], ['Batal', String(L.filter(function (b) { return b.status === 'batal'; }).length)],
+            ['Omzet diterima', rp(omzet)], ['Pendapatan pengelola', rp(kom)], ['Bagian mitra pemilik', rp(mit)], ['Bagian supir', rp(sup)],
+            ['Belum ditransfer ke mitra', rp(mBelum)], ['Belum ditransfer ke supir', rp(sBelum)], ['Potongan poin', rp(sum(ok, function (b) { return b.diskon_poin; }))], ['Nilai order proses', rp(sum(pend, function (b) { return b.bayar; }))]],
+          kolom: [{ t: 'No', w: 2.5 }, { t: 'No. Order', w: 10.5 }, { t: 'Tgl order', w: 6.5 }, { t: 'Jadwal', w: 6.5 }, { t: 'Layanan', w: 8.5 }, { t: 'Unit / TNKB', w: 12 }, { t: 'Penyewa', w: 8 }, { t: 'Supir', w: 5.5 },
+            { t: 'Status', w: 9 }, { t: 'Metode', w: 5.5 }, { t: 'Dibayar', w: 9, kanan: 1 }, { t: 'Pengelola', w: 7.5, kanan: 1 }, { t: 'Mitra', w: 7.5, kanan: 1 }, { t: 'Supir (Rp)', w: 7.5, kanan: 1 }],
+          baris: L.map(function (b, i) {
+            return [i + 1, b.id, V.tglPdf(b.tgl_order), V.tglPdf(b.tgl_mulai), b.layanan + (b.jarak ? ' ' + V.km(b.jarak) : ''), b.unit + (b.tnkb ? ' / ' + b.tnkb : ''), b.nama, b.driver || '-', b.status_label, b.metode || '-',
+              b.lunas ? rp(b.bayar) : (b.status === 'batal' ? '-' : '(' + rp(b.bayar) + ')'), b.lunas ? rp(b.komisi - b.diskon_poin) : '-', b.lunas ? rp(b.bagian_pemilik) : '-', b.lunas && b.bagian_driver ? rp(b.bagian_driver) : '-'];
+          }),
+          total: ['', 'TOTAL (lunas)', '', '', '', '', '', '', '', '', rp(omzet), rp(kom), rp(mit), rp(sup)]
+        };
+      } });
+  }
   /* ---------------- CHAT (penyewa & mitra <-> pengelola) ---------------- */
   function chatAdmin(th, nama) { V.chatOpen({ peran: 'pengelola', thread: th, judul: nama || 'Chat', sub: th.charAt(0) === 'R' ? 'Penyewa' : 'Mitra', payload: function () { return { pin: S.pin }; } }); }
   function renderChat() {
