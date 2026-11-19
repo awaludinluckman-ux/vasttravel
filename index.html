@@ -235,7 +235,7 @@ main { padding: 16px; display: flex; flex-direction: column; gap: 16px; flex: 1;
 .statcard b { display: block; font-size: 18px; font-weight: 800; color: var(--g700); }
 .statcard span { font-size: 11.5px; color: var(--muted); font-weight: 600; }
 
-label.f { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 700; }
+label.f, div.f { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 700; }
 .f input, .f select, .f textarea { font: 15px var(--f-body); color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; width: 100%; min-height: 46px; }
 .f textarea { min-height: 76px; resize: vertical; }
 .f .hint { font-weight: 500; color: var(--muted); font-size: 12px; }
@@ -517,6 +517,57 @@ body.ro .adm { display: none !important; }
 .anttik input[name=q] { padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; font: 600 14px var(--f-body); background: var(--card); color: var(--ink); }
 .anttik input[name=q]:focus { outline: none; border-color: var(--g500); }
 .antmap .leaflet-container, .antmap.leaflet-container { font: inherit; }
+/* Pemilih gulir atas-bawah (pengganti dropdown & pilihan centang) */
+.pkbtn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 46px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); font: 600 14.5px var(--f-body); text-align: left; cursor: pointer; }
+.pkbtn .pkv { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pkbtn .pkc { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.pkbtn .pkc:last-child { transform: rotate(90deg); }
+.pkbtn:disabled { opacity: .55; }
+label.f .pkbtn { margin-top: 6px; }
+.sel .pkbtn, .pk-sel { border: 0; background: transparent; min-height: 0; padding: 0; color: inherit; font-weight: 700; }
+.pk-wrap { position: fixed; inset: 0; z-index: 99990; background: rgba(15, 23, 42, .5); display: flex; align-items: flex-end; justify-content: center; animation: pkf .15s ease; }
+.pk { width: 100%; max-width: 560px; max-height: 82vh; background: var(--card, #fff); border-radius: 22px 22px 0 0; display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,.25); animation: pku .2s ease; }
+.pk-h { display: flex; align-items: center; gap: 8px; padding: 14px 14px 8px 16px; font-size: 16px; }
+.pk-cari { width: 100%; padding: 11px 14px; border: 1.5px solid var(--line); border-radius: 12px; font: 600 14px var(--f-body); }
+.pk-list { overflow-y: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: y proximity; padding: 0 10px; flex: 1; min-height: 120px; max-height: 58vh; overscroll-behavior: contain; }
+.pk-it { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 10px 14px; margin: 3px 0; border: 1.5px solid transparent; border-radius: 12px; background: transparent; text-align: left; font: 600 15px var(--f-body); color: var(--ink); cursor: pointer; scroll-snap-align: center; }
+.pk-it small { display: block; font: 500 12px var(--f-body); color: var(--muted); margin-top: 2px; }
+.pk-it:active { background: var(--g50); }
+.pk-it.on { background: var(--g50); border-color: var(--g500); color: var(--g700); font-weight: 800; }
+.pk-it.mati { opacity: .4; }
+.pk-k { font: 700 12px var(--f-body); color: var(--muted); white-space: nowrap; }
+.pk-g { position: sticky; top: 0; background: var(--card, #fff); font: 800 11px var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 14px 4px; z-index: 1; }
+@keyframes pkf { from { opacity: 0; } }
+@keyframes pku { from { transform: translateY(40px); } }
+/* Pilihan berbentuk kartu: tanpa bulatan centang, tersusun atas-bawah */
+.seg { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.opt input[type=radio] { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+.opt { position: relative; }
+.opt:has(input:checked) { box-shadow: inset 4px 0 0 var(--g500); }
+/* Daftar unit / supir / kendaraan: gulir atas-bawah */
+.drvs { flex-direction: column; overflow-x: hidden; overflow-y: auto; max-height: 340px; scroll-snap-type: y proximity; padding: 2px; }
+.drv-o { flex: none !important; flex-basis: auto !important; width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 10px; scroll-snap-align: start; }
+.drv-o > small { flex-basis: 100%; padding-left: 44px; margin-top: -4px; }
+.drv-o .p { margin-left: auto; }
+.drv-o .uimg { width: 72px; height: 46px; }
+.drv-o.tu > small, .drv-o.tu > b.small { padding-left: 0; }
+.drv-o[aria-pressed=true] { box-shadow: inset 4px 0 0 var(--g500); }
+/* Sakelar Aktif/Nonaktif menggantikan kotak centang (kecuali pilih & hapus order) */
+input[type=checkbox]:not([data-pk]) { appearance: none; -webkit-appearance: none; width: 44px; height: 26px; border-radius: 99px; background: #cbd5e1; position: relative; cursor: pointer; flex: none; transition: background .15s; vertical-align: middle; margin: 0; }
+input[type=checkbox]:not([data-pk])::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .15s; }
+input[type=checkbox]:not([data-pk]):checked { background: var(--g500); }
+input[type=checkbox]:not([data-pk]):checked::after { left: 21px; }
+.wilbtn .pkc:first-child { color: var(--g600); }
+.wilchip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 12px; }
+.wilchips { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+div.f .hint { font-weight: 500; }
+.selwil { display: block; padding: 0; }
+.selwil .pkbtn { background: transparent; border: 0; min-height: 44px; padding: 8px 12px; font-weight: 700; }
+.pk-h .hbtn { color: var(--ink); background: var(--g50); border: 0; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.pk-h .hbtn svg { width: 20px; height: 20px; }
+.durs { grid-template-columns: 1fr; }
+.dur[aria-pressed=true]::after { content: none !important; display: none !important; }
+.dur[aria-pressed=true] { box-shadow: inset 4px 0 0 var(--g500); }
 
 </style>
 </head>
@@ -684,6 +735,8 @@ function vrHargaPeriode(hFinal, hMitra, mulai, durasi, app) {
   }
   return { final: f, mitra: Math.min(m, f), hari: hari, naik: naik };
 }
+/* Provinsi & kabupaten/kota seluruh Indonesia (Kepmendagri No 300.2.2-2138 Tahun 2025, 38 provinsi, 514 kab/kota). [provinsi, [[kab/kota, lat, lng], ...]] */
+var VR_PROV = [["Aceh",[["Kab. Aceh Selatan",3.255,97.174],["Kab. Aceh Tenggara",3.473,97.819],["Kab. Aceh Timur",4.933,97.784],["Kab. Aceh Tengah",4.622,96.846],["Kab. Aceh Barat",4.153,96.131],["Kab. Aceh Besar",5.297,95.611],["Kab. Pidie",5.368,95.958],["Kab. Aceh Utara",5.076,97.303],["Kab. Simeulue",2.461,96.38],["Kab. Aceh Singkil",2.271,97.815],["Kab. Bireuen",5.208,96.726],["Kab. Aceh Barat Daya",3.739,96.852],["Kab. Gayo Lues",3.993,97.325],["Kab. Aceh Jaya",4.624,95.617],["Kab. Nagan Raya",4.169,96.324],["Kab. Aceh Tamiang",4.301,98.046],["Kab. Bener Meriah",4.703,96.862],["Kab. Pidie Jaya",5.229,96.245],["Kota Banda Aceh",5.55,95.318],["Kota Sabang",5.893,95.321],["Kota Lhokseumawe",5.179,97.149],["Kota Langsa",4.469,97.966],["Kota Subulussalam",2.671,97.993]]],["Sumatera Utara",[["Kab. Tapanuli Tengah",1.685,98.828],["Kab. Tapanuli Utara",2.022,98.962],["Kab. Tapanuli Selatan",1.52,99.303],["Kab. Nias",1.242,97.65],["Kab. Langkat",3.743,98.448],["Kab. Karo",3.111,98.501],["Kab. Deli Serdang",3.551,98.866],["Kab. Simalungun",2.965,98.862],["Kab. Asahan",2.988,99.613],["Kab. Labuhanbatu",2.07,99.857],["Kab. Dairi",2.748,98.314],["Kab. Toba",2.332,99.051],["Kab. Mandailing Natal",0.797,99.579],["Kab. Nias Selatan",0.583,97.778],["Kab. Pakpak Bharat",2.541,98.323],["Kab. Humbang Hasundutan",2.25,98.79],["Kab. Samosir",2.56,98.722],["Kab. Serdang Bedagai",3.491,99.126],["Kab. Batu Bara",3.172,99.421],["Kab. Padang Lawas Utara",1.495,99.62],["Kab. Padang Lawas",1.056,99.776],["Kab. Labuhanbatu Selatan",1.868,100.041],["Kab. Labuhanbatu Utara",2.563,99.658],["Kab. Nias Utara",1.389,97.381],["Kab. Nias Barat",0.999,97.495],["Kota Medan",3.59,98.675],["Kota Pematangsiantar",2.956,99.062],["Kota Sibolga",1.746,98.776],["Kota Tanjungbalai",2.948,99.767],["Kota Binjai",3.603,98.483],["Kota Tebing Tinggi",3.328,99.166],["Kota Padangsidimpuan",1.378,99.271],["Kota Gunungsitoli",1.283,97.613]]],["Sumatera Barat",[["Kab. Pesisir Selatan",-1.348,100.578],["Kab. Solok",-0.952,100.621],["Kab. Sijunjung",-0.666,100.945],["Kab. Tanah Datar",-0.474,100.623],["Kab. Padang Pariaman",-0.621,100.307],["Kab. Agam",-0.315,100.03],["Kab. Lima Puluh Kota",-0.152,100.661],["Kab. Pasaman",0.14,100.167],["Kab. Kepulauan Mentawai",-2.054,99.58],["Kab. Dharmasraya",-0.953,101.494],["Kab. Solok Selatan",-1.556,101.24],["Kab. Pasaman Barat",0.11,99.828],["Kota Padang",-0.876,100.387],["Kota Solok",-0.799,100.653],["Kota Sawahlunto",-0.675,100.768],["Kota Padang Panjang",-0.462,100.39],["Kota Bukittinggi",-0.285,100.368],["Kota Payakumbuh",-0.223,100.632],["Kota Pariaman",-0.629,100.138]]],["Riau",[["Kab. Kampar",0.314,101.018],["Kab. Indragiri Hulu",-0.393,102.438],["Kab. Bengkalis",1.473,102.113],["Kab. Indragiri Hilir",-0.315,103.158],["Kab. Pelalawan",0.384,101.842],["Kab. Rokan Hulu",0.9,100.307],["Kab. Rokan Hilir",2.099,100.818],["Kab. Siak",0.805,102.02],["Kab. Kuantan Singingi",-0.505,101.538],["Kab. Kepulauan Meranti",1.001,102.726],["Kota Pekanbaru",0.513,101.447],["Kota Dumai",1.605,101.392]]],["Jambi",[["Kab. Kerinci",-2.057,101.388],["Kab.  Merangin",-2.06,102.274],["Kab. Sarolangun",-2.313,102.75],["Kab. Batanghari",-1.694,103.273],["Kab.  Muaro Jambi",-1.448,103.515],["Kab. Tanjung Jabung Barat",-0.827,103.461],["Kab. Tanjung Jabung Timur",-1.206,103.79],["Kab. Bungo",-1.516,102.119],["Kab. Tebo",-1.466,102.358],["Kota Jambi",-1.631,103.607],["Kota Sungai Penuh",-2.071,101.396]]],["Sumatera Selatan",[["Kab. Ogan Komering Ulu",-4.166,104.198],["Kab. Ogan Komering",-3.412,104.823],["Kab. Muara Enim",-3.656,103.777],["Kab. Lahat",-3.778,103.55],["Kab. Musi Rawas",-3.244,103.012],["Kab. Musi Banyuasin",-2.889,103.84],["Kab. Banyuasin",-2.917,104.407],["Kab. Ogan Komering Ulu Timur",-4.369,104.358],["Kab. Ogan Komering Ulu Selatan",-4.532,104.095],["Kab. Ogan Ilir",-3.261,104.653],["Kab. Empat Lawang",-3.61,103.103],["Kab. Penukal Abab Lematang Ilir",-3.31,103.884],["Kab. Musi Rawas Utara",-2.735,102.901],["Kota Palembang",-2.991,104.757],["Kota Pagar Alam",-4.039,103.197],["Kota Lubuk Linggau",-3.326,102.825],["Kota Prabumulih",-3.369,104.308]]],["Bengkulu",[["Kab. Bengkulu Selatan",-4.44,102.895],["Kab. Rejang Lebong",-3.478,102.532],["Kab. Bengkulu Utara",-3.437,102.202],["Kab. Kaur",-4.759,103.349],["Kab. Seluma",-4.078,102.556],["Kab. Mukomuko",-2.553,101.104],["Kab. Lebong",-3.157,102.183],["Kab. Kepahiang",-3.625,102.556],["Kab. Bengkulu Tengah",-3.773,102.39],["Kota Bengkulu",-3.793,102.261]]],["Lampung",[["Kab. Lampung Selatan",-5.718,105.585],["Kab. Lampung Tengah",-4.977,105.21],["Kab. Lampung Utara",-4.829,104.887],["Kab. Lampung Barat",-5.019,104.061],["Kab. Tulang Bawang",-4.495,105.22],["Kab. Tanggamus",-5.481,104.682],["Kab. Lampung Timur",-5.048,105.528],["Kab. Way Kanan",-4.506,104.511],["Kab. Pesawaran",-5.398,105.07],["Kab. Pringsewu",-5.344,105.006],["Kab. Mesuji",-3.873,105.428],["Kab. Tulang Bawang Barat",-4.499,105.12],["Kab. Pesisir Barat",-5.188,103.935],["Kota Bandar Lampung",-5.43,105.263],["Kota Metro",-5.114,105.307]]],["Kepulauan Bangka Belitung",[["Kab. Bangka",-1.887,106.105],["Kab. Belitung",-2.742,107.654],["Kab. Bangka Selatan",-3.02,106.512],["Kab. Bangka Tengah",-2.515,106.416],["Kab. Bangka Barat",-2.059,105.201],["Kab. Belitung Timur",-2.883,108.239],["Kota Pangkal Pinang",-2.141,106.116]]],["Kepulauan Riau",[["Kab. Bintan",1.087,104.502],["Kab. Karimun",1.033,103.376],["Kab. Natuna",3.923,108.337],["Kab. Lingga",-0.21,104.605],["Kab. Kepulauan Anambas",3.215,106.249],["Kota Batam",1.129,104.055],["Kota Tanjung Pinang",0.965,104.441]]],["DKI Jakarta",[["Kab. Kepulauan Seribu",-5.746,106.613],["Kota Jakarta Pusat",-6.173,106.819],["Kota Jakarta Utara",-6.12,106.892],["Kota Jakarta Barat",-6.184,106.737],["Kota Jakarta Selatan",-6.248,106.808],["Kota Jakarta Timur",-6.214,106.944]]],["Jawa Barat",[["Kab. Bogor",-6.479,106.825],["Kab. Sukabumi",-6.989,106.55],["Kab. Cianjur",-6.823,107.139],["Kab. Bandung",-7.022,107.528],["Kab. Garut",-7.203,107.886],["Kab. Tasikmalaya",-7.361,108.113],["Kab. Ciamis",-7.326,108.351],["Kab. Kuningan",-6.976,108.483],["Kab. Cirebon",-6.765,108.479],["Kab. Majalengka",-6.836,108.228],["Kab. Sumedang",-6.861,107.921],["Kab. Indramayu",-6.327,108.323],["Kab. Subang",-6.571,107.762],["Kab. Purwakarta",-6.556,107.441],["Kab. Karawang",-6.302,107.305],["Kab. Bekasi",-6.247,107.148],["Kab. Bandung Barat",-6.865,107.492],["Kab. Pangandaran",-7.615,108.499],["Kota Bogor",-6.595,106.794],["Kota Sukabumi",-6.918,106.932],["Kota Bandung",-6.911,107.61],["Kota Cirebon",-6.707,108.558],["Kota Bekasi",-6.236,106.994],["Kota Depok",-6.394,106.823],["Kota Cimahi",-6.871,107.555],["Kota Tasikmalaya",-7.316,108.197],["Kota Banjar",-7.362,108.56]]],["Jawa Tengah",[["Kab. Cilacap",-7.726,109.01],["Kab. Banyumas",-7.423,109.23],["Kab. Purbalingga",-7.389,109.364],["Kab. Banjarnegara",-7.396,109.696],["Kab. Kebumen",-7.668,109.654],["Kab. Purworejo",-7.714,110.008],["Kab. Wonosobo",-7.358,109.905],["Kab. Magelang",-7.597,110.224],["Kab. Boyolali",-7.546,110.611],["Kab. Klaten",-7.712,110.592],["Kab. Sukoharjo",-7.665,110.836],["Kab. Wonogiri",-7.815,110.926],["Kab. Karanganyar",-7.596,110.94],["Kab. Sragen",-7.426,111.023],["Kab. Grobogan",-7.082,110.917],["Kab. Blora",-6.97,111.415],["Kab. Rembang",-6.703,111.343],["Kab. Pati",-6.752,111.04],["Kab. Kudus",-6.806,110.842],["Kab. Jepara",-6.59,110.668],["Kab. Demak",-6.891,110.638],["Kab. Semarang",-7.129,110.404],["Kab. Temanggung",-7.315,110.182],["Kab. Kendal",-6.923,110.204],["Kab. Batang",-6.911,109.73],["Kab. Pekalongan",-7.025,109.591],["Kab. Pemalang",-6.893,109.381],["Kab. Tegal",-6.995,109.128],["Kab. Brebes",-6.87,109.039],["Kota Magelang",-7.504,110.221],["Kota Surakarta",-7.569,110.829],["Kota Salatiga",-7.33,110.501],["Kota Semarang",-6.982,110.412],["Kota Pekalongan",-6.897,109.662],["Kota Tegal",-6.87,109.137]]],["DI Yogyakarta",[["Kab. Kulon Progo",-7.858,110.159],["Kab. Bantul",-7.886,110.328],["Kab. Gunungkidul",-7.964,110.602],["Kab. Sleman",-7.717,110.356],["Kota Yogyakarta",-7.8,110.391]]],["Jawa Timur",[["Kab. Pacitan",-8.194,111.103],["Kab. Ponorogo",-7.871,111.463],["Kab. Trenggalek",-8.048,111.709],["Kab. Tulungagung",-8.064,111.901],["Kab. Blitar",-8.124,112.213],["Kab. Kediri",-7.802,112.041],["Kab. Malang",-8.105,112.573],["Kab. Lumajang",-8.135,113.224],["Kab. Jember",-8.17,113.702],["Kab. Banyuwangi",-8.223,114.366],["Kab. Bondowoso",-7.914,113.822],["Kab. Situbondo",-7.707,114.002],["Kab. Probolinggo",-7.762,113.416],["Kab. Pasuruan",-7.649,112.905],["Kab. Sidoarjo",-7.447,112.718],["Kab. Mojokerto",-7.463,112.433],["Kab. Jombang",-7.556,112.235],["Kab. Nganjuk",-7.602,111.902],["Kab. Madiun",-7.539,111.653],["Kab. Magetan",-7.656,111.329],["Kab. Ngawi",-7.401,111.445],["Kab. Bojonegoro",-7.15,111.882],["Kab. Tuban",-6.896,112.065],["Kab. Lamongan",-7.121,112.415],["Kab. Gresik",-7.171,112.6],["Kab. Bangkalan",-7.046,112.737],["Kab. Sampang",-7.188,113.237],["Kab. Pamekasan",-7.157,113.472],["Kab. Sumenep",-7.014,113.864],["Kota Kediri",-7.812,112.014],["Kota Blitar",-8.099,112.165],["Kota Malang",-7.978,112.634],["Kota Probolinggo",-7.754,113.214],["Kota Pasuruan",-7.647,112.909],["Kota Mojokerto",-7.463,112.433],["Kota Madiun",-7.624,111.521],["Kota Surabaya",-7.259,112.747],["Kota Batu",-7.863,112.513]]],["Banten",[["Kab. Pandeglang",-6.317,106.115],["Kab. Lebak",-6.361,106.246],["Kab. Tangerang",-6.27,106.484],["Kab. Serang",-6.115,106.152],["Kota Tangerang",-6.164,106.641],["Kota Cilegon",-6.01,106.042],["Kota Serang",-6.12,106.173],["Kota Tangerang Selatan",-6.322,106.708]]],["Bali",[["Kab. Jembrana",-8.357,114.637],["Kab. Tabanan",-8.539,115.131],["Kab. Badung",-8.602,115.179],["Kab. Gianyar",-8.541,115.324],["Kab. Klungkung",-8.534,115.403],["Kab. Bangli",-8.462,115.352],["Kab. Karangasem",-8.439,115.612],["Kab. Buleleng",-8.125,115.093],["Kota Denpasar",-8.654,115.217]]],["Nusa Tenggara Barat",[["Kab. Lombok Barat",-8.681,116.137],["Kab. Lombok Tengah",-8.706,116.27],["Kab. Lombok Timur",-8.651,116.53],["Kab. Sumbawa",-8.49,117.42],["Kab. Dompu",-8.534,118.465],["Kab. Bima",-8.557,118.67],["Kab. Sumbawa Barat",-8.754,116.854],["Kab. Lombok Utara",-8.356,116.159],["Kota Mataram",-8.583,116.108],["Kota Bima",-8.462,118.749]]],["Nusa Tenggara Timur",[["Kab. Kupang",-10.073,123.864],["Kab. Timor Tengah Selatan",-9.852,124.266],["Kab. Timor Tengah Utara",-9.457,124.475],["Kab. Belu",-9.106,124.874],["Kab. Alor",-8.209,124.573],["Kab. Flores Timur",-8.326,123.003],["Kab. Sikka",-8.617,122.208],["Kab. Ende",-8.843,121.662],["Kab. Ngada",-8.785,120.975],["Kab. Manggarai",-8.611,120.464],["Kab. Sumba Timur",-9.661,120.261],["Kab. Sumba Barat",-9.647,119.394],["Kab. Lembata",-8.36,123.459],["Kab. Rote Ndao",-10.758,123.063],["Kab. Manggarai Barat",-8.496,119.894],["Kab. Nagekeo",-8.575,121.281],["Kab. Sumba Tengah",-9.623,119.6],["Kab. Sumba Barat Daya",-9.392,119.181],["Kab. Manggarai Timur",-8.749,120.609],["Kab. Sabu Raijua",-10.453,121.878],["Kab. Malaka",-9.445,124.918],["Kota Kupang",-10.154,123.619]]],["Kalimantan Barat",[["Kab. Sambas",1.361,109.329],["Kab. Mempawah",0.351,108.962],["Kab. Sanggau",0.123,110.596],["Kab. Ketapang",-1.844,109.979],["Kab. Sintang",0.079,111.495],["Kab. Kapuas Hulu",0.879,112.925],["Kab. Bengkayang",0.869,109.497],["Kab. Landak",0.375,109.938],["Kab. Sekadau",0.007,110.955],["Kab. Melawi",-0.377,111.764],["Kab. Kayong Utara",-1.253,109.954],["Kab. Kubu Raya",-0.127,109.404],["Kota Pontianak",-0.022,109.338],["Kota Singkawang",0.905,108.977]]],["Kalimantan Tengah",[["Kab. Kotawaringin Barat",-2.692,111.634],["Kab. Kotawaringin Timur",-2.538,112.941],["Kab. Kapuas",-2.964,114.416],["Kab. Barito Selatan",-1.719,114.845],["Kab. Barito Utara",-0.952,114.898],["Kab. Katingan",-1.881,113.399],["Kab. Seruyan",-3.414,112.542],["Kab. Sukamara",-2.761,111.177],["Kab. Lamandau",-2.185,111.428],["Kab. Gunung Mas",-1.127,113.844],["Kab. Pulang Pisau",-2.716,114.305],["Kab. Murung Raya",-0.64,114.569],["Kab. Barito Timur",-2.115,115.169],["Kota Palangkaraya",-2.174,113.88]]],["Kalimantan Selatan",[["Kab. Tanah Laut",-3.799,114.783],["Kab. Kotabaru",-3.236,116.228],["Kab. Banjar",-3.409,114.848],["Kab. Barito Kuala",-2.978,114.766],["Kab. Tapin",-2.932,115.163],["Kab. Hulu Sungai Selatan",-2.787,115.266],["Kab. Hulu Sungai Tengah",-2.585,115.385],["Kab. Hulu Sungai Utara",-2.419,115.254],["Kab. Tabalong",-2.164,115.382],["Kab. Tanah Bumbu",-3.483,115.947],["Kab. Balangan",-2.364,115.471],["Kota Banjarmasin",-3.327,114.589],["Kota Banjarbaru",-3.439,114.831]]],["Kalimantan Timur",[["Kab. Paser",-1.91,116.191],["Kab. Kutai Kartanegara",-0.443,116.999],["Kab. Berau",2.15,117.508],["Kab. Kutai Barat",-0.237,115.696],["Kab. Kutai Timur",0.526,117.608],["Kab. Penajam Paser Utara",-1.308,116.727],["Kab. Mahakam Ulu",0.506,115.271],["Kota Balikpapan",-1.276,116.828],["Kota Samarinda",-0.491,117.146],["Kota Bontang",0.07,117.444]]],["Kalimantan Utara",[["Kab. Bulungan",2.841,117.398],["Kab. Malinau",3.552,116.622],["Kab. Nunukan",4.077,117.719],["Kab. Tana Tidung",3.602,116.903],["Kota Tarakan",3.314,117.605]]],["Sulawesi Utara",[["Kab. Bolaang Mongondow",0.871,124.024],["Kab. Minahasa",1.301,124.911],["Kab. Kepulauan Sangihe",3.612,125.5],["Kab. Kepulauan Talaud",4.006,126.682],["Kab. Minahasa Selatan",1.213,124.597],["Kab. Minahasa Utara",1.459,124.975],["Kab. Minahasa Tenggara",1.042,124.798],["Kab. Bolaang Mongondow Utara",0.906,123.259],["Kab. Kep. Siau Tagulandang Biaro",2.745,125.362],["Kab. Bolaang Mongondow Timur",0.769,124.613],["Kab. Bolaang Mongondow Selatan",0.384,124.048],["Kota Manado",1.485,124.849],["Kota Bitung",1.445,125.182],["Kota Tomohon",1.315,124.827],["Kota Kotamobagu",0.743,124.313]]],["Sulawesi Tengah",[["Kab. Banggai",-0.994,122.789],["Kab. Poso",-1.395,120.755],["Kab. Donggala",-0.678,119.753],["Kab. Toli-Toli",1.018,120.798],["Kab. Buol",1.169,121.41],["Kab. Morowali",-2.481,121.934],["Kab. Banggai Kepulauan",-1.312,123.298],["Kab. Parigi Moutong",-0.805,120.16],["Kab. Tojo Una Una",-0.915,121.589],["Kab. Sigi",-1.047,119.95],["Kab. Banggai Laut",-1.606,123.496],["Kab. Morowali Utara",-1.977,121.336],["Kota Palu",-0.9,119.891]]],["Sulawesi Selatan",[["Kab. Kepulauan Selayar",-6.12,120.466],["Kab. Bulukumba",-5.558,120.193],["Kab. Bantaeng",-5.553,119.967],["Kab. Jeneponto",-5.677,119.749],["Kab. Takalar",-5.425,119.441],["Kab. Gowa",-5.2,119.453],["Kab. Sinjai",-5.12,120.235],["Kab. Bone",-4.539,120.309],["Kab. Maros",-5.016,119.574],["Kab. Pangkajene dan Kepulauan",-4.846,119.56],["Kab. Barru",-4.414,119.617],["Kab. Soppeng",-4.364,119.898],["Kab. Wajo",-4.112,120.027],["Kab. Sidenreng Rappang",-3.933,119.769],["Kab. Pinrang",-3.809,119.65],["Kab. Enrekang",-3.588,119.77],["Kab. Luwu",-3.395,120.366],["Kab. Tana Toraja",-3.087,119.857],["Kab. Luwu Utara",-2.55,120.346],["Kab. Luwu Timur",-2.616,121.124],["Kab. Toraja Utara",-2.974,119.895],["Kota Makassar",-5.133,119.408],["Kota Parepare",-4.028,119.633],["Kota Palopo",-3.008,120.202]]],["Sulawesi Tenggara",[["Kab. Kolaka",-4.061,121.616],["Kab. Konawe",-3.854,122.043],["Kab. Muna",-4.798,122.719],["Kab. Buton",-5.496,122.84],["Kab. Konawe Selatan",-4.332,122.281],["Kab. Bombana",-4.747,122.011],["Kab. Wakatobi",-5.328,23.539],["Kab. Kolaka Utara",-3.49,120.888],["Kab. Konawe Utara",-3.512,122.111],["Kab. Buton Utara",-4.801,122.983],["Kab. Kolaka Timur",-4.001,121.862],["Kab. Konawe Kepulauan",-4.053,122.989],["Kab. Muna Barat",-4.792,122.494],["Kab. Buton Tengah",-5.316,122.532],["Kab. Buton Selatan",-5.608,122.601],["Kota Kendari",-3.973,122.512],["Kota Bau Bau",-5.485,122.585]]],["Gorontalo",[["Kab. Gorontalo",0.629,122.981],["Kab. Boalemo",0.529,122.348],["Kab. Bone Bolango",0.557,123.144],["Kab. Pohuwato",0.706,121.72],["Kab. Gorontalo Utara",0.791,122.869],["Kota Gorontalo",0.532,123.06]]],["Sulawesi Barat",[["Kab. Pasangkayu",-1.174,119.377],["Kab. Mamuju",-2.69,118.885],["Kab. Mamasa",-2.956,119.363],["Kab. Polewali Mandar",-3.408,119.311],["Kab. Majene",-3.548,118.959],["Kab. Mamuju Tengah",-2.082,119.301]]],["Maluku",[["Kab. Maluku Tengah",-3.304,128.954],["Kab. Maluku Tenggara",-5.683,132.717],["Kab. Kepulauan Tanimbar",-7.97,131.312],["Kab. Buru",-3.259,127.103],["Kab. Seram Bagian Timur",-3.104,130.489],["Kab. Seram Bagian Barat",-3.067,128.23],["Kab. Kepulauan Aru",-5.775,134.215],["Kab. Maluku Barat Daya",-8.148,127.802],["Kab. Buru Selatan",-3.838,126.734],["Kota Ambon",-3.694,128.181],["Kota Tual",-5.635,132.752]]],["Maluku Utara",[["Kab. Halmahera Barat",1.08,127.48],["Kab. Halmahera Tengah",0.33,127.87],["Kab. Halmahera Utara",1.728,127.992],["Kab. Halmahera Selatan",-0.645,127.505],["Kab. Kepulauan Sula",-2.007,125.964],["Kab. Halmahera Timur",0.677,128.284],["Kab. Pulau Morotai",2.013,128.284],["Kab. Pulau Taliabu",-1.947,124.387],["Kota Ternate",0.786,127.388],["Kota Tidore Kepulauan",0.672,127.447]]],["Papua",[["Kab. Jayapura",-2.55,140.477],["Kab. Kepulauan Yapen",-1.874,136.237],["Kab. Biak Numfor",-1.171,136.09],["Kab. Sarmi",-1.869,138.744],["Kab. Keerom",-2.909,140.773],["Kab. Waropen",-2.241,136.379],["Kab. Supiori",-0.731,135.733],["Kab. Mamberamo Raya",-2.371,138.05],["Kota Jayapura",-2.563,140.693]]],["Papua Barat",[["Kab. Manokwari",-0.891,134.04],["Kab. Fak Fak",-2.929,132.294],["Kab. Teluk Bintuni",-2.035,133.732],["Kab. Teluk Wondama",-2.828,134.536],["Kab. Kaimana",-3.64,133.74],["Kab. Manokwari Selatan",-1.506,134.169],["Kab. Pegunungan Arfak",-1.325,133.917]]],["Papua Selatan",[["Kab. Merauke",-8.509,140.41],["Kab. Boven Digoel",-6.1,140.321],["Kab. Mappi",-6.528,139.319],["Kab. Asmat",-5.541,138.137]]],["Papua Tengah",[["Kab. Nabire",-3.363,135.504],["Kab. Puncak Jaya",-3.716,137.988],["Kab. Paniai",-3.941,136.422],["Kab. Mimika",-4.456,136.854],["Kab. Puncak",-3.972,137.642],["Kab. Dogiyai",-4.005,136.038],["Kab. Intan Jaya",-3.741,137.044],["Kab. Deiyai",-4.032,136.299]]],["Papua Pegunungan",[["Kab. Jayawijaya",-4.099,138.943],["Kab. Pegunungan Bintang",-4.891,140.64],["Kab. Yahukimo",-4.887,139.521],["Kab. Tolikara",-3.682,138.473],["Kab. Mamberamo Tengah",-3.672,139.061],["Kab. Yalimo",-3.779,139.383],["Kab. Lanny Jaya",-3.924,138.45],["Kab. Nduga",-4.407,138.239]]],["Papua Barat Daya",[["Kab. Sorong",-0.988,131.366],["Kab. Sorong Selatan",-1.475,132.086],["Kab. Raja Ampat",-0.419,130.829],["Kab. Tambrauw",-0.497,132.088],["Kab. Maybrat",-1.257,132.499],["Kota Sorong",-0.881,131.288]]]];
 /* ---------- Wilayah layanan: kota & kabupaten dibedakan (Kota Malang vs Kab. Malang) ---------- */
 var VR_WIL_KOTA = ['Malang', 'Batu', 'Surabaya', 'Kediri', 'Blitar', 'Madiun', 'Mojokerto', 'Pasuruan', 'Probolinggo', 'Denpasar'];
 var VR_WIL_KAB = ['Malang', 'Sidoarjo', 'Gresik', 'Pasuruan', 'Probolinggo', 'Mojokerto', 'Jombang', 'Kediri', 'Blitar', 'Tulungagung', 'Trenggalek', 'Nganjuk', 'Madiun', 'Magetan',
@@ -694,6 +747,9 @@ var VR_WILAYAH = VR_WIL_KOTA.map(function (k) { return 'Kota ' + k; }).concat(VR
 /* Normalisasi nama wilayah: "kabupaten malang" -> "Kab. Malang", "kota batu" -> "Kota Batu". Data lama tanpa awalan ("Malang") dibaca sebagai kota, kecuali daerah yang hanya kabupaten ("Sidoarjo" -> "Kab. Sidoarjo"). */
 function vrWilayah(v) {
   var s = String(v || '').replace(/\s+/g, ' ').trim(); if (!s) return '';
+  var pv = s.match(/^prov(insi)?\.?\s+(.+)$/i);
+  if (pv) { var pn = VR_PROV.filter(function (x) { return x[0].toLowerCase() === pv[2].toLowerCase(); })[0]; return pn ? 'Prov. ' + pn[0] : s; }
+  if (typeof VR_KAB_IDX !== 'undefined') { var hit = VR_KAB_IDX[s.toLowerCase().replace(/^kabupaten\s+/, 'kab. ').replace(/^kab\s+/, 'kab. ')]; if (hit) return hit.nama; }
   var cap = function (t) { return t.replace(/\b([a-z])/g, function (m) { return m.toUpperCase(); }); };
   var m = s.match(/^(kab(upaten)?\.?|kota)\s+(.+)$/i);
   if (m) return (/^kota$/i.test(m[1]) ? 'Kota ' : 'Kab. ') + cap(m[3].toLowerCase());
@@ -702,6 +758,25 @@ function vrWilayah(v) {
   if (VR_WIL_KAB.indexOf(n) >= 0) return 'Kab. ' + n;
   return s;
 }
+var VR_KAB_IDX = {};
+VR_PROV.forEach(function (p) { p[1].forEach(function (k) { VR_KAB_IDX[k[0].toLowerCase()] = { nama: k[0], prov: p[0], lat: k[1], lng: k[2] }; }); });
+function vrKabInfo(v) { return VR_KAB_IDX[vrWilayah(v).toLowerCase()] || null; }
+function vrProvinsiOf(v) { var s = String(v || ''); if (/^Prov\. /.test(s)) return s.slice(6); var i = vrKabInfo(s); return i ? i.prov : ''; }
+function vrProvAda(n) { return VR_PROV.some(function (p) { return p[0] === n; }); }
+/* Wilayah dibuka pengelola: daftar kab/kota dan/atau "Prov. <nama>" (seluruh provinsi) */
+function vrWilayahBuka(list, kab) {
+  if (!list || !list.length) return false;
+  var k = vrWilayah(kab); if (!k) return false;
+  return list.indexOf(k) >= 0 || list.indexOf('Prov. ' + vrProvinsiOf(k)) >= 0;
+}
+function vrWilayahUrai(list) {
+  var o = []; (list || []).forEach(function (w) {
+    if (/^Prov\. /.test(w)) { var p = VR_PROV.filter(function (x) { return x[0] === w.slice(6); })[0]; if (p) p[1].forEach(function (k) { if (o.indexOf(k[0]) < 0) o.push(k[0]); }); }
+    else if (o.indexOf(w) < 0) o.push(w);
+  });
+  return o;
+}
+function vrWilayahLabel(w) { return /^Prov\. /.test(w) ? 'Seluruh ' + w.slice(6) : w + (vrProvinsiOf(w) ? ', ' + vrProvinsiOf(w) : ''); }
 function vrWilayahPunyaAwalan(v) { return /^(Kota|Kab\.) /.test(vrWilayah(v)); }
 /* Teks untuk pencarian alamat di peta */
 function vrWilayahCari(v) { return vrWilayah(v).replace(/^Kab\. /, 'Kabupaten '); }
@@ -878,6 +953,8 @@ function vrCreateLogic(store) {
     return d;
   }
 
+  function wilayahBuka(s) { return vrList(String(s.kota) === 'Malang;Batu;Surabaya;Sidoarjo' ? VR_DEFAULTS.kota : s.kota).map(vrWilayah).filter(function (k, i, a) { return k && a.indexOf(k) === i; }); }
+  function cekWilayah(u, s) { if (!vrWilayahBuka(wilayahBuka(s), u.kota)) fail('Wilayah ' + (vrWilayah(u.kota) || '-') + ' belum dibuka untuk menerima order.'); }
   function publicApp() {
     var s = settings(), o = {};
     VR_PUBLIC_SETTINGS.forEach(function (k) { o[k] = s[k] || ''; });
@@ -899,7 +976,8 @@ function vrCreateLogic(store) {
     o.bagi_supir_antar = String(s.bagi_supir_antar) === '' ? 60 : num(s.bagi_supir_antar);
     o.faktor_jalan = num(s.faktor_jalan) || 1.3;
     o.antar_maks_km = num(s.antar_maks_km) || 150;
-    o.kota = vrList(String(s.kota) === 'Malang;Batu;Surabaya;Sidoarjo' ? VR_DEFAULTS.kota : s.kota).map(vrWilayah).filter(function (k, i, a) { return k && a.indexOf(k) === i; });
+    o.wilayah_buka = wilayahBuka(s);
+    o.kota = vrWilayahUrai(o.wilayah_buka);
     o.bandara = vrList(s.bandara);
     o.outlet = vrParsePairs(s.outlet).map(function (z) { return { nama: z.nama, alamat: z.nilai }; });
     o.promo = vrParsePairs(s.promo).map(function (z) { return { judul: z.nama, sub: z.nilai }; });
@@ -926,7 +1004,7 @@ function vrCreateLogic(store) {
   function unitPublic(u) {
     var hg = hargaUnit(settings(), u);
     return { id: String(u.id), jenis: u.jenis, kategori: vrKategoriOf(u.jenis), harga_final: hg.final, merk: u.merk, model: u.model, tahun: String(u.tahun || ''), warna: u.warna,
-      transmisi: u.transmisi, kapasitas: num(u.kapasitas) || (VR_JENIS[u.jenis] || {}).kapasitas, kota: vrWilayah(u.kota), foto: u.foto, fitur: u.fitur,
+      transmisi: u.transmisi, kapasitas: num(u.kapasitas) || (VR_JENIS[u.jenis] || {}).kapasitas, kota: vrWilayah(u.kota), provinsi: vrProvinsiOf(u.kota), foto: u.foto, fitur: u.fitur,
       jarak_km: num(u.jarak_km), charging: String(u.charging || ''), bagasi: String(u.bagasi || ''), model_id: String(u.model_id || '') };
   }
   function unitFull(u) {
@@ -934,7 +1012,7 @@ function vrCreateLogic(store) {
     return x;
   }
   function pemilikOut(p) {
-    return { id: String(p.id), nama: p.nama, wa: vrNormWa(p.wa), alamat: p.alamat, kota: vrWilayah(p.kota), bank: p.bank, status: p.status, dibuat: String(p.dibuat) };
+    return { id: String(p.id), nama: p.nama, wa: vrNormWa(p.wa), alamat: p.alamat, kota: vrWilayah(p.kota), provinsi: vrProvinsiOf(p.kota), bank: p.bank, status: p.status, dibuat: String(p.dibuat) };
   }
   function simpanDokumen(req, wajib) {
     var out = {};
@@ -1125,7 +1203,7 @@ function vrCreateLogic(store) {
     var hari = {};
     store.all('Booking').forEach(function (b) { if (String(b.layanan) === 'antar' && vrDateKey(b.tgl_mulai) === tgl && VR_KUNCI.indexOf(b.status) >= 0) hari[b.unit_id] = (hari[b.unit_id] || 0) + 1; });
     var L = store.all('Unit').filter(function (u) {
-      if (!unitAktif(u) || u.jenis !== jenis || (kecuali || []).indexOf(String(u.id)) >= 0) return false;
+      if (!unitAktif(u) || u.jenis !== jenis || (kecuali || []).indexOf(String(u.id)) >= 0 || !vrWilayahBuka(wilayahBuka(s), u.kota)) return false;
       var p = byId('Pemilik', u.pemilik_id);
       return p && p.status === 'aktif' && !bentrok(u.id, tgl, vrAddDays(tgl, 1), '', s);
     }).sort(function (a, b) { return (hari[a.id] || 0) - (hari[b.id] || 0) || (String(a.id) < String(b.id) ? -1 : 1); });
@@ -1284,7 +1362,7 @@ function vrCreateLogic(store) {
     katalog: function () {
       var s = settings(), pemilikAktif = {};
       store.all('Pemilik').forEach(function (p) { if (p.status === 'aktif') pemilikAktif[String(p.id)] = true; });
-      var units = store.all('Unit').filter(function (u) { return unitAktif(u) && pemilikAktif[String(u.pemilik_id)]; });
+      var buka = wilayahBuka(s), units = store.all('Unit').filter(function (u) { return unitAktif(u) && pemilikAktif[String(u.pemilik_id)] && vrWilayahBuka(buka, u.kota); });
       var jadwal = jadwalTerpakai(s), terpakai = {};
       units.forEach(function (u) { terpakai[String(u.id)] = jadwal[String(u.id)] || []; });
       return { app: publicApp(), unit: units.map(unitPublic), terpakai: terpakai, hari_ini: vrToday() };
@@ -1294,6 +1372,7 @@ function vrCreateLogic(store) {
       if (!unitAktif(u)) fail('Unit tidak tersedia. Pilih unit lain.');
       var pem = byId('Pemilik', u.pemilik_id);
       if (!pem || pem.status !== 'aktif') fail('Unit tidak tersedia. Pilih unit lain.');
+      cekWilayah(u, s);
       var jenis = VR_JENIS[u.jenis], layanan = String(req.layanan || '');
       if (!jenis || jenis.layanan.indexOf(layanan) < 0) fail('Pilih jenis layanan yang tersedia untuk unit ini.');
       if (layanan === 'lepas' && !req.member_id) fail('Lepas kunci khusus member terverifikasi. Masuk sebagai member atau daftar dulu.');
@@ -1356,6 +1435,7 @@ function vrCreateLogic(store) {
         var u = findUnit(req.unit_id);
         if (!u || u.status !== 'aktif') fail('Unit tidak tersedia. Pilih unit lain.');
         if (u.jenis === 'motor') fail('Layanan perjalanan memakai mobil. Pilih unit mobil.');
+        cekWilayah(u, s);
         if (bentrok(u.id, mulai, selesai, '', s)) fail('Unit sudah terpakai di tanggal tersebut. Pilih unit lain.');
         if (pen > (num(u.kapasitas) || VR_JENIS[u.jenis].kapasitas)) fail('Jumlah penumpang melebihi kapasitas unit.');
         var drv = txt(req.driver, 80) ? driverByNama(s, req.driver) : null;
@@ -1418,6 +1498,7 @@ function vrCreateLogic(store) {
         u = findUnit(req.unit_id);
         var pm = u ? byId('Pemilik', u.pemilik_id) : null;
         if (!unitAktif(u) || u.jenis !== jenis || !pm || pm.status !== 'aktif') fail('Unit tidak tersedia. Pilih unit lain atau Otomatis.');
+        cekWilayah(u, s);
         if (bentrok(u.id, tgl, vrAddDays(tgl, 1), '', s)) fail('Unit sedang disewa di tanggal tersebut. Pilih unit lain atau Otomatis.');
       } else {
         u = pilihUnitAntar(jenis, tgl, [], s);
@@ -1743,6 +1824,7 @@ function vrCreateLogic(store) {
       if (!nama) fail('Isi nama pemilik.');
       if (wa.length < 10) fail('Nomor WhatsApp tidak valid.');
       if (txt(req.bank, 160).length < 6) fail('Isi rekening untuk pencairan dana (bank, nomor, atas nama).');
+      if (!vrKabInfo(req.kota)) fail('Pilih wilayah (provinsi lalu kabupaten / kota) dari daftar.');
       if (store.all('Pemilik').some(function (p) { return vrNormWa(p.wa) === wa; })) fail('Nomor ini sudah terdaftar. Hubungi pengelola bila lupa PIN.');
       var id; do { id = rid('P', 4); } while (byId('Pemilik', id));
       store.insert('Pemilik', { id: id, nama: nama, wa: wa, alamat: txt(req.alamat, 300), kota: vrWilayah(txt(req.kota, 60)), bank: txt(req.bank, 160), pin: '', status: 'menunggu', dibuat: nowIso() });
@@ -1778,7 +1860,7 @@ function vrCreateLogic(store) {
       if (!row.model) fail('Isi tipe / model kendaraan.');
       if (!row.warna) fail('Isi warna kendaraan.');
       if (row.tnkb.replace(/\s/g, '').length < 4) fail('Isi nomor polisi (TNKB).');
-      if (!row.kota) fail('Pilih wilayah (kota / kabupaten) unit.');
+      if (!vrKabInfo(row.kota)) fail('Pilih wilayah unit (provinsi lalu kabupaten / kota) dari daftar.');
       if (row.harga < 10000) fail('Isi harga sewa per hari (minimal Rp10.000).');
       if (row.harga > 100000000) fail('Harga sewa per hari terlalu besar.');
       var dup = store.all('Unit').filter(function (u) { return String(u.tnkb).replace(/\s/g, '') === row.tnkb.replace(/\s/g, '') && String(u.id) !== String(x.id || ''); })[0];
@@ -2076,10 +2158,14 @@ function vrCreateLogic(store) {
       if ('poin_maks_persen' in v) { var mp = num(v.poin_maks_persen); if (mp <= 0 || mp > 100) fail('Maksimal potongan poin 1 sampai 100 persen.'); setSetting('poin_maks_persen', mp); }
       if ('biaya_admin' in v) { var ba = num(v.biaya_admin); if (ba < 0 || ba > 100) fail('Biaya layanan admin harus 0 sampai 100 persen.'); setSetting('biaya_admin', ba); }
       if ('kota' in v) {
-        var KW = vrList(v.kota);
-        if (!KW.length) fail('Isi minimal satu wilayah layanan.');
-        KW.forEach(function (k) { var nm = k.replace(/\b([a-z])/g, function (m) { return m.toUpperCase(); }); if (!/^(kota|kab)/i.test(k) && VR_WIL_KOTA.indexOf(nm) >= 0 && VR_WIL_KAB.indexOf(nm) >= 0) fail('"' + k + '" ada kota dan kabupatennya. Tulis "Kota ' + nm + '" atau "Kab. ' + nm + '".'); if (!vrWilayahPunyaAwalan(k)) fail('Tulis wilayah lengkap dengan "Kota" atau "Kab.", misalnya "Kota ' + k + '" atau "Kab. ' + k + '".'); });
-        setSetting('kota', KW.map(vrWilayah).filter(function (k, i, a) { return a.indexOf(k) === i; }).join(';'));
+        var KW = Array.isArray(v.kota) ? v.kota : vrList(v.kota);
+        if (!KW.length) fail('Buka minimal satu wilayah layanan.');
+        var KN = KW.map(function (k) {
+          var w = vrWilayah(k);
+          if (/^Prov\. /.test(w) ? !vrProvAda(w.slice(6)) : !vrKabInfo(w)) fail('Wilayah "' + k + '" tidak ditemukan. Pilih dari daftar provinsi / kabupaten / kota.');
+          return w;
+        });
+        setSetting('kota', KN.filter(function (k, i, a) { return a.indexOf(k) === i; }).join(';'));
       }
       if ('tarif_km' in v) {
         var tk = parseJson(v.tarif_km, null);
@@ -2216,7 +2302,7 @@ function vrSeed() {
   return { Pengaturan: Pengaturan, Pemilik: Pemilik, Unit: Unit, Member: Member, Booking: Booking, Poin: Poin, Notif: Notif };
 }
 
-if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrCreateLogic: vrCreateLogic, vrSeed: vrSeed, VR_JENIS: VR_JENIS, vrAddDays: vrAddDays, vrToday: vrToday, vrHargaPeriode: vrHargaPeriode, vrHargaAntar: vrHargaAntar, vrJarak: vrJarak, vrTarifKm: vrTarifKm };
+if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrProvinsiOf: vrProvinsiOf, vrWilayahBuka: vrWilayahBuka, vrCreateLogic: vrCreateLogic, vrSeed: vrSeed, VR_JENIS: VR_JENIS, vrAddDays: vrAddDays, vrToday: vrToday, vrHargaPeriode: vrHargaPeriode, vrHargaAntar: vrHargaAntar, vrJarak: vrJarak, vrTarifKm: vrTarifKm };
 
 </script>
 <script>
@@ -2264,6 +2350,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrCr
     return p.then(function (r) {
       if (!r || !r.ok) throw new Error((r && r.error) || 'Gagal memproses.');
       if (r.data && r.data.app && r.data.app.model) MODELS = r.data.app.model;
+      if (r.data && r.data.app && r.data.app.wilayah_buka) WIL_BUKA = r.data.app.wilayah_buka;
       if (r.data && r.data.model_all) MODELS_ALL = r.data.model_all;
       return r.data;
     });
@@ -3091,8 +3178,112 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrCr
     });
   }
 
+  /* ---------- Pemilih gulir (atas-bawah) untuk SEMUA pilihan: menggantikan dropdown & pilihan berbentuk centang ---------- */
+  function pickList(opt) {
+    return new Promise(function (res) {
+      var old = document.getElementById('vt-pick'); if (old) old.remove();
+      var items = opt.items || [], cari = opt.cari !== undefined ? opt.cari : items.length > 10;
+      var w = document.createElement('div'); w.id = 'vt-pick'; w.className = 'pk-wrap';
+      w.innerHTML = '<div class="pk" role="dialog" aria-modal="true"><div class="pk-h">' + (opt.kembali ? '<button type="button" class="hbtn" data-pkb aria-label="Kembali">' + ic('back') + '</button>' : '') +
+        '<b class="grow">' + esc(opt.judul || 'Pilih') + '</b><button type="button" class="hbtn" data-pkx aria-label="Tutup">✕</button></div>' +
+        (opt.sub ? '<div class="xs muted" style="padding:0 16px 6px">' + esc(opt.sub) + '</div>' : '') +
+        (cari ? '<div style="padding:0 14px 8px"><input class="pk-cari" type="search" placeholder="Cari..." autocomplete="off"></div>' : '') +
+        '<div class="pk-list"></div><div class="xs muted" style="text-align:center;padding:6px 0 10px">Gulir ke atas / bawah, lalu ketuk pilihan</div></div>';
+      document.body.appendChild(w);
+      var list = w.querySelector('.pk-list'), selesai = function (v) { w.remove(); res(v); };
+      function gambar(q) {
+        q = String(q || '').toLowerCase(); var g = null, h = '';
+        items.forEach(function (it, i) {
+          if (q && String(it.t + ' ' + (it.sub || '')).toLowerCase().indexOf(q) < 0) return;
+          if (it.grup && it.grup !== g) { g = it.grup; h += '<div class="pk-g">' + esc(g) + '</div>'; }
+          h += '<button type="button" class="pk-it' + (String(it.v) === String(opt.nilai) ? ' on' : '') + (it.mati ? ' mati' : '') + '" data-i="' + i + '"' + (it.mati ? ' disabled' : '') + '><span class="grow">' + esc(it.t) + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '') + '</span>' + (it.kanan ? '<span class="pk-k">' + esc(it.kanan) + '</span>' : '') + '</button>';
+        });
+        list.innerHTML = h || '<div class="empty small">Tidak ditemukan.</div>';
+        list.querySelectorAll('[data-i]').forEach(function (b) { b.onclick = function () { selesai(items[Number(b.dataset.i)].v); }; });
+      }
+      gambar('');
+      var on = list.querySelector('.on'); if (on) list.scrollTop = on.offsetTop - list.clientHeight / 2 + on.offsetHeight / 2;
+      var ci = w.querySelector('.pk-cari'); if (ci) ci.oninput = function () { gambar(ci.value); };
+      w.querySelector('[data-pkx]').onclick = function () { selesai(undefined); };
+      var kb = w.querySelector('[data-pkb]'); if (kb) kb.onclick = function () { selesai(PICK_BACK); };
+      w.addEventListener('click', function (e) { if (e.target === w) selesai(undefined); });
+    });
+  }
+  var PICK_BACK = { kembali: 1 };
+  /* Dropdown <select> otomatis diganti tombol + pemilih gulir (tanpa daftar bercentang bawaan Android) */
+  function pkTeks(sel) { var o = sel.options[sel.selectedIndex]; return o ? o.textContent : (sel.getAttribute('data-ph') || 'Pilih'); }
+  function enhanceSelect(sel) {
+    if (sel.dataset.pk || sel.multiple) return; sel.dataset.pk = '1';
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'pkbtn' + (sel.closest('.sel') ? ' pk-sel' : '');
+    b.innerHTML = '<span class="pkv"></span>' + ic('chev', 'ic pkc');
+    var upd = function () { b.querySelector('.pkv').textContent = pkTeks(sel); b.disabled = sel.disabled; };
+    upd(); sel.style.display = 'none'; sel.parentNode.insertBefore(b, sel.nextSibling);
+    sel.addEventListener('change', upd);
+    b.onclick = function (e) {
+      e.preventDefault();
+      var items = [];
+      Array.prototype.forEach.call(sel.options, function (o) { items.push({ v: o.value, t: o.textContent, grup: o.parentNode.tagName === 'OPTGROUP' ? o.parentNode.label : '', mati: o.disabled }); });
+      var lab = sel.closest('label'), judul = sel.getAttribute('aria-label') || (lab ? (lab.childNodes[0] && lab.childNodes[0].textContent || '').trim() : '') || 'Pilih';
+      pickList({ judul: judul, items: items, nilai: sel.value }).then(function (v) {
+        if (v === undefined || v === PICK_BACK || v === sel.value) return;
+        sel.value = v; upd(); sel.dispatchEvent(new Event('change', { bubbles: true })); sel.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    };
+  }
+  function enhanceAll(root) { (root || document).querySelectorAll('select:not([data-pk])').forEach(enhanceSelect); }
+  if (window.MutationObserver) new MutationObserver(function () { enhanceAll(); }).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('DOMContentLoaded', function () { enhanceAll(); });
+
+  /* Pemilih wilayah 2 langkah: provinsi -> kabupaten / kota (seluruh Indonesia).
+     opt: { nilai, hanya: [daftar wilayah dibuka] | null, bolehProv, semua: teks opsi "semua" } -> Promise(nilai | '' | undefined) */
+  function pilihWilayah(opt) {
+    opt = opt || {};
+    var hanya = opt.hanya ? vrWilayahUrai(opt.hanya) : null, provOk = function (p) { return !hanya || p[1].some(function (k) { return hanya.indexOf(k[0]) >= 0; }); };
+    var cur = opt.nilai || '', curProv = vrProvinsiOf(cur);
+    function langkah1() {
+      var items = (opt.semua ? [{ v: '', t: opt.semua }] : []).concat(VR_PROV.filter(provOk).map(function (p) {
+        var n = hanya ? p[1].filter(function (k) { return hanya.indexOf(k[0]) >= 0; }).length : p[1].length;
+        return { v: p[0], t: p[0], kanan: n + ' kab/kota' };
+      }));
+      return pickList({ judul: opt.judul || 'Pilih provinsi', sub: hanya ? 'Hanya wilayah yang sudah dibuka pengelola' : '', items: items, nilai: opt.semua && !cur ? '' : curProv, cari: true }).then(function (p) {
+        if (p === undefined || p === PICK_BACK) return undefined;
+        if (p === '') return '';
+        return langkah2(p);
+      });
+    }
+    function langkah2(pn) {
+      var p = VR_PROV.filter(function (x) { return x[0] === pn; })[0];
+      var ks = p[1].filter(function (k) { return !hanya || hanya.indexOf(k[0]) >= 0; });
+      var items = (opt.bolehProv ? [{ v: 'Prov. ' + pn, t: 'Seluruh ' + pn, sub: 'semua ' + p[1].length + ' kabupaten / kota' }] : [])
+        .concat(ks.filter(function (k) { return /^Kota /.test(k[0]); }).map(function (k) { return { v: k[0], t: k[0], grup: 'Kota' }; }))
+        .concat(ks.filter(function (k) { return /^Kab\. /.test(k[0]); }).map(function (k) { return { v: k[0], t: k[0], grup: 'Kabupaten' }; }));
+      return pickList({ judul: pn, sub: 'Pilih kabupaten / kota', items: items, nilai: cur, kembali: true, cari: true }).then(function (v) {
+        if (v === PICK_BACK) return langkah1();
+        return v;
+      });
+    }
+    return langkah1();
+  }
+  /* Tombol wilayah: <button data-wil="id_input" data-scope="buka|semua" data-prov="1" data-semua="Semua wilayah"> + <input type="hidden" id> */
+  function wilBtn(id, nilai, o) {
+    o = o || {};
+    return '<input type="hidden" id="' + id + '" value="' + esc(nilai || '') + '"><button type="button" class="pkbtn wilbtn" data-wil="' + id + '"' + (o.scope ? ' data-scope="' + o.scope + '"' : '') + (o.semua ? ' data-semua="' + esc(o.semua) + '"' : '') + (o.prov ? ' data-prov="1"' : '') + '>' +
+      ic('pin', 'ic pkc') + '<span class="pkv">' + esc(nilai ? vrWilayahLabel(nilai) : (o.semua || o.ph || 'Pilih provinsi & kabupaten / kota')) + '</span>' + ic('chev', 'ic pkc') + '</button>';
+  }
+  var WIL_BUKA = null;
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-wil]'); if (!b) return;
+    e.preventDefault();
+    var inp = document.getElementById(b.dataset.wil); if (!inp) return;
+    pilihWilayah({ nilai: inp.value, hanya: b.dataset.scope === 'buka' ? (WIL_BUKA || []) : null, bolehProv: !!b.dataset.prov, semua: b.dataset.semua || '' }).then(function (v) {
+      if (v === undefined) return;
+      inp.value = v; b.querySelector('.pkv').textContent = v ? vrWilayahLabel(v) : (b.dataset.semua || 'Pilih');
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
+
   window.VR = { DEMO: DEMO, CFG: CFG, api: api, rp: rp, esc: esc, wa: wa, tgl: tgl, waktu: waktu, sameMonth: sameMonth, sapaan: sapaan,
-    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
+    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, pickList: pickList, pilihWilayah: pilihWilayah, wilBtn: wilBtn, setWilayahBuka: function (l) { WIL_BUKA = l || []; }, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
     cached: cached, loadFast: loadFast, uiBusy: uiBusy, clearCached: clearCached,
     trackStart: trackStart, trackStop: trackStop, trackOn: trackOn, liveMap: liveMap, lokLabel: lokLabel, lokWarna: lokWarna,
     vehicleSvg: vehicleSvg, unitImg: unitImg, models: models, modelOf: modelOf, modelFoto: modelFoto, brands: brands, modelImg: modelImg, imgUrl: imgUrl, warnaHex: warnaHex, fotoList: fotoList, pickPhotos: pickPhotos, scenery: scenery,
@@ -3656,7 +3847,9 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrCr
       f('batas_bayar_jam', 'Batas waktu bayar (jam)', 'pesanan belum dibayar batal otomatis bila lewat', 'numeric') + f('batas_konfirmasi_jam', 'Batas konfirmasi ketersediaan (jam)', 'mitra / driver / persetujuan admin; batal otomatis bila lewat', 'numeric') + f('maks_hari', 'Maksimal sewa harian (hari)', 'lebih dari ini = bulanan', 'numeric') + '</div>' +
       '<div class="card stack"><h3>Sistem poin</h3>' + f('poin_per_rp', 'Transaksi per 1 poin (Rp)', 'default 1000 → Rp1.000 = 1 poin', 'numeric') + f('poin_min_tukar', 'Minimal penukaran (poin)', '1 poin = Rp1', 'numeric') + f('poin_maks_persen', 'Maksimal potongan (%)', 'dari total transaksi', 'decimal') + '</div>' +
       '<div class="card stack"><h3>Layanan & tampilan</h3>' + f('bandara', 'Daftar bandara', 'pisahkan dengan ;') + f('outlet', 'Lokasi outlet', 'Nama=alamat;Nama2=alamat2', 'area') + f('promo', 'Banner promo', 'Judul=keterangan;Judul2=keterangan2', 'area') +
-      f('kota', 'Wilayah layanan', 'pisahkan dengan ; tulis "Kota Malang" atau "Kab. Malang"') + f('jam_layanan', 'Jam layanan') + '</div>' +
+      f('jam_layanan', 'Jam layanan') + '</div>' +
+      '<div class="card stack"><div class="row between"><h3>Wilayah layanan dibuka</h3><button type="button" class="btn sm" id="wl-add">' + V.ic('plus') + ' Buka wilayah</button></div>' +
+      '<div class="xs muted">Hanya unit di wilayah ini yang tampil ke penyewa dan bisa menerima order. Mitra dari seluruh Indonesia tetap bisa mendaftar dan menambah unit lebih dulu. Pilih per kabupaten / kota, atau seluruh provinsi sekaligus.</div><div id="wl-list" class="wilchips"></div></div>' +
       '<div class="card stack"><h3>Operasional</h3>' + f('nama_app', 'Nama aplikasi') + f('admin_wa', 'WhatsApp admin', 'menerima booking', 'tel') + f('driver', 'Daftar driver', 'Nama=nomorWA=PIN=Tarif;... (PIN untuk mode Driver di aplikasi Mitra; Tarif/hari diisi driver sendiri dari aplikasi, boleh dikosongkan)', 'area') +
       '<label class="f">PIN pengelola baru <span class="hint">kosongkan bila tidak diganti</span><input id="np" type="password" inputmode="numeric" maxlength="8"></label></div>' +
       '<div class="card stack"><h3>Admin ke-2 (Monitor)</h3><div class="xs muted">Akun monitor hanya bisa melihat booking, armada, pengguna & peta live. Tidak bisa verifikasi, menyetujui, mengubah harga, atau pengaturan. Masuk lewat aplikasi <b>Vast Travel Monitor</b> atau versi web.</div>' +
@@ -3683,6 +3876,28 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrCr
     var bai = app.querySelector('[data-k="biaya_admin"]'), bex = document.getElementById('ba-ex');
     function contoh() { var p2 = Number(bai.value) || 0; bex.innerHTML = 'Contoh: mitra mengisi <b>Rp300.000</b>/hari → tampil ke penyewa <b>' + V.rp(vrHargaFinal(300000, p2)) + '</b>/hari (biaya layanan ' + V.rp(vrHargaFinal(300000, p2) - 300000) + ').'; }
     if (bai) { bai.oninput = contoh; contoh(); }
+    var WL = (S.d.app.wilayah_buka || []).slice();
+    function wlDraw() {
+      var el = document.getElementById('wl-list'); if (!el) return;
+      var nUnit = function (w) { return S.d.unit.filter(function (u) { return vrWilayahBuka([w], u.kota); }).length; };
+      el.innerHTML = WL.length ? WL.map(function (w, i) { return '<div class="wilchip">' + V.ic('pin') + '<div class="grow"><b class="small">' + esc(/^Prov\. /.test(w) ? 'Seluruh ' + w.slice(6) : w) + '</b><div class="xs muted">' + esc(/^Prov\. /.test(w) ? 'Provinsi' : vrProvinsiOf(w)) + ' · ' + nUnit(w) + ' unit</div></div><button type="button" class="btn sm ghost" data-wld="' + i + '" style="color:var(--red)">Tutup</button></div>'; }).join('')
+        : '<div class="note warn small">Belum ada wilayah dibuka. Penyewa belum bisa memesan.</div>';
+      el.querySelectorAll('[data-wld]').forEach(function (b) { b.onclick = function () {
+        var w = WL[Number(b.dataset.wld)]; if (WL.length === 1) return V.toast('Sisakan minimal satu wilayah yang dibuka.', true);
+        V.confirm('Tutup wilayah ' + (/^Prov\. /.test(w) ? 'seluruh ' + w.slice(6) : w) + '? Unit di wilayah ini tidak tampil ke penyewa.').then(function (ok) { if (!ok) return; var L = WL.filter(function (x) { return x !== w; }); wlSimpan(L, 'Wilayah ditutup.'); });
+      }; });
+    }
+    function wlSimpan(L, msg) {
+      return V.api('adminPengaturan', { pin: S.pin, nilai: { kota: L } }).then(function () { WL = L; S.d.app.wilayah_buka = L; S.d.pengaturan.kota = L.join(';'); V.setWilayahBuka(L); wlDraw(); V.toast(msg); }).catch(function (e) { V.toast(e.message, true); });
+    }
+    document.getElementById('wl-add').onclick = function () {
+      V.pilihWilayah({ bolehProv: true, judul: 'Buka wilayah · pilih provinsi' }).then(function (w) {
+        if (!w) return; if (vrWilayahBuka(WL, w) && !/^Prov\. /.test(w)) return V.toast(w + ' sudah dibuka.', true);
+        var L = /^Prov\. /.test(w) ? WL.filter(function (x) { return vrProvinsiOf(x) !== w.slice(6); }).concat([w]) : WL.concat([w]);
+        wlSimpan(L, (/^Prov\. /.test(w) ? 'Seluruh ' + w.slice(6) : w) + ' dibuka.');
+      });
+    };
+    wlDraw();
     function tkBaca() {
       var o = {}; Object.keys(TKM).forEach(function (j) { o[j] = { aktif: app.querySelector('[data-ta="' + j + '"]').checked }; });
       app.querySelectorAll('[data-tk]').forEach(function (x) { var p2 = x.dataset.tk.split(':'); o[p2[0]][p2[1]] = Number(String(x.value).replace(/\D/g, '')) || 0; });
