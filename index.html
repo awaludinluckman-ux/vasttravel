@@ -1841,7 +1841,7 @@ function vrCreateLogic(store) {
       var p = authPemilik(req), id = String(p.id);
       return {
         app: publicApp(), pemilik: pemilikOut(p),
-        unit: store.all('Unit').filter(function (u) { return String(u.pemilik_id) === id; }).map(unitFull),
+        unit: store.all('Unit').filter(function (u) { return String(u.pemilik_id) === id && u.status !== 'hapus'; }).map(unitFull),
         booking: store.all('Booking').filter(function (b) {
           return String(b.pemilik_id) === id && b.status !== 'menunggu_harga' && (b.status !== 'batal' || pernahLunas(b) || b.mitra_ok === 'ya') && !kedaluwarsa(b, settings());
         }).slice(-400).reverse().map(bookingForOwner)
@@ -1863,11 +1863,11 @@ function vrCreateLogic(store) {
       if (!vrKabInfo(row.kota)) fail('Pilih wilayah unit (provinsi lalu kabupaten / kota) dari daftar.');
       if (row.harga < 10000) fail('Isi harga sewa per hari (minimal Rp10.000).');
       if (row.harga > 100000000) fail('Harga sewa per hari terlalu besar.');
-      var dup = store.all('Unit').filter(function (u) { return String(u.tnkb).replace(/\s/g, '') === row.tnkb.replace(/\s/g, '') && String(u.id) !== String(x.id || ''); })[0];
+      var dup = store.all('Unit').filter(function (u) { return u.status !== 'hapus' && String(u.tnkb).replace(/\s/g, '') === row.tnkb.replace(/\s/g, '') && String(u.id) !== String(x.id || ''); })[0];
       if (dup) fail('Nomor polisi ' + row.tnkb + ' sudah terdaftar.');
       if (x.id) {
         var ex = findUnit(x.id);
-        if (!ex || String(ex.pemilik_id) !== String(p.id)) fail('Unit tidak ditemukan.');
+        if (!ex || ex.status === 'hapus' || String(ex.pemilik_id) !== String(p.id)) fail('Unit tidak ditemukan.');
         var penting = ['jenis', 'merk', 'model', 'tnkb'].some(function (k) { return String(ex[k]) !== String(row[k]); });
         if (penting && ex.status === 'aktif') { row.status = 'menunggu'; notify('admin', 'Unit diubah, perlu verifikasi ulang', row.merk + ' ' + row.model + ' (' + row.tnkb + ')', ex.id); }
         store.update('Unit', 'id', ex.id, row);
@@ -1946,10 +1946,10 @@ function vrCreateLogic(store) {
       return {
         app: publicApp(), pengaturan: set, driver: drivers(s).map(function (d) { var h = hargaDriver(s, d); d.harga_mitra = h.mitra; d.harga_final = h.final; return d; }),
         chat_belum: s.__monitor ? 0 : store.all('Chat').filter(function (c) { return String(c.dari) === 'user' && !String(c.dibaca || ''); }).length,
-        pemilik: store.all('Pemilik').map(function (p) { var x = pemilikOut(p); x.pin = ro ? '' : String(p.pin || ''); return x; }),
-        member: store.all('Member').map(function (m) { var x = memberOut(m); x.pin = ro ? '' : String(m.pin || ''); x.poin = saldoPoin(m.wa); x.ktp = String(m.ktp || ''); x.sim = String(m.sim || ''); x.selfie = String(m.selfie || ''); return x; }),
+        pemilik: store.all('Pemilik').filter(function (p) { return p.status !== 'hapus'; }).map(function (p) { var x = pemilikOut(p); x.pin = ro ? '' : String(p.pin || ''); return x; }),
+        member: store.all('Member').filter(function (m) { return m.status !== 'hapus'; }).map(function (m) { var x = memberOut(m); x.pin = ro ? '' : String(m.pin || ''); x.poin = saldoPoin(m.wa); x.ktp = String(m.ktp || ''); x.sim = String(m.sim || ''); x.selfie = String(m.selfie || ''); return x; }),
         monitor: ro, monitor_aktif: !!s.monitor_pin,
-        unit: store.all('Unit').map(unitFull),
+        unit: store.all('Unit').filter(function (u) { return u.status !== 'hapus'; }).map(unitFull),
         booking: store.all('Booking').slice(-1500).reverse().map(bookingOut),
         terpakai: jadwalTerpakai(s), model_all: models(true)
       };
@@ -2155,6 +2155,36 @@ function vrCreateLogic(store) {
       if (x.status === 'ditolak') notify('H:' + vrNormWa(m.wa), 'Verifikasi member ditolak', (txt(x.catatan, 200) || 'Foto dokumen belum sesuai.') + ' Silakan unggah ulang KTP, SIM & selfie.', m.id);
       var y = byId('Member', m.id), out = memberOut(y); out.pin = String(y.pin || ''); out.poin = saldoPoin(y.wa);
       return { member: out };
+    },
+    /* Hapus mitra (beserta armadanya), member, atau satu unit armada. Ditolak bila masih ada order berjalan.
+       Data riwayat order tetap tersimpan; data pribadi (PIN, WhatsApp, rekening, dokumen) dikosongkan. */
+    adminHapus: function (req) {
+      authAdmin(req);
+      var s = settings(), jenis = String(req.jenis || ''), id = String(req.id || '');
+      var aktif = function (f) { return store.all('Booking').filter(function (b) { return f(b) && ['selesai', 'batal'].indexOf(b.status) < 0 && !kedaluwarsa(b, s); }); };
+      var tolak = function (L, apa) { if (L.length) fail(apa + ' masih punya ' + L.length + ' order berjalan (' + L.slice(0, 3).map(function (b) { return b.id; }).join(', ') + (L.length > 3 ? ', ...' : '') + '). Selesaikan atau batalkan dulu.'); };
+      if (jenis === 'unit') {
+        var u = findUnit(id); if (!u || u.status === 'hapus') fail('Unit tidak ditemukan.');
+        tolak(aktif(function (b) { return String(b.unit_id) === id; }), 'Unit ini');
+        store.update('Unit', 'id', u.id, { status: 'hapus', tersedia: 'tidak', diubah: nowIso() });
+        notify('P:' + u.pemilik_id, 'Unit dihapus', u.merk + ' ' + u.model + ' (' + u.tnkb + ') dihapus pengelola dari armada.', u.id);
+        return { ok: true };
+      }
+      if (jenis === 'pemilik') {
+        var p = byId('Pemilik', id); if (!p || p.status === 'hapus') fail('Mitra tidak ditemukan.');
+        tolak(aktif(function (b) { return String(b.pemilik_id) === id; }), 'Mitra ini');
+        var nu = 0;
+        store.all('Unit').forEach(function (x) { if (String(x.pemilik_id) === id && x.status !== 'hapus') { store.update('Unit', 'id', x.id, { status: 'hapus', tersedia: 'tidak', diubah: nowIso() }); nu++; } });
+        store.update('Pemilik', 'id', p.id, { status: 'hapus', pin: '', wa: '', bank: '', alamat: '' });
+        return { ok: true, unit: nu };
+      }
+      if (jenis === 'member') {
+        var m = byId('Member', id); if (!m || m.status === 'hapus') fail('Member tidak ditemukan.');
+        tolak(aktif(function (b) { return String(b.member_id) === id; }), 'Member ini');
+        store.update('Member', 'id', m.id, { status: 'hapus', pin: '', wa: '', alamat: '', ktp: '', sim: '', selfie: '', catatan: '' });
+        return { ok: true };
+      }
+      fail('Data yang dihapus tidak dikenal.');
     },
     adminPengaturan: function (req) {
       authAdmin(req);
@@ -2649,7 +2679,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   function closeSheet() { var s = document.getElementById('sheet'); if (s) s.remove(); document.body.classList.remove('noscroll'); }
   function confirmBox(text, yesLabel) {
     return new Promise(function (res) {
-      sheet('<h3>' + esc(text) + '</h3><div class="row-btn"><button class="btn ghost" data-close>Batal</button><button class="btn" id="cf-yes">' + esc(yesLabel || 'Ya') + '</button></div>', function (el) {
+      sheet('<h3>' + esc(text) + '</h3><div class="row-btn"><button class="btn ghost" data-close>Batal</button><button class="btn" id="cf-yes"' + (/^(hapus|tutup|tolak)/i.test(yesLabel || '') ? ' style="background:var(--red);border-color:var(--red);color:#fff"' : '') + '>' + esc(yesLabel || 'Ya') + '</button></div>', function (el) {
         el.querySelector('#cf-yes').onclick = function () { closeSheet(); res(true); };
       });
     });
@@ -3641,11 +3671,15 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
         '<div class="xs">Harga mitra <b>' + V.rp(u.harga_mitra) + '</b>/hari · tampil ke penyewa <b>' + V.rp(u.harga_final) + '</b>' + (u.harga ? '' : ' <span class="tag wait">tarif standar</span>') + '</div></div></div>' +
         (f.length ? '<div class="photos">' + f.map(function (x, i) { return '<button type="button" class="ph" data-zg="' + u.id + '" data-zi="' + i + '" style="padding:0;border:0;cursor:zoom-in"><img src="' + esc(x) + '" alt=""></button>'; }).join('') + '</div>' : '<div class="xs" style="color:var(--amber)">Belum ada foto unit</div>') +
         '<div class="row between wrapflex"><span class="tag ' + (u.status === 'aktif' ? '' : u.status === 'nonaktif' ? 'no' : 'wait') + '">' + F[u.status] + (u.tersedia ? '' : ' · disembunyikan pemilik') + '</span>' +
-        '<div class="row adm" style="gap:6px">' + (u.status !== 'aktif' ? '<button class="btn sm" data-us="aktif" data-id="' + u.id + '">Setujui</button>' : '') + (u.status !== 'nonaktif' ? '<button class="btn sm ghost" data-us="nonaktif" data-id="' + u.id + '">Nonaktifkan</button>' : '') + '</div></div></div>';
+        '<div class="row adm" style="gap:6px">' + (u.status !== 'aktif' ? '<button class="btn sm" data-us="aktif" data-id="' + u.id + '">Setujui</button>' : '') + (u.status !== 'nonaktif' ? '<button class="btn sm ghost" data-us="nonaktif" data-id="' + u.id + '">Nonaktifkan</button>' : '') + '<button class="btn sm ghost" data-hu="' + u.id + '" style="color:var(--red)" aria-label="Hapus unit">' + ic('trash') + '</button></div></div></div>';
     }).join('') : '<div class="empty"><b>Tidak ada unit</b></div>';
     app.innerHTML = h + '</main>'; bindHero();
     app.querySelectorAll('[data-af]').forEach(function (x) { x.onclick = function () { S.af = x.dataset.af; render(); }; });
     app.querySelectorAll('[data-zg]').forEach(function (x) { x.onclick = function () { var u = d.unit.filter(function (z) { return z.id === x.dataset.zg; })[0]; if (u) V.zoomGallery(V.fotoList(u), Number(x.dataset.zi) || 0); }; });
+    app.querySelectorAll('[data-hu]').forEach(function (x) { x.onclick = function () {
+      var u = d.unit.filter(function (z) { return z.id === x.dataset.hu; })[0], p = pemilikOf(u.pemilik_id);
+      hapusData('unit', u.id, 'Hapus unit ' + V.unitNama(u) + ' (' + (u.tnkb || '-') + ') milik ' + (p ? p.nama : '-') + ' dari armada? Unit tidak tampil lagi di aplikasi mana pun. Riwayat order tetap tersimpan.', 'Unit dihapus dari armada.');
+    }; });
     app.querySelectorAll('[data-us]').forEach(function (x) {
       x.onclick = function () {
         V.busy(x, true);
@@ -3732,6 +3766,12 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     V.sheet('', draw);
   }
 
+  function hapusData(jenis, id, tanya, ok) {
+    V.confirm(tanya, 'Hapus').then(function (ya) {
+      if (!ya) return;
+      V.api('adminHapus', { pin: S.pin, jenis: jenis, id: id }).then(function () { V.toast(ok); load(); }).catch(function (e) { V.toast(e.message, true); });
+    });
+  }
   /* ---------------- PENGGUNA ---------------- */
   function renderUser() {
     var d = S.d, isP = S.uf === 'pemilik', list = (isP ? d.pemilik : d.member).slice();
@@ -3754,11 +3794,16 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
         (ok && x.pin ? '<dt>PIN</dt><dd class="oid">' + esc(x.pin) + '</dd>' : '') + (x.catatan ? '<dt>Catatan</dt><dd>' + esc(x.catatan) + '</dd>' : '') + '</dl>' +
         (!isP ? (x.ktp || x.sim || x.selfie ? '<div class="dok3">' + [['ktp', 'KTP'], ['sim', 'SIM'], ['selfie', 'Selfie']].map(function (k) { return x[k[0]] ? '<div class="dk ok" data-dz="' + esc(x.id) + '" data-dn="' + k[0] + '"><img src="' + esc(x[k[0]]) + '" alt="" loading="lazy"><span style="position:relative;z-index:1;background:rgba(255,255,255,.85);border-radius:6px;padding:0 4px">' + k[1] + '</span></div>' : '<div class="dk">' + k[1] + '<br>belum ada</div>'; }).join('') + '</div>' : '<div class="xs muted">Dokumen belum diunggah (pendaftar lama).</div>') : '') +
         '<div class="row-btn adm">' + (isP ? '<button class="btn sm ghost" data-ch="P:' + esc(x.id) + '" data-chn="' + esc(x.nama) + '">' + ic('help') + ' Chat</button>' : '<button class="btn sm ghost" data-ch="R:' + esc(x.wa) + '" data-chn="' + esc(x.nama) + '">' + ic('help') + ' Chat</button>') + (!ok ? '<button class="btn sm" data-ok="' + x.id + '">' + (isP ? 'Setujui mitra' : 'Verifikasi member') + '</button>' : V.waBtn(V.wa(x.wa, pinMsg(x)), 'Kirim ID & PIN', 'sm') + '<button class="btn sm ghost" data-reset="' + x.id + '">Reset PIN</button>') +
-        (x.status !== (isP ? 'nonaktif' : 'ditolak') ? '<button class="btn sm ghost" data-no="' + x.id + '">' + (isP ? 'Nonaktifkan' : 'Tolak') + '</button>' : '') + '</div></div>';
+        (x.status !== (isP ? 'nonaktif' : 'ditolak') ? '<button class="btn sm ghost" data-no="' + x.id + '">' + (isP ? 'Nonaktifkan' : 'Tolak') + '</button>' : '') + '<button class="btn sm ghost" data-hx="' + x.id + '" style="color:var(--red)">' + ic('trash') + ' Hapus</button></div></div>';
     }).join('') || '<div class="empty"><b>Belum ada data</b></div>';
     app.innerHTML = h + '</main>';
     document.getElementById('back').onclick = function () { go('beranda'); };
     app.querySelectorAll('[data-uf]').forEach(function (x) { x.onclick = function () { S.uf = x.dataset.uf; render(); }; });
+    app.querySelectorAll('[data-hx]').forEach(function (b) { b.onclick = function () {
+      var x = list.filter(function (z) { return z.id === b.dataset.hx; })[0], nu = isP ? d.unit.filter(function (u) { return u.pemilik_id === x.id; }).length : 0;
+      hapusData(isP ? 'pemilik' : 'member', x.id, isP ? 'Hapus mitra ' + x.nama + ' (' + x.id + ')' + (nu ? ' beserta ' + nu + ' unit armadanya' : '') + '? Mitra tidak bisa masuk lagi dan unitnya tidak tampil. Data pribadi (WhatsApp, rekening, PIN) dihapus; riwayat order tetap tersimpan.'
+        : 'Hapus member ' + x.nama + ' (' + x.id + ')? Member tidak bisa masuk lagi. Data pribadi & foto KTP/SIM/selfie dihapus; riwayat order tetap tersimpan.', isP ? 'Mitra ' + x.nama + ' dihapus.' : 'Member ' + x.nama + ' dihapus.');
+    }; });
     function upd(btn, id, patch) {
       V.busy(btn, true);
       V.api(isP ? 'adminPemilik' : 'adminMember', { pin: S.pin, id: id, patch: patch }).then(function (r) {
