@@ -997,7 +997,7 @@ function vrCreateLogic(store) {
   function models(semua) {
     var rows = store.all('Model');
     rows = rows.length ? rows : VR_MODEL;
-    return rows.map(modelOut).filter(function (m) { return m.merk && (semua || m.status === 'aktif'); })
+    return rows.map(modelOut).filter(function (m) { return m.merk && m.status !== 'hapus' && (semua || m.status === 'aktif'); })
       .sort(function (a, b) { return (a.urut || 999) - (b.urut || 999); });
   }
   function seedModel() { if (!store.all('Model').length) VR_MODEL.forEach(function (m) { store.insert('Model', m); }); }
@@ -1958,7 +1958,7 @@ function vrCreateLogic(store) {
       authAdmin(req); seedModel();
       var x = req.model || {}, ex = req.id ? store.all('Model').filter(function (m) { return String(m.id) === String(req.id); })[0] : null;
       if (req.id && !ex) fail('Model tidak ditemukan.');
-      if (req.hapus) { store.update('Model', 'id', ex.id, { status: 'nonaktif' }); return { model: models(true) }; }
+      if (req.hapus) { if (!ex) fail('Model tidak ditemukan.'); store.update('Model', 'id', ex.id, { status: 'hapus' }); return { model: models(true) }; }
       if (!VR_JENIS[x.jenis]) fail('Pilih kategori kendaraan.');
       var row = { merk: txt(x.merk, 40), model: txt(x.model, 60), jenis: x.jenis, kapasitas: VR_JENIS[x.jenis].kapasitas,
         foto: String(x.foto || '').slice(0, 500), urut: Math.round(num(x.urut)) || '', status: x.status === 'nonaktif' ? 'nonaktif' : 'aktif' };
@@ -1966,6 +1966,19 @@ function vrCreateLogic(store) {
       if (row.foto && !/^(https?:|img\/)/i.test(row.foto) && !(store.allowDataFoto && /^data:image/.test(row.foto))) fail('Foto tidak valid.');
       if (ex) store.update('Model', 'id', ex.id, row);
       else { row.id = rid('M', 4); if (!row.urut) row.urut = store.all('Model').length + 1; store.insert('Model', row); }
+      return { model: models(true) };
+    },
+    /* Ubah nama brand (semua tipe & unit ikut berganti) atau hapus brand beserta semua tipenya */
+    adminBrand: function (req) {
+      authAdmin(req); seedModel();
+      var lama = vrKey(req.merk), L = store.all('Model').filter(function (m) { return String(m.status) !== 'hapus' && vrKey(m.merk) === lama; });
+      if (!lama || !L.length) fail('Brand tidak ditemukan.');
+      if (req.aksi === 'hapus') { L.forEach(function (m) { store.update('Model', 'id', m.id, { status: 'hapus' }); }); return { model: models(true) }; }
+      var baru = txt(req.baru, 40);
+      if (!baru) fail('Isi nama brand baru.');
+      if (vrKey(baru) !== lama && store.all('Model').some(function (m) { return String(m.status) !== 'hapus' && vrKey(m.merk) === vrKey(baru); })) fail('Brand ' + baru + ' sudah ada. Pilih nama lain.');
+      L.forEach(function (m) { store.update('Model', 'id', m.id, { merk: baru }); });
+      store.all('Unit').forEach(function (u) { if (vrKey(u.merk) === lama) store.update('Unit', 'id', u.id, { merk: baru, diubah: nowIso() }); });
       return { model: models(true) };
     },
     adminUploadFoto: function (req) {
@@ -2549,6 +2562,8 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   function brand(sub) { return '<div class="brand-logo"><span class="mchip"><img src="' + imgUrl('logo-mark.png') + '" alt=""></span><img class="word" src="' + imgUrl('logo-word-white.png') + '" alt="Vast Travel">' + (sub ? '<span class="role">' + esc(sub) + '</span>' : '') + '</div>'; }
 
   var ICON = {
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+    trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     down: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
     route: '<circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5"/>',
     report: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
@@ -3650,7 +3665,8 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     h += '<div class="note small">Foto & nama di sini tampil sebagai pilihan brand/tipe di aplikasi penyewa, dan dipakai sebagai foto unit yang belum diunggah pemiliknya.</div>' +
       '<button class="btn block adm" id="m-add">' + ic('plus') + ' Tambah brand / tipe</button>';
     h += V.brands(M).map(function (b) {
-      return '<h3>' + esc(b.merk) + '</h3><div class="models">' + b.model.map(function (m) {
+      return '<div class="row between" style="margin-top:14px;gap:8px"><h3 style="margin:0">' + esc(b.merk) + ' <span class="xs muted">· ' + b.model.length + ' tipe</span></h3>' +
+        (S.ro ? '' : '<div class="row" style="gap:6px"><button class="btn sm ghost" data-bre="' + esc(b.merk) + '">' + ic('edit') + ' Ubah</button><button class="btn sm ghost" data-brd="' + esc(b.merk) + '" style="color:var(--red)">' + ic('trash') + ' Hapus</button></div>') + '</div><div class="models">' + b.model.map(function (m) {
         var n = S.d.unit.filter(function (u) { var x = V.modelOf(u); return x && String(x.id) === m.id; }).length;
         return '<button class="model-c' + (m.status === 'aktif' ? '' : ' off') + '" data-me="' + esc(m.id) + '">' + (m.foto ? V.modelImg(m.foto) : '<div class="uimg">' + V.vehicleSvg(m.jenis, 'Putih') + '</div>') + esc(m.model) +
           '<small>' + VR_JENIS[m.jenis].pendek + ' · ' + n + ' unit' + (m.status === 'aktif' ? '' : ' · nonaktif') + '</small></button>';
@@ -3660,6 +3676,24 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     app.querySelectorAll('[data-af]').forEach(function (x) { x.onclick = function () { S.af = x.dataset.af; render(); }; });
     document.getElementById('m-add').onclick = function () { modelForm(null); };
     app.querySelectorAll('[data-me]').forEach(function (x) { x.onclick = function () { if (S.ro) return; modelForm(M.filter(function (m) { return m.id === x.dataset.me; })[0]); }; });
+    var nUnitBrand = function (mk) { return S.d.unit.filter(function (u) { return vrKey(u.merk) === vrKey(mk); }).length; };
+    app.querySelectorAll('[data-bre]').forEach(function (x) { x.onclick = function () {
+      var mk = x.dataset.bre;
+      V.sheet('<h2>Ubah brand</h2><div class="small muted">Nama baru berlaku untuk semua tipe ' + esc(mk) + ' dan ' + nUnitBrand(mk) + ' unit mitra dengan brand ini.</div><label class="f">Nama brand<input id="br-n" value="' + esc(mk) + '"></label><button class="btn go block" id="br-s">Simpan</button>', function (el) {
+        el.querySelector('#br-s').onclick = function () {
+          var b = this, baru = el.querySelector('#br-n').value.trim(); if (!baru) return V.toast('Isi nama brand.', true); if (baru === mk) return V.closeSheet();
+          V.busy(b, true);
+          V.api('adminBrand', { pin: S.pin, merk: mk, aksi: 'ubah', baru: baru }).then(function () { V.closeSheet(); V.toast('Brand diubah menjadi ' + baru + '.'); load(); }).catch(function (e) { V.busy(b, false); V.toast(e.message, true); });
+        };
+      });
+    }; });
+    app.querySelectorAll('[data-brd]').forEach(function (x) { x.onclick = function () {
+      var mk = x.dataset.brd, n = M.filter(function (m) { return vrKey(m.merk) === vrKey(mk); }).length, nu = nUnitBrand(mk);
+      V.confirm('Hapus brand ' + mk + ' beserta ' + n + ' tipenya dari katalog?' + (nu ? ' ' + nu + ' unit mitra tetap ada, hanya fotonya kembali ke gambar standar.' : ''), 'Hapus brand').then(function (ok) {
+        if (!ok) return;
+        V.api('adminBrand', { pin: S.pin, merk: mk, aksi: 'hapus' }).then(function () { V.toast('Brand ' + mk + ' dihapus.'); load(); }).catch(function (e) { V.toast(e.message, true); });
+      });
+    }; });
   }
   function modelForm(m) {
     var x = m ? JSON.parse(JSON.stringify(m)) : { merk: '', model: '', jenis: 'mobil5', foto: '', status: 'aktif' }, busy = false;
@@ -3670,7 +3704,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
         '<div class="grid"><label class="f">Brand<input id="m-merk" value="' + esc(x.merk) + '" placeholder="VinFast"></label><label class="f">Tipe<input id="m-model" value="' + esc(x.model) + '" placeholder="VF 6"></label></div>' +
         '<label class="f">Kategori<select id="m-jenis">' + Object.keys(VR_JENIS).map(function (j) { return '<option value="' + j + '"' + (x.jenis === j ? ' selected' : '') + '>' + VR_JENIS[j].label + '</option>'; }).join('') + '</select></label>' +
         '<label class="f">Status<select id="m-status"><option value="aktif">Tampil</option><option value="nonaktif"' + (x.status === 'nonaktif' ? ' selected' : '') + '>Sembunyikan</option></select></label>' +
-        '<button class="btn go block" id="m-save">Simpan</button>';
+        '<button class="btn go block" id="m-save">Simpan</button>' + (m ? '<button class="btn ghost block" id="m-del" style="color:var(--red);border-color:var(--red)">' + ic('trash') + ' Hapus tipe ini</button>' : '');
       function keep() { x.merk = el.querySelector('#m-merk').value; x.model = el.querySelector('#m-model').value; x.jenis = el.querySelector('#m-jenis').value; x.status = el.querySelector('#m-status').value; }
       el.querySelector('#m-foto').onclick = function () {
         keep(); var b = this;
@@ -3678,6 +3712,14 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
           if (!list.length) return;
           busy = true; V.busy(b, true);
           return V.api('adminUploadFoto', { pin: S.pin, data: list[0] }).then(function (r) { x.foto = r.url; }).catch(function (e) { V.toast(e.message, true); }).then(function () { busy = false; draw(el); });
+        });
+      };
+      var del = el.querySelector('#m-del');
+      if (del) del.onclick = function () {
+        var nu = S.d.unit.filter(function (u) { var z = V.modelOf(u); return z && String(z.id) === m.id; }).length;
+        V.confirm('Hapus tipe ' + m.merk + ' ' + m.model + ' dari katalog?' + (nu ? ' ' + nu + ' unit mitra tetap ada, hanya fotonya kembali ke gambar standar.' : ''), 'Hapus tipe').then(function (ok) {
+          if (!ok) return;
+          V.api('adminModel', { pin: S.pin, id: m.id, hapus: true }).then(function () { V.toast('Tipe dihapus.'); load(); }).catch(function (e) { V.toast(e.message, true); });
         });
       };
       el.querySelector('#m-save').onclick = function () {
