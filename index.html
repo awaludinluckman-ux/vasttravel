@@ -579,7 +579,7 @@ var VR_DEFAULTS = {
   rek_bca: '', rek_mandiri: '', rek_bri: '', rek_bni: '', rek_bsi: '', linkaja: '', dana: '', gopay: '', ovo: '', shopeepay: '',
   tarif_motor: '55000', tarif_mobil5: '350000', tarif_mobil7: '450000', tarif_mobil9: '650000', tarif_niaga: '400000', tarif_driver: '200000', biaya_driver: '10', tarif_weekend: '0', musim_libur: '[]', komisi: '15', biaya_admin: '10',
   promo_event: '[]',
-  batas_bayar_jam: '3', batas_konfirmasi_jam: '12', maks_hari: '29', jam_layanan: '06.00 - 22.00 WIB', kota: 'Malang;Batu;Surabaya;Sidoarjo', driver: '',
+  batas_bayar_jam: '3', batas_konfirmasi_jam: '12', maks_hari: '29', jam_layanan: '06.00 - 22.00 WIB', kota: 'Kota Malang;Kab. Malang;Kota Batu;Kota Surabaya;Kab. Sidoarjo', driver: '',
   info_bulanan: 'Sewa bulanan (30 hari ke atas) memakai ketentuan dan harga tersendiri. Hubungi pengelola untuk penawaran.',
   bandara: 'Juanda Surabaya (SUB);Abdulrachman Saleh Malang (MLG);Dhoho Kediri (DHX)',
   outlet: 'Outlet Vast Travel Malang=Kota Malang',
@@ -684,6 +684,27 @@ function vrHargaPeriode(hFinal, hMitra, mulai, durasi, app) {
   }
   return { final: f, mitra: Math.min(m, f), hari: hari, naik: naik };
 }
+/* ---------- Wilayah layanan: kota & kabupaten dibedakan (Kota Malang vs Kab. Malang) ---------- */
+var VR_WIL_KOTA = ['Malang', 'Batu', 'Surabaya', 'Kediri', 'Blitar', 'Madiun', 'Mojokerto', 'Pasuruan', 'Probolinggo', 'Denpasar'];
+var VR_WIL_KAB = ['Malang', 'Sidoarjo', 'Gresik', 'Pasuruan', 'Probolinggo', 'Mojokerto', 'Jombang', 'Kediri', 'Blitar', 'Tulungagung', 'Trenggalek', 'Nganjuk', 'Madiun', 'Magetan',
+  'Ngawi', 'Ponorogo', 'Pacitan', 'Bojonegoro', 'Tuban', 'Lamongan', 'Lumajang', 'Jember', 'Bondowoso', 'Situbondo', 'Banyuwangi', 'Bangkalan', 'Sampang', 'Pamekasan', 'Sumenep',
+  'Badung', 'Gianyar', 'Tabanan', 'Bangli', 'Klungkung', 'Karangasem', 'Buleleng', 'Jembrana'];
+/* Daftar saran (Jawa Timur & Bali) untuk isian wilayah */
+var VR_WILAYAH = VR_WIL_KOTA.map(function (k) { return 'Kota ' + k; }).concat(VR_WIL_KAB.map(function (k) { return 'Kab. ' + k; }));
+/* Normalisasi nama wilayah: "kabupaten malang" -> "Kab. Malang", "kota batu" -> "Kota Batu". Data lama tanpa awalan ("Malang") dibaca sebagai kota, kecuali daerah yang hanya kabupaten ("Sidoarjo" -> "Kab. Sidoarjo"). */
+function vrWilayah(v) {
+  var s = String(v || '').replace(/\s+/g, ' ').trim(); if (!s) return '';
+  var cap = function (t) { return t.replace(/\b([a-z])/g, function (m) { return m.toUpperCase(); }); };
+  var m = s.match(/^(kab(upaten)?\.?|kota)\s+(.+)$/i);
+  if (m) return (/^kota$/i.test(m[1]) ? 'Kota ' : 'Kab. ') + cap(m[3].toLowerCase());
+  var n = cap(s.toLowerCase());
+  if (VR_WIL_KOTA.indexOf(n) >= 0) return 'Kota ' + n;
+  if (VR_WIL_KAB.indexOf(n) >= 0) return 'Kab. ' + n;
+  return s;
+}
+function vrWilayahPunyaAwalan(v) { return /^(Kota|Kab\.) /.test(vrWilayah(v)); }
+/* Teks untuk pencarian alamat di peta */
+function vrWilayahCari(v) { return vrWilayah(v).replace(/^Kab\. /, 'Kabupaten '); }
 /* ---------- Minta Antar: tarif per km per kategori kendaraan ---------- */
 var VR_TARIF_KM = {
   motor: { dasar: 5000, km: 2500, min: 10000 }, mobil5: { dasar: 10000, km: 4000, min: 25000 }, mobil7: { dasar: 12000, km: 5000, min: 30000 },
@@ -878,7 +899,7 @@ function vrCreateLogic(store) {
     o.bagi_supir_antar = String(s.bagi_supir_antar) === '' ? 60 : num(s.bagi_supir_antar);
     o.faktor_jalan = num(s.faktor_jalan) || 1.3;
     o.antar_maks_km = num(s.antar_maks_km) || 150;
-    o.kota = vrList(s.kota);
+    o.kota = vrList(String(s.kota) === 'Malang;Batu;Surabaya;Sidoarjo' ? VR_DEFAULTS.kota : s.kota).map(vrWilayah).filter(function (k, i, a) { return k && a.indexOf(k) === i; });
     o.bandara = vrList(s.bandara);
     o.outlet = vrParsePairs(s.outlet).map(function (z) { return { nama: z.nama, alamat: z.nilai }; });
     o.promo = vrParsePairs(s.promo).map(function (z) { return { judul: z.nama, sub: z.nilai }; });
@@ -905,7 +926,7 @@ function vrCreateLogic(store) {
   function unitPublic(u) {
     var hg = hargaUnit(settings(), u);
     return { id: String(u.id), jenis: u.jenis, kategori: vrKategoriOf(u.jenis), harga_final: hg.final, merk: u.merk, model: u.model, tahun: String(u.tahun || ''), warna: u.warna,
-      transmisi: u.transmisi, kapasitas: num(u.kapasitas) || (VR_JENIS[u.jenis] || {}).kapasitas, kota: u.kota, foto: u.foto, fitur: u.fitur,
+      transmisi: u.transmisi, kapasitas: num(u.kapasitas) || (VR_JENIS[u.jenis] || {}).kapasitas, kota: vrWilayah(u.kota), foto: u.foto, fitur: u.fitur,
       jarak_km: num(u.jarak_km), charging: String(u.charging || ''), bagasi: String(u.bagasi || ''), model_id: String(u.model_id || '') };
   }
   function unitFull(u) {
@@ -913,7 +934,7 @@ function vrCreateLogic(store) {
     return x;
   }
   function pemilikOut(p) {
-    return { id: String(p.id), nama: p.nama, wa: vrNormWa(p.wa), alamat: p.alamat, kota: p.kota, bank: p.bank, status: p.status, dibuat: String(p.dibuat) };
+    return { id: String(p.id), nama: p.nama, wa: vrNormWa(p.wa), alamat: p.alamat, kota: vrWilayah(p.kota), bank: p.bank, status: p.status, dibuat: String(p.dibuat) };
   }
   function simpanDokumen(req, wajib) {
     var out = {};
@@ -927,7 +948,7 @@ function vrCreateLogic(store) {
     return out;
   }
   function memberOut(m) {
-    return { id: String(m.id), nama: m.nama, wa: vrNormWa(m.wa), alamat: m.alamat, kota: m.kota, status: m.status, catatan: m.catatan, dibuat: String(m.dibuat) };
+    return { id: String(m.id), nama: m.nama, wa: vrNormWa(m.wa), alamat: m.alamat, kota: vrWilayah(m.kota), status: m.status, catatan: m.catatan, dibuat: String(m.dibuat) };
   }
   function bookingOut(b) {
     var u = b.unit_id ? findUnit(b.unit_id) : null;
@@ -1481,7 +1502,7 @@ function vrCreateLogic(store) {
       if (store.all('Member').some(function (m) { return vrNormWa(m.wa) === wa; })) fail('Nomor ini sudah terdaftar sebagai member. Hubungi pengelola bila lupa PIN.');
       var dok = simpanDokumen(req, true);
       var id; do { id = rid('M', 4); } while (byId('Member', id));
-      store.insert('Member', { id: id, nama: nama, wa: wa, alamat: txt(req.alamat, 300), kota: txt(req.kota, 60), pin: '', status: 'menunggu', catatan: '', dibuat: nowIso(),
+      store.insert('Member', { id: id, nama: nama, wa: wa, alamat: txt(req.alamat, 300), kota: vrWilayah(txt(req.kota, 60)), pin: '', status: 'menunggu', catatan: '', dibuat: nowIso(),
         ktp: dok.ktp, sim: dok.sim, selfie: dok.selfie });
       notify('admin', 'Member baru mendaftar', nama + ' (' + id + ') - cek KTP, SIM & selfie', id);
       return { id: id, admin_wa: vrNormWa(settings().admin_wa) };
@@ -1724,7 +1745,7 @@ function vrCreateLogic(store) {
       if (txt(req.bank, 160).length < 6) fail('Isi rekening untuk pencairan dana (bank, nomor, atas nama).');
       if (store.all('Pemilik').some(function (p) { return vrNormWa(p.wa) === wa; })) fail('Nomor ini sudah terdaftar. Hubungi pengelola bila lupa PIN.');
       var id; do { id = rid('P', 4); } while (byId('Pemilik', id));
-      store.insert('Pemilik', { id: id, nama: nama, wa: wa, alamat: txt(req.alamat, 300), kota: txt(req.kota, 60), bank: txt(req.bank, 160), pin: '', status: 'menunggu', dibuat: nowIso() });
+      store.insert('Pemilik', { id: id, nama: nama, wa: wa, alamat: txt(req.alamat, 300), kota: vrWilayah(txt(req.kota, 60)), bank: txt(req.bank, 160), pin: '', status: 'menunggu', dibuat: nowIso() });
       notify('admin', 'Mitra baru mendaftar', nama + ' (' + id + ')', id);
       return { id: id, admin_wa: vrNormWa(settings().admin_wa) };
     },
@@ -1751,13 +1772,13 @@ function vrCreateLogic(store) {
         tnkb: txt(x.tnkb, 15).toUpperCase(), transmisi: txt(x.transmisi, 20) || 'Otomatis',
         kapasitas: (Math.round(num(x.kapasitas)) >= 1 && Math.round(num(x.kapasitas)) <= 60) ? Math.round(num(x.kapasitas)) : VR_JENIS[x.jenis].kapasitas,
         harga: Math.round(num(x.harga)),
-        kota: txt(x.kota, 60), foto: vrFotoList(Array.isArray(x.foto) ? x.foto.join('\n') : x.foto).filter(function (f) { return store.allowDataFoto || /^https?:/i.test(f); }).join('\n'),
+        kota: vrWilayah(txt(x.kota, 60)), foto: vrFotoList(Array.isArray(x.foto) ? x.foto.join('\n') : x.foto).filter(function (f) { return store.allowDataFoto || /^https?:/i.test(f); }).join('\n'),
         fitur: txt(x.fitur, 300), jarak_km: Math.max(0, Math.round(num(x.jarak_km))) || '', charging: txt(x.charging, 40), bagasi: txt(x.bagasi, 20), model_id: txt(x.model_id, 12), diubah: nowIso() };
       if (!row.merk) fail('Isi merk kendaraan.');
       if (!row.model) fail('Isi tipe / model kendaraan.');
       if (!row.warna) fail('Isi warna kendaraan.');
       if (row.tnkb.replace(/\s/g, '').length < 4) fail('Isi nomor polisi (TNKB).');
-      if (!row.kota) fail('Pilih kota unit.');
+      if (!row.kota) fail('Pilih wilayah (kota / kabupaten) unit.');
       if (row.harga < 10000) fail('Isi harga sewa per hari (minimal Rp10.000).');
       if (row.harga > 100000000) fail('Harga sewa per hari terlalu besar.');
       var dup = store.all('Unit').filter(function (u) { return String(u.tnkb).replace(/\s/g, '') === row.tnkb.replace(/\s/g, '') && String(u.id) !== String(x.id || ''); })[0];
@@ -1827,7 +1848,7 @@ function vrCreateLogic(store) {
     },
     ubahPemilik: function (req) {
       var p = authPemilik(req), x = req.patch || {}, patch = {};
-      ['bank', 'alamat', 'kota', 'nama'].forEach(function (k) { if (k in x) patch[k] = txt(x[k], k === 'alamat' ? 300 : 160); });
+      ['bank', 'alamat', 'kota', 'nama'].forEach(function (k) { if (k in x) patch[k] = k === 'kota' ? vrWilayah(txt(x[k], 60)) : txt(x[k], k === 'alamat' ? 300 : 160); });
       if ('pin_baru' in x) { var np = String(x.pin_baru); if (!/^\d{4,8}$/.test(np)) fail('PIN harus 4 sampai 8 angka.'); patch.pin = np; }
       store.update('Pemilik', 'id', p.id, patch);
       return { ok: true };
@@ -2043,7 +2064,7 @@ function vrCreateLogic(store) {
     adminPengaturan: function (req) {
       authAdmin(req);
       var v = req.nilai || {};
-      ['nama_app', 'jam_layanan', 'qris', 'driver', 'kota', 'info_bulanan', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'bandara', 'outlet', 'promo']
+      ['nama_app', 'jam_layanan', 'qris', 'driver', 'info_bulanan', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'bandara', 'outlet', 'promo']
         .forEach(function (k) { if (k in v) setSetting(k, txt(v[k], 1500)); });
       if ('biaya_driver' in v) { var bdv = num(v.biaya_driver); if (bdv < 0 || bdv > 100) fail('Fee pengelola untuk supir harus 0-100%.'); setSetting('biaya_driver', String(Math.round(bdv * 10) / 10)); }
       if ('tarif_weekend' in v) { var tw = num(v.tarif_weekend); if (tw < 0 || tw > 200) fail('Kenaikan tarif weekend 0-200%.'); setSetting('tarif_weekend', String(Math.round(tw))); }
@@ -2054,6 +2075,12 @@ function vrCreateLogic(store) {
       if ('poin_min_tukar' in v) setSetting('poin_min_tukar', Math.max(0, Math.round(num(v.poin_min_tukar))));
       if ('poin_maks_persen' in v) { var mp = num(v.poin_maks_persen); if (mp <= 0 || mp > 100) fail('Maksimal potongan poin 1 sampai 100 persen.'); setSetting('poin_maks_persen', mp); }
       if ('biaya_admin' in v) { var ba = num(v.biaya_admin); if (ba < 0 || ba > 100) fail('Biaya layanan admin harus 0 sampai 100 persen.'); setSetting('biaya_admin', ba); }
+      if ('kota' in v) {
+        var KW = vrList(v.kota);
+        if (!KW.length) fail('Isi minimal satu wilayah layanan.');
+        KW.forEach(function (k) { var nm = k.replace(/\b([a-z])/g, function (m) { return m.toUpperCase(); }); if (!/^(kota|kab)/i.test(k) && VR_WIL_KOTA.indexOf(nm) >= 0 && VR_WIL_KAB.indexOf(nm) >= 0) fail('"' + k + '" ada kota dan kabupatennya. Tulis "Kota ' + nm + '" atau "Kab. ' + nm + '".'); if (!vrWilayahPunyaAwalan(k)) fail('Tulis wilayah lengkap dengan "Kota" atau "Kab.", misalnya "Kota ' + k + '" atau "Kab. ' + k + '".'); });
+        setSetting('kota', KW.map(vrWilayah).filter(function (k, i, a) { return a.indexOf(k) === i; }).join(';'));
+      }
       if ('tarif_km' in v) {
         var tk = parseJson(v.tarif_km, null);
         if (!tk || typeof tk !== 'object') fail('Data tarif per km tidak valid.');
@@ -2139,7 +2166,8 @@ function vrSeed() {
     ['U0008', 'P001', 'motor', 'Alva', 'One', '2024', 'Biru', 'N 2102 EV', 'Malang', 70, 'Baterai tukar', 'Jok'],
     ['U0009', 'P002', 'motor', 'Polytron', 'Fox-R', '2024', 'Hitam', 'N 2103 BT', 'Batu', 130, 'Cas 4 jam', 'Jok'],
     ['U0010', 'P002', 'motor', 'United', 'T1800', '2023', 'Putih', 'N 2104 BT', 'Batu', 80, 'Cas 5 jam', 'Jok'],
-    ['U0012', 'P003', 'mobil5', 'Chery', 'Omoda E5', '2025', 'Putih', 'L 1505 EV', 'Surabaya', 430, '30 menit', '380 L']
+    ['U0011', 'P001', 'mobil7', 'VinFast', 'Limo Green', '2025', 'Hijau', 'N 1703 SG', 'Kab. Malang', 450, '30 menit (10-70%)', '500 L'],
+    ['U0012', 'P003', 'mobil5', 'Chery', 'Omoda E5', '2025', 'Putih', 'L 1505 EV', 'Kota Surabaya', 430, '30 menit', '380 L']
   ];
   var Unit = U.map(function (r) {
     return { id: r[0], pemilik_id: r[1], jenis: r[2], merk: r[3], model: r[4], tahun: r[5], warna: r[6], tnkb: r[7], transmisi: 'Otomatis',
@@ -2188,7 +2216,7 @@ function vrSeed() {
   return { Pengaturan: Pengaturan, Pemilik: Pemilik, Unit: Unit, Member: Member, Booking: Booking, Poin: Poin, Notif: Notif };
 }
 
-if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLogic, vrSeed: vrSeed, VR_JENIS: VR_JENIS, vrAddDays: vrAddDays, vrToday: vrToday, vrHargaPeriode: vrHargaPeriode, vrHargaAntar: vrHargaAntar, vrJarak: vrJarak, vrTarifKm: vrTarifKm };
+if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrCreateLogic: vrCreateLogic, vrSeed: vrSeed, VR_JENIS: VR_JENIS, vrAddDays: vrAddDays, vrToday: vrToday, vrHargaPeriode: vrHargaPeriode, vrHargaAntar: vrHargaAntar, vrJarak: vrJarak, vrTarifKm: vrTarifKm };
 
 </script>
 <script>
@@ -3628,7 +3656,7 @@ if (typeof module !== 'undefined') module.exports = { vrCreateLogic: vrCreateLog
       f('batas_bayar_jam', 'Batas waktu bayar (jam)', 'pesanan belum dibayar batal otomatis bila lewat', 'numeric') + f('batas_konfirmasi_jam', 'Batas konfirmasi ketersediaan (jam)', 'mitra / driver / persetujuan admin; batal otomatis bila lewat', 'numeric') + f('maks_hari', 'Maksimal sewa harian (hari)', 'lebih dari ini = bulanan', 'numeric') + '</div>' +
       '<div class="card stack"><h3>Sistem poin</h3>' + f('poin_per_rp', 'Transaksi per 1 poin (Rp)', 'default 1000 → Rp1.000 = 1 poin', 'numeric') + f('poin_min_tukar', 'Minimal penukaran (poin)', '1 poin = Rp1', 'numeric') + f('poin_maks_persen', 'Maksimal potongan (%)', 'dari total transaksi', 'decimal') + '</div>' +
       '<div class="card stack"><h3>Layanan & tampilan</h3>' + f('bandara', 'Daftar bandara', 'pisahkan dengan ;') + f('outlet', 'Lokasi outlet', 'Nama=alamat;Nama2=alamat2', 'area') + f('promo', 'Banner promo', 'Judul=keterangan;Judul2=keterangan2', 'area') +
-      f('kota', 'Kota layanan', 'pisahkan dengan ;') + f('jam_layanan', 'Jam layanan') + '</div>' +
+      f('kota', 'Wilayah layanan', 'pisahkan dengan ; tulis "Kota Malang" atau "Kab. Malang"') + f('jam_layanan', 'Jam layanan') + '</div>' +
       '<div class="card stack"><h3>Operasional</h3>' + f('nama_app', 'Nama aplikasi') + f('admin_wa', 'WhatsApp admin', 'menerima booking', 'tel') + f('driver', 'Daftar driver', 'Nama=nomorWA=PIN=Tarif;... (PIN untuk mode Driver di aplikasi Mitra; Tarif/hari diisi driver sendiri dari aplikasi, boleh dikosongkan)', 'area') +
       '<label class="f">PIN pengelola baru <span class="hint">kosongkan bila tidak diganti</span><input id="np" type="password" inputmode="numeric" maxlength="8"></label></div>' +
       '<div class="card stack"><h3>Admin ke-2 (Monitor)</h3><div class="xs muted">Akun monitor hanya bisa melihat booking, armada, pengguna & peta live. Tidak bisa verifikasi, menyetujui, mengubah harga, atau pengaturan. Masuk lewat aplikasi <b>Vast Travel Monitor</b> atau versi web.</div>' +
