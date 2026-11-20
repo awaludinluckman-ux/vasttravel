@@ -636,7 +636,7 @@ var VR_DEFAULTS = {
   outlet: 'Outlet Vast Travel Malang=Kota Malang',
   promo: 'Sewa Mobil Listrik Lebih Hemat!=Kumpulkan poin tiap transaksi;Antar Jemput Bandara=Harga sesuai rute;Tour Wisata Malang Raya=Tanya harga paket',
   poin_per_rp: '1000', poin_min_tukar: '1000', poin_maks_persen: '50',
-  tarif_km: '', fee_antar: '10', bagi_supir_antar: '60', faktor_jalan: '1.3', antar_maks_km: '150'
+  layanan_aktif: 'lepas', tarif_km: '', fee_antar: '10', bagi_supir_antar: '60', faktor_jalan: '1.3', antar_maks_km: '150'
 };
 var VR_EMPTY_OK = ['tarif_km', 'musim_libur', 'promo_event', 'qris', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'driver', 'promo', 'outlet'];
 /* Gambar QR per metode bayar (QR DANA, GoPay, dll.) diunggah pengelola: kunci "qr_<set>" */
@@ -780,6 +780,10 @@ function vrWilayahLabel(w) { return /^Prov\. /.test(w) ? 'Seluruh ' + w.slice(6)
 function vrWilayahPunyaAwalan(v) { return /^(Kota|Kab\.) /.test(vrWilayah(v)); }
 /* Teks untuk pencarian alamat di peta */
 function vrWilayahCari(v) { return vrWilayah(v).replace(/^Kab\. /, 'Kabupaten '); }
+/* ---------- Layanan yang dibuka pengelola (lainnya disembunyikan & ditolak server) ---------- */
+var VR_LAYANAN_SAKELAR = [['lepas', 'Sewa lepas kunci', 'Mobil & motor tanpa sopir (izin paling ringan: NIB)'], ['driver', 'Sewa dengan driver', 'Butuh izin angkutan sewa'],
+  ['bandara', 'Antar Bandara', 'Butuh izin angkutan sewa'], ['citytour', 'City Tour', 'Butuh izin angkutan sewa'], ['wisata', 'Tour Wisata', 'Butuh izin angkutan sewa'],
+  ['antar', 'Minta Antar', 'Butuh izin angkutan sewa khusus / ojol'], ['supir', 'Mode Supir di aplikasi Mitra', 'Dipakai layanan berpengemudi']];
 /* ---------- Minta Antar: tarif per km per kategori kendaraan ---------- */
 var VR_TARIF_KM = {
   motor: { dasar: 5000, km: 2500, min: 10000 }, mobil5: { dasar: 10000, km: 4000, min: 25000 }, mobil7: { dasar: 12000, km: 5000, min: 30000 },
@@ -955,6 +959,8 @@ function vrCreateLogic(store) {
 
   function wilayahBuka(s) { return vrList(String(s.kota) === 'Malang;Batu;Surabaya;Sidoarjo' ? VR_DEFAULTS.kota : s.kota).map(vrWilayah).filter(function (k, i, a) { return k && a.indexOf(k) === i; }); }
   function cekWilayah(u, s) { if (!vrWilayahBuka(wilayahBuka(s), u.kota)) fail('Wilayah ' + (vrWilayah(u.kota) || '-') + ' belum dibuka untuk menerima order.'); }
+  function layananAktif(s) { var L = vrList(String(s.layanan_aktif === undefined ? 'lepas' : s.layanan_aktif)).filter(function (k) { return VR_LAYANAN_SAKELAR.some(function (x) { return x[0] === k; }); }); return L; }
+  function cekLayanan(s, k) { if (layananAktif(s).indexOf(k) < 0) fail('Layanan ' + (VR_LAYANAN[k] ? VR_LAYANAN[k].label : k) + ' belum dibuka. Silakan pilih layanan lain.'); }
   function publicApp() {
     var s = settings(), o = {};
     VR_PUBLIC_SETTINGS.forEach(function (k) { o[k] = s[k] || ''; });
@@ -977,6 +983,7 @@ function vrCreateLogic(store) {
     o.faktor_jalan = num(s.faktor_jalan) || 1.3;
     o.antar_maks_km = num(s.antar_maks_km) || 150;
     o.wilayah_buka = wilayahBuka(s);
+    o.layanan_aktif = layananAktif(s);
     o.kota = vrWilayahUrai(o.wilayah_buka);
     o.bandara = vrList(s.bandara);
     o.outlet = vrParsePairs(s.outlet).map(function (z) { return { nama: z.nama, alamat: z.nilai }; });
@@ -1375,6 +1382,7 @@ function vrCreateLogic(store) {
       cekWilayah(u, s);
       var jenis = VR_JENIS[u.jenis], layanan = String(req.layanan || '');
       if (!jenis || jenis.layanan.indexOf(layanan) < 0) fail('Pilih jenis layanan yang tersedia untuk unit ini.');
+      cekLayanan(s, layanan);
       if (layanan === 'lepas' && !req.member_id) fail('Lepas kunci khusus member terverifikasi. Masuk sebagai member atau daftar dulu.');
       var P = perentalDari(req);
       var mulai = vrDateKey(req.tgl_mulai), durasi = Math.floor(num(req.durasi)), maks = num(s.maks_hari) || 29;
@@ -1416,6 +1424,7 @@ function vrCreateLogic(store) {
     buatTrip: function (req) {
       var layanan = String(req.layanan || '');
       if (!VR_LAYANAN[layanan] || VR_LAYANAN[layanan].tipe !== 'trip') fail('Pilih layanan perjalanan.');
+      cekLayanan(settings(), layanan);
       var jenis = String(req.jenis_unit || '');
       if (['mobil5', 'mobil7', 'mobil9'].indexOf(jenis) < 0) fail('Pilih jenis mobil.');
       var P = perentalDari(req);
@@ -1474,6 +1483,7 @@ function vrCreateLogic(store) {
     /* Minta Antar: antar ke titik tujuan, tarif per km per kategori kendaraan (diatur pengelola) */
     buatAntar: function (req) {
       var s = settings(), app = appHarga(s), jenis = String(req.jenis_unit || ''), TK = vrTarifKm(s.tarif_km);
+      cekLayanan(s, 'antar');
       if (!TK[jenis] || !TK[jenis].aktif) fail('Pilih jenis kendaraan.');
       var P = perentalDari(req);
       var raw = Array.isArray(req.titik) ? req.titik : parseJson(req.titik, []);
@@ -1579,6 +1589,7 @@ function vrCreateLogic(store) {
     daftarMember: function (req) {
       var nama = txt(req.nama, 80), wa = vrNormWa(req.wa);
       if (!nama) fail('Isi nama lengkap sesuai KTP.');
+      if (!yes(req.setuju)) fail('Setujui Kebijakan Privasi & Syarat Ketentuan untuk mendaftar.');
       if (wa.length < 10) fail('Nomor WhatsApp tidak valid.');
       if (store.all('Member').some(function (m) { return vrNormWa(m.wa) === wa; })) fail('Nomor ini sudah terdaftar sebagai member. Hubungi pengelola bila lupa PIN.');
       var dok = simpanDokumen(req, true);
@@ -1613,6 +1624,7 @@ function vrCreateLogic(store) {
     /* ---------- Driver & live location ---------- */
     loginDriver: function (req) {
       var d = authDriver(req), s = settings(), hd = hargaDriver(s, d);
+      if (layananAktif(s).indexOf('supir') < 0) fail('Mode Supir belum dibuka pengelola.');
       function out(b) {
         var o = bookingOut(b), awal = ['lunas', 'berjalan', 'selesai'].indexOf(o.status) < 0;
         var x = { id: o.id, waktu: o.waktu, unit: o.unit, tnkb: o.tnkb, layanan: o.layanan, tipe: o.tipe, jenis_unit: o.jenis_unit, penumpang: o.penumpang, bandara: o.bandara,
@@ -1822,6 +1834,7 @@ function vrCreateLogic(store) {
     daftarPemilik: function (req) {
       var nama = txt(req.nama, 80), wa = vrNormWa(req.wa);
       if (!nama) fail('Isi nama pemilik.');
+      if (!yes(req.setuju)) fail('Setujui Kebijakan Privasi & Syarat Ketentuan Mitra untuk mendaftar.');
       if (wa.length < 10) fail('Nomor WhatsApp tidak valid.');
       if (txt(req.bank, 160).length < 6) fail('Isi rekening untuk pencairan dana (bank, nomor, atas nama).');
       if (!vrKabInfo(req.kota)) fail('Pilih wilayah (provinsi lalu kabupaten / kota) dari daftar.');
@@ -2150,6 +2163,8 @@ function vrCreateLogic(store) {
       }
       if ('catatan' in x) patch.catatan = txt(x.catatan, 200);
       if (x.reset_pin) patch.pin = pin4();
+      /* Data minimal: foto KTP/SIM/selfie dihapus setelah member diverifikasi */
+      if (x.status === 'terverifikasi') { ['ktp', 'sim', 'selfie'].forEach(function (k) { if (String(m[k] || '') && store.deleteImage) store.deleteImage(m[k]); patch[k] = ''; }); patch.catatan = 'Dokumen diverifikasi ' + vrToday() + '; foto dihapus.'; }
       store.update('Member', 'id', m.id, patch);
       if (x.status === 'terverifikasi') notify('H:' + vrNormWa(m.wa), 'Member terverifikasi', 'Selamat! Anda kini bisa sewa lepas kunci dan menukar poin.', m.id);
       if (x.status === 'ditolak') notify('H:' + vrNormWa(m.wa), 'Verifikasi member ditolak', (txt(x.catatan, 200) || 'Foto dokumen belum sesuai.') + ' Silakan unggah ulang KTP, SIM & selfie.', m.id);
@@ -2158,6 +2173,7 @@ function vrCreateLogic(store) {
     },
     /* Hapus mitra (beserta armadanya), member, atau satu unit armada. Ditolak bila masih ada order berjalan.
        Data riwayat order tetap tersimpan; data pribadi (PIN, WhatsApp, rekening, dokumen) dikosongkan. */
+    infoLayanan: function () { return { layanan_aktif: layananAktif(settings()) }; },
     adminHapus: function (req) {
       authAdmin(req);
       var s = settings(), jenis = String(req.jenis || ''), id = String(req.id || '');
@@ -2181,6 +2197,7 @@ function vrCreateLogic(store) {
       if (jenis === 'member') {
         var m = byId('Member', id); if (!m || m.status === 'hapus') fail('Member tidak ditemukan.');
         tolak(aktif(function (b) { return String(b.member_id) === id; }), 'Member ini');
+        ['ktp', 'sim', 'selfie'].forEach(function (k) { if (String(m[k] || '') && store.deleteImage) store.deleteImage(m[k]); });
         store.update('Member', 'id', m.id, { status: 'hapus', pin: '', wa: '', alamat: '', ktp: '', sim: '', selfie: '', catatan: '' });
         return { ok: true };
       }
@@ -2209,6 +2226,11 @@ function vrCreateLogic(store) {
           return w;
         });
         setSetting('kota', KN.filter(function (k, i, a) { return a.indexOf(k) === i; }).join(';'));
+      }
+      if ('layanan_aktif' in v) {
+        var LA = (Array.isArray(v.layanan_aktif) ? v.layanan_aktif : vrList(v.layanan_aktif)).filter(function (k) { return VR_LAYANAN_SAKELAR.some(function (x) { return x[0] === k; }); });
+        if (!LA.length) fail('Buka minimal satu layanan.');
+        setSetting('layanan_aktif', LA.join(';'));
       }
       if ('tarif_km' in v) {
         var tk = parseJson(v.tarif_km, null);
@@ -3327,8 +3349,30 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     });
   });
 
+  /* ---------- Kebijakan Privasi & Syarat Ketentuan (wajib disetujui saat mendaftar) ---------- */
+  var PRIVASI = [
+    ['Data yang kami kumpulkan', 'Nama, nomor WhatsApp, alamat dan wilayah; data pemesanan (unit, jadwal, lokasi serah terima, pembayaran); untuk member: foto KTP, SIM dan swafoto untuk verifikasi identitas; untuk mitra: data unit dan rekening pencairan; lokasi perangkat hanya bila Anda mengizinkannya (misalnya berbagi lokasi saat unit dipakai atau menentukan titik jemput).'],
+    ['Tujuan penggunaan', 'Memproses pemesanan dan pembayaran, memverifikasi identitas penyewa demi keamanan unit, menghubungkan penyewa dengan pengelola dan mitra pemilik unit, mengirim notifikasi layanan, membuat rekap transaksi, serta memenuhi kewajiban hukum.'],
+    ['Foto KTP, SIM & swafoto', 'Hanya dilihat pengelola untuk verifikasi. Setelah member diverifikasi, foto dokumen dihapus dari server; yang tersimpan hanya status verifikasi dan tanggalnya.'],
+    ['Pembagian data', 'Mitra pemilik unit hanya menerima data yang perlu untuk serah terima (nama, jadwal, lokasi). Kami tidak menjual data pribadi. Data dapat diberikan kepada aparat bila diwajibkan peraturan perundang-undangan.'],
+    ['Penyimpanan & keamanan', 'Data disimpan di server berpengaman dengan akses terbatas (PIN per akun). Data pemesanan disimpan selama diperlukan untuk pembukuan dan kewajiban pajak; data akun yang dihapus dikosongkan dari data pribadinya.'],
+    ['Hak Anda', 'Anda berhak mengakses, memperbaiki, menarik persetujuan, dan meminta penghapusan data pribadi Anda dengan menghubungi pengelola melalui chat di aplikasi atau WhatsApp. Permintaan diproses paling lambat 3x24 jam kerja.'],
+    ['Syarat penyewaan', 'Unit disewakan tanpa pengemudi kepada member terverifikasi yang memiliki SIM sesuai. Penyewa bertanggung jawab atas penggunaan, kebersihan, denda tilang, dan kerusakan selama masa sewa; unit dikembalikan sesuai jadwal dan lokasi yang disepakati. Pembatalan & pengembalian dana mengikuti ketentuan di halaman pembayaran.'],
+    ['Syarat mitra', 'Mitra menjamin unit miliknya sah, layak jalan, berasuransi bila ada, dan pajak kendaraannya hidup. Pengelola menyewa unit mitra sesuai harga yang ditetapkan mitra lalu menyewakannya kepada penyewa; pembayaran ke mitra ditransfer ke rekening mitra setelah sewa selesai.']
+  ];
+  function privasiHtml() { return PRIVASI.map(function (p) { return '<h4 style="margin:12px 0 4px">' + esc(p[0]) + '</h4><p class="small" style="margin:0;line-height:1.55">' + esc(p[1]) + '</p>'; }).join(''); }
+  function privasiOpen() {
+    sheet('<h2>Kebijakan Privasi & Syarat Ketentuan</h2><div class="xs muted">' + esc(CFG.NAMA_APP || 'Vast Travel') + ' · berlaku sejak 21 November 2026</div>' + privasiHtml() +
+      '<p class="xs muted" style="margin-top:14px">Pertanyaan: hubungi pengelola melalui menu Chat atau Bantuan di aplikasi.</p><button class="btn go block" data-close>Mengerti</button>');
+  }
+  /* Sakelar persetujuan (bukan centang) untuk form pendaftaran */
+  function setujuHtml(id) {
+    return '<label class="row" style="gap:10px;align-items:flex-start;margin:8px 0;cursor:pointer"><input type="checkbox" id="' + id + '" style="margin-top:2px"><span class="small">Saya telah membaca dan menyetujui <a href="#" data-privasi style="font-weight:700">Kebijakan Privasi & Syarat Ketentuan</a>, termasuk pemrosesan data pribadi untuk verifikasi.</span></label>';
+  }
+  document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('[data-privasi]'); if (!a) return; e.preventDefault(); e.stopPropagation(); privasiOpen(); }, true);
+
   window.VR = { DEMO: DEMO, CFG: CFG, api: api, rp: rp, esc: esc, wa: wa, tgl: tgl, waktu: waktu, sameMonth: sameMonth, sapaan: sapaan,
-    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, pickList: pickList, pilihWilayah: pilihWilayah, wilBtn: wilBtn, setWilayahBuka: function (l) { WIL_BUKA = l || []; }, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
+    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, privasiOpen: privasiOpen, setujuHtml: setujuHtml, PRIVASI: PRIVASI, pickList: pickList, pilihWilayah: pilihWilayah, wilBtn: wilBtn, setWilayahBuka: function (l) { WIL_BUKA = l || []; }, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
     cached: cached, loadFast: loadFast, uiBusy: uiBusy, clearCached: clearCached,
     trackStart: trackStart, trackStop: trackStop, trackOn: trackOn, liveMap: liveMap, lokLabel: lokLabel, lokWarna: lokWarna,
     vehicleSvg: vehicleSvg, unitImg: unitImg, models: models, modelOf: modelOf, modelFoto: modelFoto, brands: brands, modelImg: modelImg, imgUrl: imgUrl, warnaHex: warnaHex, fotoList: fotoList, pickPhotos: pickPhotos, scenery: scenery,
@@ -3935,6 +3979,8 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       '<div class="card stack"><h3>Sistem poin</h3>' + f('poin_per_rp', 'Transaksi per 1 poin (Rp)', 'default 1000 → Rp1.000 = 1 poin', 'numeric') + f('poin_min_tukar', 'Minimal penukaran (poin)', '1 poin = Rp1', 'numeric') + f('poin_maks_persen', 'Maksimal potongan (%)', 'dari total transaksi', 'decimal') + '</div>' +
       '<div class="card stack"><h3>Layanan & tampilan</h3>' + f('bandara', 'Daftar bandara', 'pisahkan dengan ;') + f('outlet', 'Lokasi outlet', 'Nama=alamat;Nama2=alamat2', 'area') + f('promo', 'Banner promo', 'Judul=keterangan;Judul2=keterangan2', 'area') +
       f('jam_layanan', 'Jam layanan') + '</div>' +
+      '<div class="card stack" id="la-card"><h3>' + V.ic('check') + ' Layanan aktif</h3><div class="xs muted">Layanan yang dimatikan hilang dari aplikasi penyewa & mitra, dan ordernya ditolak sistem. Nyalakan layanan berpengemudi setelah izin angkutan terbit.</div>' +
+        VR_LAYANAN_SAKELAR.map(function (x) { var on = (S.d.app.layanan_aktif || []).indexOf(x[0]) >= 0; return '<label class="row between" style="gap:10px;padding:8px 2px;border-top:1px solid var(--line)"><span><b class="small">' + esc(x[1]) + '</b><span class="xs muted" style="display:block">' + esc(x[2]) + '</span></span><input type="checkbox" data-la="' + x[0] + '"' + (on ? ' checked' : '') + '></label>'; }).join('') + '</div>' +
       '<div class="card stack"><div class="row between"><h3>Wilayah layanan dibuka</h3><button type="button" class="btn sm" id="wl-add">' + V.ic('plus') + ' Buka wilayah</button></div>' +
       '<div class="xs muted">Hanya unit di wilayah ini yang tampil ke penyewa dan bisa menerima order. Mitra dari seluruh Indonesia tetap bisa mendaftar dan menambah unit lebih dulu. Pilih per kabupaten / kota, atau seluruh provinsi sekaligus.</div><div id="wl-list" class="wilchips"></div></div>' +
       '<div class="card stack"><h3>Operasional</h3>' + f('nama_app', 'Nama aplikasi') + f('admin_wa', 'WhatsApp admin', 'menerima booking', 'tel') + f('driver', 'Daftar driver', 'Nama=nomorWA=PIN=Tarif;... (PIN untuk mode Driver di aplikasi Mitra; Tarif/hari diisi driver sendiri dari aplikasi, boleh dikosongkan)', 'area') +
@@ -3963,6 +4009,12 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     var bai = app.querySelector('[data-k="biaya_admin"]'), bex = document.getElementById('ba-ex');
     function contoh() { var p2 = Number(bai.value) || 0; bex.innerHTML = 'Contoh: mitra mengisi <b>Rp300.000</b>/hari → tampil ke penyewa <b>' + V.rp(vrHargaFinal(300000, p2)) + '</b>/hari (biaya layanan ' + V.rp(vrHargaFinal(300000, p2) - 300000) + ').'; }
     if (bai) { bai.oninput = contoh; contoh(); }
+    app.querySelectorAll('[data-la]').forEach(function (c) { c.onchange = function () {
+      var L = Array.prototype.filter.call(app.querySelectorAll('[data-la]'), function (z) { return z.checked; }).map(function (z) { return z.dataset.la; });
+      if (!L.length) { c.checked = true; return V.toast('Buka minimal satu layanan.', true); }
+      V.api('adminPengaturan', { pin: S.pin, nilai: { layanan_aktif: L } }).then(function () { S.d.app.layanan_aktif = L; V.toast((c.checked ? 'Dibuka: ' : 'Ditutup: ') + c.closest('label').querySelector('b').textContent); })
+        .catch(function (e) { c.checked = !c.checked; V.toast(e.message, true); });
+    }; });
     var WL = (S.d.app.wilayah_buka || []).slice();
     function wlDraw() {
       var el = document.getElementById('wl-list'); if (!el) return;
