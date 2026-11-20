@@ -597,7 +597,7 @@ div.f .hint { font-weight: 500; }
    Harga sewa harian ditentukan pemilik unit (mitra). Sistem otomatis menambahkan
    biaya layanan pengelola (persen, diatur pengelola) -> harga final yang tampil
    ke penyewa sudah termasuk semuanya. Perental membayar ke pengelola ->
-   pengelola memverifikasi -> harga mitra diteruskan ke pemilik unit di hari yang sama.
+   pengelola memverifikasi -> pengelola membayar sewa unit ke pemilik unit (model: pengelola menyewa unit mitra lalu menyewakannya).
    Perental dan pemilik unit tidak pernah saling terhubung: semua lewat pengelola.
    Layanan perjalanan (antar bandara, city tour, tour wisata): harga ditentukan pengelola.
    Poin: setiap Rp1.000 transaksi selesai = 1 poin; 1 poin = Rp1 potongan.
@@ -1181,7 +1181,7 @@ function vrCreateLogic(store) {
     var x = { id: o.id, tgl_order: tglWib(o.waktu), tgl_mulai: o.tgl_mulai, durasi: o.durasi, jam: o.jam, layanan: (VR_LAYANAN[o.layanan] || {}).label || o.layanan,
       unit: u ? (u.merk + ' ' + u.model) : (VR_JENIS[o.jenis_unit] || {}).pendek || '-', tnkb: o.tnkb || '', status: o.status, status_label: VR_STATUS_LABEL[o.status] || o.status,
       lunas: lunas, jarak: o.jarak, driver: o.driver || '', bagian_pemilik: o.bagian_pemilik, payout: o.payout, payout_waktu: o.payout_waktu };
-    if (untuk === 'pemilik') { x.nilai = o.total - o.biaya_driver; x.komisi = x.nilai - o.bagian_pemilik; return x; }
+    if (untuk === 'pemilik') return x;
     x.nama = o.nama; x.hp = o.hp; x.total = o.total; x.diskon_poin = o.diskon_poin; x.bayar = o.bayar; x.metode = o.metode || ''; x.komisi = o.komisi;
     x.bagian_driver = o.bagian_driver; x.payout_driver = o.payout_driver; x.pemilik_id = o.pemilik_id;
     return x;
@@ -1572,8 +1572,8 @@ function vrCreateLogic(store) {
       else if (vrNormWa(b.hp) !== vrNormWa(req.hp)) fail('Booking tidak ditemukan.');
       if (b.status !== 'lunas') fail(b.status === 'berjalan' ? 'Unit sudah tercatat diterima.' : 'Unit bisa dikonfirmasi diterima setelah pembayaran lunas.');
       var o = changeStatus(b, 'berjalan', 'perental', { terima_waktu: nowIso() });
-      notify('admin', 'Unit diterima penyewa', b.nama + ' sudah menerima ' + unitLabel(b) + ' (' + b.id + '). Teruskan dana ke mitra' + (b.driver ? ' & driver.' : '.'), b.id);
-      notifPemilik(b, 'Unit diterima penyewa', unitLabel(b) + ' (' + b.id + ') sudah diterima. Dana sewa segera diteruskan.');
+      notify('admin', 'Unit diterima penyewa', b.nama + ' sudah menerima ' + unitLabel(b) + ' (' + b.id + '). Bayar sewa unit ke mitra' + (b.driver ? ' & jasa driver.' : '.'), b.id);
+      notifPemilik(b, 'Unit diterima penyewa', unitLabel(b) + ' (' + b.id + ') sudah diterima. Pembayaran sewa unit segera ditransfer.');
       if (b.driver) notifDriver(b, 'Perjalanan dimulai', 'Order ' + b.id + ' berjalan. Bagikan lokasi selama perjalanan.');
       return { booking: o };
     },
@@ -2092,7 +2092,7 @@ function vrCreateLogic(store) {
         if (b.status !== 'lunas') fail('Unit hanya bisa diserahkan untuk booking yang sudah lunas.');
         o = changeStatus(b, 'berjalan', 'pengelola', { terima_waktu: nowIso() });
         notifPerental(b, 'Unit diserahkan', 'Selamat berkendara! Booking ' + b.id + ' sedang berjalan.');
-        notifPemilik(b, 'Unit diterima penyewa', unitLabel(b) + ' (' + b.id + ') sudah diserahkan. Dana sewa segera diteruskan.');
+        notifPemilik(b, 'Unit diterima penyewa', unitLabel(b) + ' (' + b.id + ') sudah diserahkan. Pembayaran sewa unit segera ditransfer.');
         if (b.driver) notifDriver(b, 'Perjalanan dimulai', 'Order ' + b.id + ' berjalan. Bagikan lokasi selama perjalanan.');
         return { booking: o };
       }
@@ -2111,16 +2111,16 @@ function vrCreateLogic(store) {
         return { booking: batalkan(b, 'pengelola', txt(req.alasan, 200)) };
       }
       if (a === 'payout') {
-        if (['berjalan', 'selesai'].indexOf(b.status) < 0) fail('Dana diteruskan ke mitra setelah unit diterima penyewa.');
-        if (b.payout === 'sudah') fail('Dana booking ini sudah diteruskan.');
+        if (['berjalan', 'selesai'].indexOf(b.status) < 0) fail('Sewa unit dibayar ke mitra setelah unit diterima penyewa.');
+        if (b.payout === 'sudah') fail('Sewa unit booking ini sudah dibayar.');
         o = addRiwayat(b, 'payout', 'pengelola', { payout: 'sudah', payout_waktu: nowIso() });
-        notifPemilik(b, 'Dana sewa ditransfer', rp(num(b.bagian_pemilik)) + ' untuk ' + b.id + ' sudah ditransfer ke rekening Anda.');
+        notifPemilik(b, 'Sewa unit dibayar', 'Pembayaran sewa unit ' + rp(num(b.bagian_pemilik)) + ' untuk ' + b.id + ' sudah ditransfer ke rekening Anda.');
         return { booking: o };
       }
       if (a === 'payout_driver') {
-        if (['berjalan', 'selesai'].indexOf(b.status) < 0) fail('Dana diteruskan ke driver setelah unit diterima penyewa.');
+        if (['berjalan', 'selesai'].indexOf(b.status) < 0) fail('Jasa driver dibayar setelah unit diterima penyewa.');
         if (!b.driver || !num(b.bagian_driver)) fail('Tidak ada bagian driver di order ini.');
-        if (b.payout_driver === 'sudah') fail('Dana driver sudah diteruskan.');
+        if (b.payout_driver === 'sudah') fail('Jasa driver sudah dibayar.');
         o = addRiwayat(b, 'payout_driver', 'pengelola', { payout_driver: 'sudah', payout_driver_waktu: nowIso() });
         notifDriver(b, 'Biaya driver ditransfer', rp(num(b.bagian_driver)) + ' untuk ' + b.id + ' sudah ditransfer.');
         return { booking: o };
@@ -2362,7 +2362,7 @@ function vrSeed() {
   var Poin = [{ id: 'T0001', waktu: iso(now - 5 * 24 * H), hp: '6285700000001', delta: 900, booking_id: 'VT-DEMO-D4', ket: 'Poin transaksi VT-DEMO-D4' },
     { id: 'T0002', waktu: iso(now - 30 * 24 * H), hp: '6285700000001', delta: 1450, booking_id: '', ket: 'Poin transaksi sebelumnya' }];
   var Notif = [{ id: 'N0001', waktu: iso(now - 0.5 * H), untuk: 'admin', judul: 'Permintaan Tour Wisata', isi: 'Awaludin - tentukan harga (VT-DEMO-B2)', ref: 'VT-DEMO-B2' },
-    { id: 'N0002', waktu: iso(now - 20 * H), untuk: 'P:P001', judul: 'Dana sewa ditransfer', isi: 'Rp140.250 untuk VT-DEMO-C3 sudah ditransfer.', ref: 'VT-DEMO-C3' },
+    { id: 'N0002', waktu: iso(now - 20 * H), untuk: 'P:P001', judul: 'Sewa unit dibayar', isi: 'Pembayaran sewa unit Rp140.250 untuk VT-DEMO-C3 sudah ditransfer.', ref: 'VT-DEMO-C3' },
     { id: 'N0003', waktu: iso(now - 20 * H), untuk: 'B:VT-DEMO-C3', judul: 'Perjalanan dimulai', isi: 'Selamat berkendara! Booking VT-DEMO-C3 sedang berjalan.', ref: 'VT-DEMO-C3' }];
   return { Pengaturan: Pengaturan, Pemilik: Pemilik, Unit: Unit, Member: Member, Booking: Booking, Poin: Poin, Notif: Notif };
 }
@@ -2529,11 +2529,11 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     orderKePemilik: function (b, p) {
       return '*ORDER UNIT - VAST TRAVEL*\nHalo ' + p.nama + ', unit Anda telah disewa dan sudah dibayar lunas ke Vast Travel.\n\nNo: ' + b.id + '\nUnit: ' + unitNama(b.unit) + ' ' + (b.unit ? b.unit.warna : '') + ' (' + b.tnkb + ')' +
         '\nLayanan: ' + VR_LAYANAN[b.layanan].label + '\nJadwal: ' + jadwal(b) + (b.driver ? '\nDriver Vast Travel: ' + b.driver : '') +
-        '\n\nNilai sewa: ' + rp(b.total) + '\nPotongan admin: -' + rp(b.komisi) + '\n*Bagian Anda: ' + rp(b.bagian_pemilik) + '*\n(Diteruskan ke rekening Anda hari ini)\n\nMohon siapkan unit (baterai penuh, bersih) dan ketuk *Unit siap* di aplikasi Vast Travel Mitra.';
+        '\n\n*Sewa unit dibayar Vast Travel: ' + rp(b.bagian_pemilik) + '*\n(Ditransfer ke rekening Anda setelah unit diterima penyewa)\n\nMohon siapkan unit (baterai penuh, bersih) dan ketuk *Unit siap* di aplikasi Vast Travel Mitra.';
     },
     payoutKePemilik: function (b, p) {
       return '*DANA SEWA DITERUSKAN - VAST TRAVEL*\nHalo ' + p.nama + ',\n\nNo: ' + b.id + '\nUnit: ' + unitNama(b.unit) + ' (' + b.tnkb + ')\nJadwal: ' + jadwal(b) +
-        '\n\nNilai sewa: ' + rp(b.total) + '\nPotongan admin: -' + rp(b.komisi) + '\n*Ditransfer: ' + rp(b.bagian_pemilik) + '*\nKe rekening: ' + (p.bank || '-') + '\n\nTerima kasih telah bermitra dengan Vast Travel.';
+        '\n\n*Pembayaran sewa unit: ' + rp(b.bagian_pemilik) + '*\nKe rekening: ' + (p.bank || '-') + '\n\nTerima kasih telah bermitra dengan Vast Travel.';
     },
     tugasDriver: function (b, p, d) {
       var t = '*TUGAS DRIVER - VAST TRAVEL*\nHalo ' + d + ',\nNo: ' + b.id + ' (' + VR_LAYANAN[b.layanan].label + ')\n\n1) AMBIL UNIT: ' + unitNama(b.unit) + ' ' + (b.unit ? b.unit.warna : '') + ' (' + b.tnkb + ')\n   di ' + (p ? p.alamat : '-') + (p ? '\n   WA pemilik: ' + p.wa : '') +
@@ -3351,18 +3351,19 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
 
   /* ---------- Kebijakan Privasi & Syarat Ketentuan (wajib disetujui saat mendaftar) ---------- */
   var PRIVASI = [
+    ['Pengelola aplikasi', 'Aplikasi Vast Travel dikelola oleh PT Alekatama Karya Persada ("Kami"), beralamat di Radio Dalam Square, Jl. Radio Dalam Raya No. 4 2A/B, Gandaria Utara, Kebayoran Baru, Jakarta Selatan, selaku pengendali data pribadi dan pihak yang menyewakan unit kepada penyewa.'],
     ['Data yang kami kumpulkan', 'Nama, nomor WhatsApp, alamat dan wilayah; data pemesanan (unit, jadwal, lokasi serah terima, pembayaran); untuk member: foto KTP, SIM dan swafoto untuk verifikasi identitas; untuk mitra: data unit dan rekening pencairan; lokasi perangkat hanya bila Anda mengizinkannya (misalnya berbagi lokasi saat unit dipakai atau menentukan titik jemput).'],
     ['Tujuan penggunaan', 'Memproses pemesanan dan pembayaran, memverifikasi identitas penyewa demi keamanan unit, menghubungkan penyewa dengan pengelola dan mitra pemilik unit, mengirim notifikasi layanan, membuat rekap transaksi, serta memenuhi kewajiban hukum.'],
     ['Foto KTP, SIM & swafoto', 'Hanya dilihat pengelola untuk verifikasi. Setelah member diverifikasi, foto dokumen dihapus dari server; yang tersimpan hanya status verifikasi dan tanggalnya.'],
     ['Pembagian data', 'Mitra pemilik unit hanya menerima data yang perlu untuk serah terima (nama, jadwal, lokasi). Kami tidak menjual data pribadi. Data dapat diberikan kepada aparat bila diwajibkan peraturan perundang-undangan.'],
     ['Penyimpanan & keamanan', 'Data disimpan di server berpengaman dengan akses terbatas (PIN per akun). Data pemesanan disimpan selama diperlukan untuk pembukuan dan kewajiban pajak; data akun yang dihapus dikosongkan dari data pribadinya.'],
     ['Hak Anda', 'Anda berhak mengakses, memperbaiki, menarik persetujuan, dan meminta penghapusan data pribadi Anda dengan menghubungi pengelola melalui chat di aplikasi atau WhatsApp. Permintaan diproses paling lambat 3x24 jam kerja.'],
-    ['Syarat penyewaan', 'Unit disewakan tanpa pengemudi kepada member terverifikasi yang memiliki SIM sesuai. Penyewa bertanggung jawab atas penggunaan, kebersihan, denda tilang, dan kerusakan selama masa sewa; unit dikembalikan sesuai jadwal dan lokasi yang disepakati. Pembatalan & pengembalian dana mengikuti ketentuan di halaman pembayaran.'],
-    ['Syarat mitra', 'Mitra menjamin unit miliknya sah, layak jalan, berasuransi bila ada, dan pajak kendaraannya hidup. Pengelola menyewa unit mitra sesuai harga yang ditetapkan mitra lalu menyewakannya kepada penyewa; pembayaran ke mitra ditransfer ke rekening mitra setelah sewa selesai.']
+    ['Syarat penyewaan', 'Unit disewakan oleh PT Alekatama Karya Persada tanpa pengemudi kepada member terverifikasi yang memiliki SIM sesuai. Penyewa bertanggung jawab atas penggunaan, kebersihan, denda tilang, dan kerusakan selama masa sewa; unit dikembalikan sesuai jadwal dan lokasi yang disepakati. Pembatalan & pengembalian dana mengikuti ketentuan di halaman pembayaran.'],
+    ['Syarat mitra', 'Mitra menjamin unit miliknya sah, layak jalan, berasuransi bila ada, dan pajak kendaraannya hidup. PT Alekatama Karya Persada menyewa unit mitra sesuai harga sewa harian yang ditetapkan mitra, lalu menyewakannya kepada penyewa atas nama Vast Travel. Pembayaran sewa unit ditransfer ke rekening mitra setelah unit diterima penyewa. Hubungan ini adalah sewa-menyewa unit, bukan bagi hasil, dan mitra tidak menerima dana dari penyewa secara langsung.']
   ];
   function privasiHtml() { return PRIVASI.map(function (p) { return '<h4 style="margin:12px 0 4px">' + esc(p[0]) + '</h4><p class="small" style="margin:0;line-height:1.55">' + esc(p[1]) + '</p>'; }).join(''); }
   function privasiOpen() {
-    sheet('<h2>Kebijakan Privasi & Syarat Ketentuan</h2><div class="xs muted">' + esc(CFG.NAMA_APP || 'Vast Travel') + ' · berlaku sejak 21 November 2026</div>' + privasiHtml() +
+    sheet('<h2>Kebijakan Privasi & Syarat Ketentuan</h2><div class="xs muted">' + esc(CFG.NAMA_APP || 'Vast Travel') + ' · PT Alekatama Karya Persada · berlaku sejak 21 November 2026</div>' + privasiHtml() +
       '<p class="xs muted" style="margin-top:14px">Pertanyaan: hubungi pengelola melalui menu Chat atau Bantuan di aplikasi.</p><button class="btn go block" data-close>Mengerti</button>');
   }
   /* Sakelar persetujuan (bukan centang) untuk form pendaftaran */
@@ -3467,7 +3468,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   function renderLogin() {
     document.getElementById('nav').hidden = true; document.body.classList.add('login-scr');
     app.innerHTML = '<header class="hero">' + V.scenery() + '<div class="hero-top">' + V.brand(MON ? 'Monitor' : 'Admin') + '</div><div class="hello"><h1>' + (MON ? 'Monitor Vast Travel' : 'Pengelola Vast Travel') + '</h1><p>' +
-      (MON ? 'Pantau booking, armada, pembayaran & lokasi unit secara langsung (hanya melihat).' : 'Verifikasi pembayaran, tentukan harga perjalanan, teruskan dana ke pemilik unit.') + '</p></div></header>' +
+      (MON ? 'Pantau booking, armada, pembayaran & lokasi unit secara langsung (hanya melihat).' : 'Verifikasi pembayaran, tentukan harga perjalanan, bayar sewa unit ke mitra.') + '</p></div></header>' +
       '<div class="login"><img class="hook-login" src="' + V.imgUrl('img/hook.jpg') + '" alt="Vast Travel">' + V.demoBanner(MON ? 'PIN monitor demo: 9999.' : 'PIN demo: 0000.') + '<div class="card stack"><label class="f">' + (MON ? 'PIN monitor' : 'PIN pengelola') + '<input id="pin" type="password" inputmode="numeric"></label><button class="btn block" id="go">Masuk</button></div></div>';
     V.bindDemoReset();
     var go2 = function () { var b = document.getElementById('go'); V.busy(b, true); S.pin = document.getElementById('pin').value.trim();
@@ -3486,13 +3487,13 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     var h = '<header class="hero">' + V.scenery() + heroTop() + '<div class="hello"><h1>Halo, ' + (S.ro ? 'Tim Monitor' : 'Pengelola') + ' 👋' + (S.ro ? '<span class="ro-badge">hanya lihat</span>' : '') + '</h1><p>' + V.sapaan() + '! ' + (S.ro ? aksi + ' booking sedang menunggu tindakan pengelola.' : 'Ada ' + aksi + ' hal yang perlu ditindaklanjuti.') + '</p></div></header>' +
       '<div class="float"><div class="statcard"><div><b class="num">' + rp(pend).replace('Rp ', 'Rp') + '</b><span>Pendapatan admin bulan ini</span></div><div><b>' + aksi + '</b><span>Perlu tindakan</span></div><div data-q="peta" style="cursor:pointer"><b>' + B.filter(function (b) { return b.status === 'berjalan'; }).length + '</b><span>Sedang berjalan ›</span></div></div></div>' + V.demoBanner() + '<main>';
     if (WEB || WIDE.matches) h += '<div class="hook-web"><img src="' + V.imgUrl('img/hook.jpg') + '" alt="Vast Travel - Sewa kendaraan listrik untuk semua kebutuhan"></div>';
-    var Q = [['b:cek', 'wallet', 'Verifikasi Bayar', c.cek], ['b:setuju', 'check', 'Order Baru', c.setuju], ['b:payout', 'send', 'Teruskan Dana', c.payout], ['armada', 'car', 'Armada', c.unit],
+    var Q = [['b:cek', 'wallet', 'Verifikasi Bayar', c.cek], ['b:setuju', 'check', 'Order Baru', c.setuju], ['b:payout', 'send', 'Bayar Sewa Unit', c.payout], ['armada', 'car', 'Armada', c.unit],
       ['u:pemilik', 'key', 'Mitra Pemilik', c.mitra], ['u:member', 'users', 'Member', c.member], ['peta', 'pin', 'Peta Live', B.filter(function (b) { return b.status === 'berjalan'; }).length], S.ro ? ['atur', 'gear', 'Akun'] : ['chat', 'help', 'Chat', d.chat_belum || 0]];
     if (!S.ro && !(d.app.bayar || []).length) h += '<div class="note warn"><b>Metode pembayaran belum diisi.</b> Penyewa hanya bisa meminta nomor rekening lewat WhatsApp. <button class="linkbtn" data-q="atur">Isi rekening, e-wallet & QRIS</button></div>';
     h += '<div class="qgrid">' + Q.map(function (q) { return '<button class="q" data-q="' + q[0] + '"><span class="qi">' + ic(q[1]) + '</span>' + q[2] + (q[3] ? '<span class="n">' + q[3] + '</span>' : '') + '</button>'; }).join('') + '</div>' +
       '<button class="card row" id="rk-open" style="width:100%;text-align:left;cursor:pointer;gap:12px;border:1.5px solid var(--g500)"><span class="qi" style="flex:none;width:40px;height:40px;border-radius:12px;background:var(--g50);color:var(--g700);display:grid;place-items:center">' + ic('report') + '</span><span class="grow"><b>Rekap order & transaksi</b><span class="xs muted" style="display:block">Per minggu, bulan, atau tanggal pilihan · unduh PDF</span></span>' + ic('chev') + '</button>';
     h += '<div class="tiles"><div class="tile hot"><div class="k">Omzet sewa bulan ini</div><div class="v">' + rp(sum(bulan, 'total')) + '</div></div>' +
-      '<div class="tile' + (hold.length ? ' alert' : '') + '"><div class="k">Dana belum diteruskan</div><div class="v">' + rp(sum(hold, 'bagian_pemilik')) + '</div></div>' +
+      '<div class="tile' + (hold.length ? ' alert' : '') + '"><div class="k">Sewa unit belum dibayar</div><div class="v">' + rp(sum(hold, 'bagian_pemilik')) + '</div></div>' +
       '<div class="tile"><div class="k">Mulai hari ini</div><div class="v">' + sah.filter(function (b) { return b.tgl_mulai === today; }).length + '</div></div>' +
       '<div class="tile"><div class="k">Unit aktif</div><div class="v">' + d.unit.filter(function (u) { return u.status === 'aktif'; }).length + '</div></div></div>';
     h += '<h3>Ringkasan bulan ini</h3><div class="card stack">' + Object.keys(VR_LAYANAN).map(function (k) {
@@ -3533,7 +3534,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     menunggu_bayar: ['Belum bayar', function (b) { return V.bisaBayar(b) && !b.bayar_lapor; }],
     lunas: ['Lunas', function (b) { return b.status === 'lunas'; }],
     berjalan: ['Berjalan', function (b) { return b.status === 'berjalan'; }],
-    payout: ['Belum diteruskan', belumPayout],
+    payout: ['Sewa unit belum dibayar', belumPayout],
     selesai: ['Selesai', function (b) { return b.status === 'selesai'; }],
     batal: ['Batal', function (b) { return b.status === 'batal'; }],
     semua: ['Semua', function () { return true; }],
@@ -3567,11 +3568,11 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     }
     if (b.status === 'lunas') act += '<button class="btn sm block soft" data-a="serahkan" data-id="' + b.id + '">Unit diserahkan · mulai</button>';
     if (b.status === 'berjalan') act += '<button class="btn sm block soft" data-a="selesai" data-id="' + b.id + '">Unit kembali · selesai (beri poin)</button>';
-    if (b.status === 'lunas' && b.payout !== 'sudah') act += '<div class="xs muted">Dana ke mitra' + (b.driver ? ' & driver' : '') + ' diteruskan setelah unit diterima penyewa.</div>';
-    if (DITERIMA.indexOf(b.status) >= 0 && b.payout !== 'sudah') act += '<button class="btn sm block" data-pay="' + b.id + '">' + ic('send') + ' Teruskan ' + rp(b.bagian_pemilik) + ' ke pemilik</button>';
-    if (DITERIMA.indexOf(b.status) >= 0 && b.driver && b.bagian_driver > 0 && b.payout_driver !== 'sudah') act += '<button class="btn sm block soft" data-payd="' + b.id + '">' + ic('send') + ' Teruskan ' + rp(b.bagian_driver) + ' ke driver ' + esc(b.driver) + '</button>';
-    if (b.payout_driver === 'sudah') act += '<span class="tag" style="align-self:flex-start">Biaya driver diteruskan ' + V.waktu(b.payout_driver_waktu) + '</span>';
-    if (b.payout === 'sudah' && p) act += '<div class="row between"><span class="tag">Dana diteruskan ' + V.waktu(b.payout_waktu) + '</span>' + V.waBtn(V.wa(p.wa, V.MSG.payoutKePemilik(b, p)), 'Bukti ke pemilik', 'sm') + '</div>';
+    if (b.status === 'lunas' && b.payout !== 'sudah') act += '<div class="xs muted">Sewa unit' + (b.driver ? ' & jasa driver' : '') + ' dibayar setelah unit diterima penyewa.</div>';
+    if (DITERIMA.indexOf(b.status) >= 0 && b.payout !== 'sudah') act += '<button class="btn sm block" data-pay="' + b.id + '">' + ic('send') + ' Bayar sewa unit ' + rp(b.bagian_pemilik) + ' ke mitra</button>';
+    if (DITERIMA.indexOf(b.status) >= 0 && b.driver && b.bagian_driver > 0 && b.payout_driver !== 'sudah') act += '<button class="btn sm block soft" data-payd="' + b.id + '">' + ic('send') + ' Bayar jasa ' + rp(b.bagian_driver) + ' ke driver ' + esc(b.driver) + '</button>';
+    if (b.payout_driver === 'sudah') act += '<span class="tag" style="align-self:flex-start">Jasa driver dibayar ' + V.waktu(b.payout_driver_waktu) + '</span>';
+    if (b.payout === 'sudah' && p) act += '<div class="row between"><span class="tag">Sewa unit dibayar ' + V.waktu(b.payout_waktu) + '</span>' + V.waBtn(V.wa(p.wa, V.MSG.payoutKePemilik(b, p)), 'Bukti ke pemilik', 'sm') + '</div>';
     act += '<div class="row-btn"><button class="btn sm ghost" data-ch="R:' + esc(b.hp) + '" data-chn="' + esc(b.nama) + '">' + ic('help') + ' Chat penyewa</button>' + (p ? '<button class="btn sm ghost" data-ch="P:' + esc(p.id) + '" data-chn="' + esc(p.nama) + '">' + ic('key') + ' Chat mitra</button>' : '') + '</div>';
     if (b.status !== 'selesai' && b.status !== 'batal') act += ['menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && !b.bayar_lapor ?
       '<button class="btn sm ghost" style="color:var(--red);align-self:flex-start;border-color:var(--red)" data-a="batal" data-id="' + b.id + '">✕ Tolak order</button>' :
@@ -3665,7 +3666,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       V.api('adminBooking', { pin: S.pin, id: id, aksi: a }).then(function (r) {
         var b = r.booking, p = pemilikOf(b.pemilik_id); gantiBk(b);
         if (a === 'setujui') V.toast('Order disetujui. Penyewa sudah diberi tahu untuk membayar.');
-        else if (a === 'verifikasi') V.sheet('<h2>Lunas tervalidasi</h2><div class="small muted">Penyewa, mitra' + (b.driver ? ' & driver' : '') + ' sudah menerima notifikasi. Mitra diminta menyiapkan unit. Dana diteruskan setelah unit diterima penyewa.</div>' +
+        else if (a === 'verifikasi') V.sheet('<h2>Lunas tervalidasi</h2><div class="small muted">Penyewa, mitra' + (b.driver ? ' & driver' : '') + ' sudah menerima notifikasi. Mitra diminta menyiapkan unit. Sewa unit dibayar ke mitra setelah unit diterima penyewa.</div>' +
           V.waBtn(V.wa(b.hp, V.MSG.keperental(b)), 'Konfirmasi ke penyewa', 'block') + V.waBtn(V.wa(p.wa, V.MSG.orderKePemilik(b, p)), 'Kirim order ke pemilik unit', 'block'));
         else if (a === 'tolak_bayar') V.sheet('<h2>Minta bukti ulang</h2>' + V.waBtn(V.wa(b.hp, V.MSG.tolakBayar(b)), 'Kabari penyewa', 'block'));
         else V.sheet('<h2>' + esc(V.statusLabel(b)) + '</h2>' + (b.poin_didapat ? '<div class="note">Penyewa mendapat <b>' + b.poin_didapat.toLocaleString('id-ID') + ' poin</b>.</div>' : '') + V.waBtn(V.wa(b.hp, V.MSG.keperental(b)), 'Kabari penyewa', 'block'));
@@ -3675,25 +3676,25 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   }
   function payoutDriver(id) {
     var b = find(id), dr = S.d.driver.filter(function (z) { return z.nama === b.driver; })[0] || { nama: b.driver, wa: '' };
-    V.sheet('<h2>Teruskan biaya driver</h2><div class="paybox"><div class="small">Transfer ke driver ' + esc(dr.nama) + '</div><div class="amt num">' + rp(b.bagian_driver) + '</div><div class="small">Biaya driver ' + rp(b.biaya_driver) + ' − biaya layanan ' + rp(b.biaya_driver - b.bagian_driver) + '</div></div>' +
+    V.sheet('<h2>Bayar jasa driver</h2><div class="paybox"><div class="small">Transfer ke driver ' + esc(dr.nama) + '</div><div class="amt num">' + rp(b.bagian_driver) + '</div><div class="small">Biaya driver ' + rp(b.biaya_driver) + ' − biaya layanan ' + rp(b.biaya_driver - b.bagian_driver) + '</div></div>' +
       (dr.wa ? V.waBtn(V.wa(dr.wa, 'Halo ' + dr.nama + ', mohon info rekening / e-wallet untuk transfer biaya driver order ' + b.id + ' sebesar ' + rp(b.bagian_driver) + '. Terima kasih.'), 'Minta rekening driver', 'block') : '') +
       '<button class="btn block" id="done">Sudah saya transfer</button>', function (el) {
       el.querySelector('#done').onclick = function () {
         var x = this; V.busy(x, true);
-        V.api('adminBooking', { pin: S.pin, id: b.id, aksi: 'payout_driver' }).then(function (r) { gantiBk(r.booking); V.closeSheet(); V.toast('Biaya driver tercatat diteruskan. Driver sudah diberi tahu.'); load(); })
+        V.api('adminBooking', { pin: S.pin, id: b.id, aksi: 'payout_driver' }).then(function (r) { gantiBk(r.booking); V.closeSheet(); V.toast('Pembayaran jasa driver tercatat. Driver sudah diberi tahu.'); load(); })
           .catch(function (e) { V.busy(x, false); V.toast(e.message, true); });
       };
     });
   }
   function payout(id, bk) {
     var b = bk || find(id), p = pemilikOf(b.pemilik_id);
-    V.sheet('<h2>Teruskan dana ke pemilik</h2><div class="paybox"><div class="small">Transfer ke ' + esc(p.nama) + '</div><div class="amt num">' + rp(b.bagian_pemilik) + '</div>' +
+    V.sheet('<h2>Bayar sewa unit ke mitra</h2><div class="paybox"><div class="small">Transfer ke ' + esc(p.nama) + '</div><div class="amt num">' + rp(b.bagian_pemilik) + '</div>' +
       '<div class="rek"><span>' + esc(p.bank || 'Rekening belum diisi') + '</span><button class="btn sm lime" id="cp">Salin</button></div><div class="small">Nilai sewa ' + rp(b.total) + ' − komisi ' + rp(b.komisi) + '</div></div>' +
       '<div class="small muted">Transfer dari m-banking Anda, lalu tandai sudah dikirim.</div><button class="btn block" id="done">Sudah saya transfer</button>', function (el) {
       el.querySelector('#cp').onclick = function () { V.copy(String(p.bank || '').replace(/[^\d]/g, '')); };
       el.querySelector('#done').onclick = function () {
         var x = this; V.busy(x, true);
-        V.api('adminBooking', { pin: S.pin, id: b.id, aksi: 'payout' }).then(function (r) { V.sheet('<h2>Dana tercatat diteruskan</h2><div class="small muted">Pemilik sudah menerima notifikasi.</div>' + V.waBtn(V.wa(p.wa, V.MSG.payoutKePemilik(r.booking, p)), 'Kirim bukti ke pemilik', 'block')); load(); })
+        V.api('adminBooking', { pin: S.pin, id: b.id, aksi: 'payout' }).then(function (r) { V.sheet('<h2>Pembayaran sewa unit tercatat</h2><div class="small muted">Pemilik sudah menerima notifikasi.</div>' + V.waBtn(V.wa(p.wa, V.MSG.payoutKePemilik(r.booking, p)), 'Kirim bukti ke pemilik', 'block')); load(); })
           .catch(function (e) { V.busy(x, false); V.toast(e.message, true); });
       };
     });
@@ -3712,7 +3713,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       return '<div class="card stack"><div class="row">' + V.unitImg(u, 'uimg sm') + '<div class="grow"><b>' + esc(V.unitNama(u)) + '</b> <span class="xs muted">' + esc(u.tahun) + '</span>' +
         '<div class="xs muted">' + VR_JENIS[u.jenis].pendek + ' · ' + esc(u.warna) + ' · <b>' + esc(u.tnkb) + '</b> · ' + esc(u.kota) + '</div><div class="xs">Pemilik: ' + esc(p.nama) + ' (' + esc(u.pemilik_id) + ')</div>' +
         '<div class="xs muted">' + (u.jarak_km ? '±' + u.jarak_km + ' km · ' : '') + esc(u.charging || '') + (u.bagasi ? ' · bagasi ' + esc(u.bagasi) : '') + ' · ' + u.kapasitas + ' penumpang</div>' +
-        '<div class="xs">Harga mitra <b>' + V.rp(u.harga_mitra) + '</b>/hari · tampil ke penyewa <b>' + V.rp(u.harga_final) + '</b>' + (u.harga ? '' : ' <span class="tag wait">tarif standar</span>') + '</div></div></div>' +
+        '<div class="xs">Harga sewa dari mitra <b>' + V.rp(u.harga_mitra) + '</b>/hari · tampil ke penyewa <b>' + V.rp(u.harga_final) + '</b>' + (u.harga ? '' : ' <span class="tag wait">tarif standar</span>') + '</div></div></div>' +
         (f.length ? '<div class="photos">' + f.map(function (x, i) { return '<button type="button" class="ph" data-zg="' + u.id + '" data-zi="' + i + '" style="padding:0;border:0;cursor:zoom-in"><img src="' + esc(x) + '" alt=""></button>'; }).join('') + '</div>' : '<div class="xs" style="color:var(--amber)">Belum ada foto unit</div>') +
         '<div class="row between wrapflex"><span class="tag ' + (u.status === 'aktif' ? '' : u.status === 'nonaktif' ? 'no' : 'wait') + '">' + F[u.status] + (u.tersedia ? '' : ' · disembunyikan pemilik') + '</span>' +
         '<div class="row adm" style="gap:6px">' + (u.status !== 'aktif' ? '<button class="btn sm" data-us="aktif" data-id="' + u.id + '">Setujui</button>' : '') + (u.status !== 'nonaktif' ? '<button class="btn sm ghost" data-us="nonaktif" data-id="' + u.id + '">Nonaktifkan</button>' : '') + '<button class="btn sm ghost" data-hu="' + u.id + '" style="color:var(--red)" aria-label="Hapus unit">' + ic('trash') + '</button></div></div></div>';
@@ -3955,7 +3956,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       '<div class="note small" id="ba-ex"></div>' +
       f('biaya_driver', 'Fee pengelola untuk supir (%)', 'ditambahkan ke tarif yang diisi supir, mis. 10', 'decimal') +
       '<div class="note small" id="bd-ex"></div>' +
-      f('komisi', 'Potongan admin layanan perjalanan (%)', 'untuk harga yang diinput manual oleh pengelola (antar bandara, dll.)', 'decimal') + '</div>' +
+      f('komisi', 'Margin pengelola layanan perjalanan (%)', 'untuk harga yang diinput manual oleh pengelola (antar bandara, dll.)', 'decimal') + '</div>' +
       '<div class="card stack"><h3>Harga dinamis</h3><div class="xs muted">Kenaikan otomatis untuk harga unit & supir pada hari tertentu. Bila weekend jatuh di musim liburan, dipakai persentase yang lebih tinggi.</div>' +
       f('tarif_weekend', 'Kenaikan tarif weekend — Sabtu & Minggu (%)', '0 = tidak ada kenaikan', 'numeric') +
       '<div class="row between"><b class="small">Musim liburan</b><button class="btn sm" id="ml-add" type="button">' + V.ic('plus') + ' Tambah periode</button></div><div id="ml-list" class="stack"></div></div>' +
