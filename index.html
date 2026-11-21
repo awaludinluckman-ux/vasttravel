@@ -603,7 +603,8 @@ div.f .hint { font-weight: 500; }
    Poin: setiap Rp1.000 transaksi selesai = 1 poin; 1 poin = Rp1 potongan.
    ===================================================================== */
 var VR_TABLES = {
-  Pemilik: ['id', 'nama', 'wa', 'alamat', 'kota', 'bank', 'pin', 'status', 'dibuat'],
+  Pemilik: ['id', 'nama', 'wa', 'alamat', 'kota', 'bank', 'pin', 'status', 'dibuat', 'qris'],
+  Saldo: ['id', 'waktu', 'pemilik_id', 'delta', 'ket', 'booking_id', 'status', 'bukti', 'oleh'],
   Unit: ['id', 'pemilik_id', 'jenis', 'merk', 'model', 'tahun', 'warna', 'tnkb', 'transmisi', 'kapasitas', 'kota', 'foto', 'fitur',
     'status', 'tersedia', 'diubah', 'jarak_km', 'charging', 'bagasi', 'model_id', 'harga'],
   Member: ['id', 'nama', 'wa', 'alamat', 'kota', 'pin', 'status', 'catatan', 'dibuat', 'ktp', 'sim', 'selfie'],
@@ -612,7 +613,8 @@ var VR_TABLES = {
     'lokasi', 'tujuan', 'catatan', 'tarif', 'total', 'komisi', 'bagian_pemilik', 'metode', 'bayar_lapor', 'status', 'unit_siap',
     'driver', 'payout', 'payout_waktu', 'riwayat', 'diubah', 'tipe', 'jenis_unit', 'penumpang', 'bandara', 'harga_waktu',
     'diskon_poin', 'bayar', 'poin_didapat', 'biaya_driver', 'bagian_driver', 'mitra_ok', 'driver_ok', 'payout_driver', 'payout_driver_waktu',
-    'terima_waktu', 'alasan', 'sembunyi', 'jarak', 'titik', 'driver_tolak', 'unit_tolak'],
+    'terima_waktu', 'alasan', 'sembunyi', 'jarak', 'titik', 'driver_tolak', 'unit_tolak', 'deposit', 'deposit_status', 'deposit_potong', 'deposit_ket',
+    'setuju_sewa', 'foto_serah', 'foto_kembali', 'kondisi_kembali', 'fee_dipotong'],
   Notif: ['id', 'waktu', 'untuk', 'judul', 'isi', 'ref'],
   Poin: ['id', 'waktu', 'hp', 'delta', 'booking_id', 'ket'],
   Pengaturan: ['kunci', 'nilai'],
@@ -622,7 +624,7 @@ var VR_TABLES = {
 var VR_TEXT_COLUMNS = {
   Pemilik: ['id', 'wa', 'pin', 'dibuat'], Member: ['id', 'wa', 'pin', 'dibuat'], Unit: ['id', 'pemilik_id', 'tnkb', 'tahun', 'diubah'],
   Booking: ['id', 'waktu', 'unit_id', 'pemilik_id', 'member_id', 'hp', 'tgl_mulai', 'tgl_selesai', 'jam', 'bayar_lapor', 'payout_waktu', 'diubah', 'harga_waktu', 'payout_driver_waktu', 'terima_waktu'],
-  Notif: ['id', 'waktu', 'untuk', 'ref'], Poin: ['id', 'waktu', 'hp', 'booking_id'],
+  Notif: ['id', 'waktu', 'untuk', 'ref'], Poin: ['id', 'waktu', 'hp', 'booking_id'], Saldo: ['id', 'waktu', 'pemilik_id', 'booking_id'],
   Pengaturan: ['kunci', 'nilai'], Model: ['id'], Perangkat: ['token', 'kunci', 'diubah']
 };
 var VR_DEFAULTS = {
@@ -636,7 +638,7 @@ var VR_DEFAULTS = {
   outlet: 'Outlet Vast Travel Malang=Kota Malang',
   promo: 'Sewa Mobil Listrik Lebih Hemat!=Kumpulkan poin tiap transaksi;Antar Jemput Bandara=Harga sesuai rute;Tour Wisata Malang Raya=Tanya harga paket',
   poin_per_rp: '1000', poin_min_tukar: '1000', poin_maks_persen: '50',
-  layanan_aktif: 'lepas', tarif_km: '', fee_antar: '10', bagi_supir_antar: '60', faktor_jalan: '1.3', antar_maks_km: '150'
+  layanan_aktif: 'lepas', fee_mitra: '10', saldo_wajib: 'ya', saldo_min: '0', deposit_motor: '300000', deposit_mobil: '1000000', tarif_km: '', fee_antar: '10', bagi_supir_antar: '60', faktor_jalan: '1.3', antar_maks_km: '150'
 };
 var VR_EMPTY_OK = ['tarif_km', 'musim_libur', 'promo_event', 'qris', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'driver', 'promo', 'outlet'];
 /* Gambar QR per metode bayar (QR DANA, GoPay, dll.) diunggah pengelola: kunci "qr_<set>" */
@@ -912,7 +914,38 @@ function vrCreateLogic(store) {
   }
   function tarifOf(s, jenis) { return num(s[(VR_JENIS[jenis] || VR_JENIS.mobil5).tarifKey]); }
   function komisiOf(s) { var k = num(s.komisi); return k >= 0 && k < 100 ? k : 15; }
-  function biayaAdminOf(s) { var k = num(s.biaya_admin); return k >= 0 && k <= 100 ? k : 10; }
+  /* Model marketplace: penyewa membayar harga mitra langsung ke mitra; pengelola menerima fee dari saldo mitra */
+  function biayaAdminOf(s) { return 0; }
+  function feeMitraOf(s) { var k = num(s.fee_mitra); return k >= 0 && k <= 50 ? k : 10; }
+  function saldoOf(pid) { return store.all('Saldo').filter(function (x) { return String(x.pemilik_id) === String(pid) && x.status === 'ok'; }).reduce(function (t, x) { return t + num(x.delta); }, 0); }
+  function catatSaldo(pid, delta, ket, bid, status, ex) {
+    var r = { id: rid('S', 8), waktu: nowIso(), pemilik_id: String(pid), delta: Math.round(delta), ket: txt(ket, 200), booking_id: String(bid || ''), status: status || 'ok', bukti: '', oleh: '' };
+    if (ex) for (var k in ex) r[k] = ex[k];
+    store.insert('Saldo', r); return r;
+  }
+  function feeOf(b) { return num(b.komisi); }
+  function potongFee(b) {
+    if (String(b.fee_dipotong || '') === 'ya' || !feeOf(b) || !b.pemilik_id) return;
+    catatSaldo(b.pemilik_id, -feeOf(b), 'Fee aplikasi ' + b.id, b.id, 'ok');
+    store.update('Booking', 'id', b.id, { fee_dipotong: 'ya' });
+    var sisa = saldoOf(b.pemilik_id);
+    if (sisa < num(settings().saldo_min) || sisa < 0) notify('P:' + b.pemilik_id, 'Saldo fee menipis', 'Sisa saldo fee Anda ' + rp(sisa) + '. Isi ulang agar unit tetap bisa menerima order.', '');
+  }
+  function kembalikanFee(b) {
+    if (String(b.fee_dipotong || '') !== 'ya') return;
+    catatSaldo(b.pemilik_id, feeOf(b) - num(b.diskon_poin), 'Pengembalian fee (batal) ' + b.id, b.id, 'ok');
+    store.update('Booking', 'id', b.id, { fee_dipotong: 'kembali' });
+  }
+  function lunaskan(b, oleh) {
+    var o = changeStatus(b, 'lunas', oleh, b.harga_waktu ? null : { harga_waktu: nowIso() });
+    potongFee(findBooking(b.id));
+    if (num(b.diskon_poin) > 0 && b.pemilik_id) catatSaldo(b.pemilik_id, num(b.diskon_poin), 'Kompensasi poin penyewa ' + b.id, b.id, 'ok');
+    notifPerental(b, 'Pembayaran diterima', 'Booking ' + b.id + ' lunas. Unit sedang disiapkan mitra.');
+    notifPemilik(b, 'Pembayaran lunas - siapkan unit', unitLabel(b) + ' - ' + vrDateKey(b.tgl_mulai) + ', ' + num(b.durasi) + ' hari. Fee aplikasi ' + rp(feeOf(b)) + ' dipotong dari saldo. Siapkan unit lalu ketuk "Unit siap".');
+    if (b.driver) notifDriver(b, 'Pembayaran lunas', 'Order ' + b.id + ' lunas. Bersiap sesuai jadwal ' + vrDateKey(b.tgl_mulai) + (b.jam ? ' ' + b.jam : '') + '.');
+    if (oleh !== 'pengelola') notify('admin', 'Order lunas (dikonfirmasi mitra)', b.id + ' - ' + b.nama + ', ' + rp(tagihan(b)) + ' diterima mitra. Fee ' + rp(feeOf(b)) + ' terpotong dari saldo.', b.id);
+    return o;
+  }
   function appHarga(s) { return { tarif_weekend: num(s.tarif_weekend), musim_libur: s.musim_libur, tarif_km: s.tarif_km, fee_antar: s.fee_antar, bagi_supir_antar: s.bagi_supir_antar }; }
   function biayaDriverOf(s) { if (String(s.biaya_driver || '') === '') return biayaAdminOf(s); var k = num(s.biaya_driver); return k >= 0 && k <= 100 ? k : biayaAdminOf(s); }
   /* Harga per hari sebuah unit: mitra = harga yang diisi pemilik; final = yang dibayar penyewa (sudah termasuk biaya layanan).
@@ -984,6 +1017,7 @@ function vrCreateLogic(store) {
     o.antar_maks_km = num(s.antar_maks_km) || 150;
     o.wilayah_buka = wilayahBuka(s);
     o.layanan_aktif = layananAktif(s);
+    o.fee_mitra = feeMitraOf(s); o.deposit_motor = num(s.deposit_motor); o.deposit_mobil = num(s.deposit_mobil);
     o.kota = vrWilayahUrai(o.wilayah_buka);
     o.bandara = vrList(s.bandara);
     o.outlet = vrParsePairs(s.outlet).map(function (z) { return { nama: z.nama, alamat: z.nilai }; });
@@ -1019,7 +1053,7 @@ function vrCreateLogic(store) {
     return x;
   }
   function pemilikOut(p) {
-    return { id: String(p.id), nama: p.nama, wa: vrNormWa(p.wa), alamat: p.alamat, kota: vrWilayah(p.kota), provinsi: vrProvinsiOf(p.kota), bank: p.bank, status: p.status, dibuat: String(p.dibuat) };
+    return { id: String(p.id), nama: p.nama, wa: vrNormWa(p.wa), alamat: p.alamat, kota: vrWilayah(p.kota), provinsi: vrProvinsiOf(p.kota), bank: p.bank, qris: String(p.qris || ''), saldo: saldoOf(p.id), status: p.status, dibuat: String(p.dibuat) };
   }
   function simpanDokumen(req, wajib) {
     var out = {};
@@ -1035,6 +1069,10 @@ function vrCreateLogic(store) {
   function memberOut(m) {
     return { id: String(m.id), nama: m.nama, wa: vrNormWa(m.wa), alamat: m.alamat, kota: vrWilayah(m.kota), status: m.status, catatan: m.catatan, dibuat: String(m.dibuat) };
   }
+  function bayarKe(b) {
+    var p = b.pemilik_id ? byId('Pemilik', b.pemilik_id) : null;
+    return p ? { nama: p.nama, bank: String(p.bank || ''), qris: String(p.qris || ''), wa: vrNormWa(p.wa) } : null;
+  }
   function bookingOut(b) {
     var u = b.unit_id ? findUnit(b.unit_id) : null;
     var total = num(b.total), disk = num(b.diskon_poin);
@@ -1045,7 +1083,10 @@ function vrCreateLogic(store) {
       penumpang: num(b.penumpang), bandara: String(b.bandara || ''),
       tgl_mulai: vrDateKey(b.tgl_mulai), durasi: num(b.durasi), tgl_selesai: vrDateKey(b.tgl_selesai), jam: String(b.jam || ''),
       lokasi: b.lokasi, tujuan: b.tujuan, catatan: b.catatan, tarif: num(b.tarif), total: total, komisi: num(b.komisi),
-      bagian_pemilik: num(b.bagian_pemilik), diskon_poin: disk, bayar: total - disk,
+      bagian_pemilik: num(b.bagian_pemilik), diskon_poin: disk, deposit: num(b.deposit), bayar: total - disk + num(b.deposit),
+      deposit_status: String(b.deposit_status || ''), deposit_potong: num(b.deposit_potong), deposit_ket: String(b.deposit_ket || ''), setuju_sewa: String(b.setuju_sewa || ''),
+      foto_serah: parseJson(b.foto_serah, null), foto_kembali: parseJson(b.foto_kembali, null), kondisi_kembali: String(b.kondisi_kembali || ''),
+      fee: num(b.komisi), fee_dipotong: String(b.fee_dipotong || ''), bayar_ke: bayarKe(b),
       poin_didapat: num(b.poin_didapat), metode: b.metode, bayar_lapor: String(b.bayar_lapor || ''), status: b.status,
       unit_siap: yes(b.unit_siap), driver: b.driver, payout: b.payout === 'sudah' ? 'sudah' : 'belum', payout_waktu: String(b.payout_waktu || ''),
       harga_waktu: String(b.harga_waktu || ''), biaya_driver: num(b.biaya_driver), bagian_driver: num(b.bagian_driver),
@@ -1061,7 +1102,11 @@ function vrCreateLogic(store) {
       durasi: o.durasi, tgl_selesai: o.tgl_selesai, jam: o.jam, total: nilai, komisi: nilai - o.bagian_pemilik, bagian_pemilik: o.bagian_pemilik,
       status: o.status, unit_siap: o.unit_siap, driver: o.driver, payout: o.payout, payout_waktu: o.payout_waktu, kota: o.unit ? o.unit.kota : '',
       mitra_ok: o.mitra_ok, bayar_lapor: o.bayar_lapor, arsip: tersembunyi(b, 'pemilik'), terima_waktu: o.terima_waktu, harga_waktu: o.harga_waktu, alasan: o.alasan, lokasi: o.lokasi,
-      tujuan: o.layanan === 'antar' ? o.tujuan : '', jarak: o.jarak, titik: o.layanan === 'antar' ? o.titik : [], jenis_unit: o.jenis_unit, penumpang: o.penumpang };
+      tujuan: o.layanan === 'antar' ? o.tujuan : '', jarak: o.jarak, titik: o.layanan === 'antar' ? o.titik : [], jenis_unit: o.jenis_unit, penumpang: o.penumpang,
+      foto_serah: o.foto_serah, foto_kembali: o.foto_kembali, kondisi_kembali: o.kondisi_kembali,
+      fee: o.fee, fee_dipotong: o.fee_dipotong, deposit: o.deposit, deposit_status: o.deposit_status, deposit_potong: o.deposit_potong, deposit_ket: o.deposit_ket,
+      bayar: o.bayar, diskon_poin: o.diskon_poin, metode: o.metode, catatan: o.catatan,
+      penyewa: ['menunggu_bayar', 'lunas', 'berjalan', 'selesai'].indexOf(o.status) >= 0 ? { nama: o.nama, hp: o.hp } : null };
   }
 
   /* Hapus order dari daftar (per peran). Data tetap tersimpan untuk laporan & keuangan. */
@@ -1152,21 +1197,54 @@ function vrCreateLogic(store) {
     return patch;
   }
   /* Setelah mitra (dan driver bila ada) mengonfirmasi ketersediaan -> menunggu persetujuan pengelola */
+  function tagihan(b) { return num(b.total) - num(b.diskon_poin) + num(b.deposit); }
+  function depositOf(s, jenis, layanan) { if (layanan !== 'lepas') return 0; var v = num(jenis === 'motor' ? s.deposit_motor : s.deposit_mobil); return v > 0 ? Math.round(v) : 0; }
   function cekKonfirmasi(id, oleh) {
     var b = findBooking(id);
     if (!b || b.status !== 'menunggu_mitra') return bookingOut(b);
     if (b.mitra_ok !== 'ya') return bookingOut(b);
     if (butuhDriver(b) && (!b.driver || b.driver_ok !== 'ya')) return bookingOut(b);
-    /* Mitra (dan supir) sudah menerima: order langsung lanjut ke pembayaran. Pengelola menerima laporan dan tetap bisa menolak / membatalkan. */
+    /* Mitra (dan supir) sudah menerima: menunggu persetujuan pengelola (pengelola yang menyewakan unit ke penyewa). */
     var sudah = String(b.bayar_lapor || ''), sp = butuhDriver(b) ? ' & supir ' + b.driver : '';
-    var o = changeStatus(b, 'menunggu_bayar', oleh, { harga_waktu: nowIso() });
-    notify('admin', 'Laporan: order diterima mitra', 'Mitra' + sp + ' menerima ' + b.id + ' (' + b.nama + ', ' + ringkas(b) + ', ' + rp(num(b.total)) + '). ' +
-      (sudah ? 'Penyewa sudah membayar - validasi pembayaran.' : 'Menunggu pembayaran penyewa.') + ' Anda tetap bisa menolak / membatalkan order.', b.id);
-    notifPerental(b, 'Order diterima', 'Mitra' + sp + ' menerima order ' + b.id + '.' + (sudah ? ' Pembayaran Anda sedang divalidasi.' : ' Silakan bayar ' + rp(num(b.total) - num(b.diskon_poin)) + ' agar segera diproses.'));
-    notifPemilik(b, 'Order terkonfirmasi', unitLabel(b) + ' (' + b.id + ') terkonfirmasi, ' + (sudah ? 'pembayaran sedang divalidasi.' : 'menunggu pembayaran penyewa.'));
-    if (b.driver) notifDriver(b, 'Order terkonfirmasi', 'Order ' + b.id + ' terkonfirmasi, ' + (sudah ? 'pembayaran sedang divalidasi.' : 'menunggu pembayaran penyewa.'));
+    var o = changeStatus(b, 'menunggu_setuju', oleh, { harga_waktu: nowIso() });
+    notify('admin', 'Perlu persetujuan', 'Mitra' + sp + ' menerima ' + b.id + ' (' + b.nama + ', ' + ringkas(b) + ', ' + rp(num(b.total)) + '). ' +
+      (sudah ? 'Penyewa sudah membayar - setujui dengan memvalidasi pembayaran.' : 'Setujui order agar penyewa membayar.'), b.id);
+    notifPerental(b, 'Unit tersedia', 'Mitra' + sp + ' menerima order ' + b.id + '. Menunggu persetujuan pengelola, setelah itu Anda bisa membayar.');
+    notifPemilik(b, 'Menunggu persetujuan pengelola', unitLabel(b) + ' (' + b.id + ') Anda terima. Pengelola akan menyetujui order.');
     return o;
   }
+  /* Berita acara serah terima / pengembalian: foto kondisi unit (wajib >= 4), baterai %, odometer */
+  function beritaAcara(req, prefix, oleh) {
+    var F = (Array.isArray(req.foto) ? req.foto : []).slice(0, 8), urls = [];
+    F.forEach(function (d, i) {
+      d = String(d || '');
+      if (/^https?:\/\//.test(d)) { urls.push(d); return; }
+      if (!/^data:image\/(jpeg|png|webp);base64,/.test(d)) return;
+      if (d.length > 4000000) fail('Ukuran foto terlalu besar.');
+      if (!store.saveImage) fail('Penyimpanan foto belum tersedia.');
+      urls.push(store.saveImage(prefix + '_' + (i + 1) + '_' + Date.now() + '.jpg', d));
+    });
+    if (urls.length < 4) fail('Ambil minimal 4 foto kondisi unit (depan, belakang, kiri, kanan).');
+    var bat = Math.round(num(req.baterai)), km = Math.round(num(req.km));
+    if (!(bat >= 0 && bat <= 100) || String(req.baterai === undefined ? '' : req.baterai) === '') fail('Isi persentase baterai (0-100).');
+    return { foto: urls, baterai: bat, km: km > 0 ? km : 0, catatan: txt(req.catatan, 300), waktu: nowIso(), oleh: oleh };
+  }
+  function selesaikan(b, oleh, ba, kondisi) {
+    var ap = publicApp(), dapat = kondisi === 'rusak' ? 0 : Math.floor((num(b.total) - num(b.diskon_poin)) / ap.poin.per_rp);
+    var ex = { poin_didapat: dapat, kondisi_kembali: kondisi || 'baik' };
+    if (ba) ex.foto_kembali = JSON.stringify(ba);
+    changeStatus(b, 'selesai', oleh, ex);
+    if (dapat > 0) catatPoin(b.hp, dapat, b.id, 'Poin transaksi ' + b.id);
+    if (kondisi === 'rusak') {
+      notify('admin', 'Unit kembali dengan kerusakan', unitLabel(b) + ' (' + b.id + '): ' + (ba && ba.catatan || 'lihat foto pengembalian') + '. Deposit ditahan; tentukan potongan / klaim.', b.id);
+      notifPerental(b, 'Unit dikembalikan - ada catatan kerusakan', 'Booking ' + b.id + ' selesai dengan catatan kerusakan: ' + (ba && ba.catatan || '-') + '. Pengelola akan menghubungi Anda terkait deposit / ganti rugi sesuai Perjanjian Sewa.');
+    } else notifPerental(b, 'Unit dikembalikan - terima kasih!', 'Booking ' + b.id + ' selesai.' + (dapat > 0 ? ' Anda mendapat ' + dapat + ' poin.' : '') + (num(b.deposit) ? ' Deposit ' + rp(num(b.deposit)) + ' segera dikembalikan.' : ''));
+    notifPemilik(b, 'Order selesai', unitLabel(b) + ' (' + b.id + ') sudah dikembalikan' + (kondisi === 'rusak' ? ' dengan catatan kerusakan.' : '.'));
+    if (b.driver) notifDriver(b, 'Tugas selesai', 'Order ' + b.id + ' selesai. Terima kasih!');
+    if (num(b.deposit) && kondisi !== 'rusak') notify('admin', 'Kembalikan deposit', rp(num(b.deposit)) + ' untuk ' + b.id + ' (' + b.nama + ').', b.id);
+    return findBooking(b.id);
+  }
+  function saldoOut(x) { return { id: String(x.id), waktu: String(x.waktu), delta: num(x.delta), ket: x.ket, booking_id: String(x.booking_id || ''), status: x.status, bukti: String(x.bukti || '') }; }
   function tglWib(iso) { var t = Date.parse(iso); return isFinite(t) ? new Date(t + 7 * 3600000).toISOString().slice(0, 10) : vrDateKey(iso); }
   function rentangRekap(req) {
     var dari = vrDateKey(req.dari), sampai = vrDateKey(req.sampai), basis = req.basis === 'jadwal' ? 'jadwal' : 'order';
@@ -1181,8 +1259,9 @@ function vrCreateLogic(store) {
     var x = { id: o.id, tgl_order: tglWib(o.waktu), tgl_mulai: o.tgl_mulai, durasi: o.durasi, jam: o.jam, layanan: (VR_LAYANAN[o.layanan] || {}).label || o.layanan,
       unit: u ? (u.merk + ' ' + u.model) : (VR_JENIS[o.jenis_unit] || {}).pendek || '-', tnkb: o.tnkb || '', status: o.status, status_label: VR_STATUS_LABEL[o.status] || o.status,
       lunas: lunas, jarak: o.jarak, driver: o.driver || '', bagian_pemilik: o.bagian_pemilik, payout: o.payout, payout_waktu: o.payout_waktu };
+    x.nilai = o.total; x.fee = o.fee; x.bersih = o.total - o.fee; x.deposit = o.deposit;
     if (untuk === 'pemilik') return x;
-    x.nama = o.nama; x.hp = o.hp; x.total = o.total; x.diskon_poin = o.diskon_poin; x.bayar = o.bayar; x.metode = o.metode || ''; x.komisi = o.komisi;
+    x.nama = o.nama; x.hp = o.hp; x.total = o.total; x.diskon_poin = o.diskon_poin; x.bayar = o.bayar - o.deposit; x.deposit = o.deposit; x.deposit_status = o.deposit_status; x.deposit_potong = o.deposit_potong; x.metode = o.metode || ''; x.komisi = o.komisi;
     x.bagian_driver = o.bagian_driver; x.payout_driver = o.payout_driver; x.pemilik_id = o.pemilik_id;
     return x;
   }
@@ -1302,6 +1381,7 @@ function vrCreateLogic(store) {
   function batalkan(b, oleh, alasan) {
     var adaPoin = num(b.diskon_poin) > 0;
     kembalikanPoin(b, 'Pengembalian poin (booking batal)');
+    kembalikanFee(findBooking(b.id));
     var o = changeStatus(findBooking(b.id), 'batal', oleh, alasan ? { alasan: txt(alasan, 200) } : null);
     notifPerental(b, 'Booking dibatalkan', 'Booking ' + b.id + ' dibatalkan' + (alasan ? ': ' + txt(alasan, 120) : '.') + (adaPoin ? ' Poin Anda sudah dikembalikan.' : ''));
     if (b.status !== 'menunggu_harga') { notifPemilik(b, 'Order dibatalkan', unitLabel(b) + ' (' + b.id + ') dibatalkan.'); if (b.driver) notifDriver(b, 'Tugas dibatalkan', 'Order ' + b.id + ' dibatalkan.'); }
@@ -1369,7 +1449,7 @@ function vrCreateLogic(store) {
     katalog: function () {
       var s = settings(), pemilikAktif = {};
       store.all('Pemilik').forEach(function (p) { if (p.status === 'aktif') pemilikAktif[String(p.id)] = true; });
-      var buka = wilayahBuka(s), units = store.all('Unit').filter(function (u) { return unitAktif(u) && pemilikAktif[String(u.pemilik_id)] && vrWilayahBuka(buka, u.kota); });
+      var buka = wilayahBuka(s), smin = num(s.saldo_min), units = store.all('Unit').filter(function (u) { return unitAktif(u) && pemilikAktif[String(u.pemilik_id)] && vrWilayahBuka(buka, u.kota) && (smin <= 0 || saldoOf(u.pemilik_id) >= smin); });
       var jadwal = jadwalTerpakai(s), terpakai = {};
       units.forEach(function (u) { terpakai[String(u.id)] = jadwal[String(u.id)] || []; });
       return { app: publicApp(), unit: units.map(unitPublic), terpakai: terpakai, hari_ini: vrToday() };
@@ -1403,14 +1483,23 @@ function vrCreateLogic(store) {
       }
       var pu = vrHargaPeriode(tarif, hg.mitra, mulai, durasi, appHarga(s)), pd = vrHargaPeriode(hd.final, hd.mitra, mulai, durasi, appHarga(s));
       var h = { biaya_driver: hd.final ? pd.final : 0, bagian_driver: hd.final ? pd.mitra : 0, bagian_pemilik: pu.mitra };
-      h.total = pu.final + h.biaya_driver; h.komisi = h.total - h.bagian_pemilik - h.bagian_driver;
+      h.total = pu.final + h.biaya_driver;
+      var feeU = Math.round(pu.final * feeMitraOf(s) / 100);
+      h.bagian_pemilik = pu.final - feeU; h.komisi = feeU + (h.biaya_driver - h.bagian_driver);
+      if (yes(s.saldo_wajib) && saldoOf(u.pemilik_id) < feeU) {
+        notify('P:' + u.pemilik_id, 'Order tertahan: saldo fee kurang', 'Ada penyewa yang ingin menyewa ' + u.merk + ' ' + u.model + ', tetapi saldo fee Anda (' + rp(saldoOf(u.pemilik_id)) + ') kurang dari fee ' + rp(feeU) + '. Isi ulang saldo di menu Pendapatan.', u.id);
+        fail('Unit ini sementara tidak bisa dipesan. Silakan pilih unit lain.');
+      }
+      if (!yes(req.setuju_sewa)) fail('Setujui Perjanjian Sewa untuk melanjutkan pemesanan.');
+      var dep = depositOf(s, u.jenis, layanan);
       var id = newBookingId();
       store.insert('Booking', {
         id: id, waktu: nowIso(), unit_id: String(u.id), pemilik_id: String(u.pemilik_id), member_id: P.member ? String(P.member.id) : '',
         nama: P.nama, hp: P.hp, layanan: layanan, tipe: 'harian', jenis_unit: u.jenis, penumpang: '', bandara: '',
         tgl_mulai: mulai, durasi: durasi, tgl_selesai: selesai, jam: txt(req.jam, 10),
         lokasi: lokasi, tujuan: '', catatan: txt(req.catatan, 300), tarif: tarif, total: h.total, komisi: h.komisi,
-        bagian_pemilik: h.bagian_pemilik, diskon_poin: 0, bayar: h.total, poin_didapat: 0, metode: txt(req.metode, 20), bayar_lapor: '', status: 'menunggu_mitra',
+        bagian_pemilik: h.bagian_pemilik, diskon_poin: 0, bayar: h.total + dep, deposit: dep, deposit_status: dep ? 'ditahan' : '', setuju_sewa: nowIso(),
+        poin_didapat: 0, metode: txt(req.metode, 20), bayar_lapor: '', status: 'menunggu_mitra',
         unit_siap: 'tidak', driver: drv ? drv.nama : '', payout: 'belum', payout_waktu: '', harga_waktu: '',
         biaya_driver: h.biaya_driver, bagian_driver: h.bagian_driver, mitra_ok: '', driver_ok: '', payout_driver: 'belum', payout_driver_waktu: '', terima_waktu: '', alasan: '',
         riwayat: JSON.stringify([{ s: 'menunggu_mitra', t: nowIso(), oleh: 'perental' }]), diubah: nowIso()
@@ -1557,11 +1646,13 @@ function vrCreateLogic(store) {
       var b = findBooking(req.id);
       if (!b || vrNormWa(b.hp) !== vrNormWa(req.hp)) fail('Booking tidak ditemukan.');
       if (VR_PRABAYAR.indexOf(b.status) < 0) fail(b.status === 'menunggu_harga' ? 'Tunggu harga dari pengelola terlebih dahulu.' : 'Booking ini tidak sedang menunggu pembayaran.');
+      if (b.status !== 'menunggu_bayar') fail('Tunggu order disetujui mitra & pengelola, baru lakukan pembayaran.');
       if (kedaluwarsa(b, settings())) fail('Batas waktu sudah lewat. Silakan booking ulang.');
       var met = txt(req.metode, 20) || b.metode;
       if (!met) fail('Pilih metode pembayaran.');
       var o = addRiwayat(b, 'bayar_lapor', 'perental', { bayar_lapor: nowIso(), metode: met });
-      notify('admin', 'Bukti bayar masuk', b.nama + ' - ' + b.id + ' via ' + (met || '-') + ', ' + rp(num(b.total) - num(b.diskon_poin)) + (b.status === 'menunggu_mitra' ? ' (ketersediaan unit belum dikonfirmasi mitra)' : '. Siap divalidasi.'), b.id);
+      notify('admin', 'Penyewa melapor sudah bayar', b.nama + ' - ' + b.id + ' via ' + (met || '-') + ', ' + rp(tagihan(b)) + ' ke rekening mitra. Menunggu konfirmasi mitra.', b.id);
+      notifPemilik(b, 'Penyewa sudah membayar - cek rekening Anda', b.nama + ' melapor sudah membayar ' + rp(tagihan(b)) + ' via ' + (met || '-') + ' untuk ' + b.id + '. Cek rekening lalu ketuk "Pembayaran diterima".');
       return { booking: o };
     },
     /* Penyewa mengonfirmasi unit sudah diterima -> sewa berjalan, pengelola meneruskan dana ke mitra */
@@ -1571,6 +1662,7 @@ function vrCreateLogic(store) {
       if (req.member_id) { var m = authMember(req); if (String(b.member_id) !== String(m.id) && vrNormWa(b.hp) !== vrNormWa(m.wa)) fail('Booking tidak ditemukan.'); }
       else if (vrNormWa(b.hp) !== vrNormWa(req.hp)) fail('Booking tidak ditemukan.');
       if (b.status !== 'lunas') fail(b.status === 'berjalan' ? 'Unit sudah tercatat diterima.' : 'Unit bisa dikonfirmasi diterima setelah pembayaran lunas.');
+      if (!yes(req.setuju_kondisi)) fail('Konfirmasi bahwa kondisi unit sesuai foto serah terima dan Anda menyetujui Perjanjian Sewa.');
       var o = changeStatus(b, 'berjalan', 'perental', { terima_waktu: nowIso() });
       notify('admin', 'Unit diterima penyewa', b.nama + ' sudah menerima ' + unitLabel(b) + ' (' + b.id + '). Bayar sewa unit ke mitra' + (b.driver ? ' & jasa driver.' : '.'), b.id);
       notifPemilik(b, 'Unit diterima penyewa', unitLabel(b) + ' (' + b.id + ') sudah diterima. Pembayaran sewa unit segera ditransfer.');
@@ -1936,14 +2028,70 @@ function vrCreateLogic(store) {
       var p = authPemilik(req), b = findBooking(req.id);
       if (!b || String(b.pemilik_id) !== String(p.id)) fail('Booking tidak ditemukan.');
       if (b.status !== 'lunas') fail('Konfirmasi unit siap hanya untuk booking yang sudah lunas.');
-      addRiwayat(b, 'unit_siap', 'pemilik', { unit_siap: 'ya' });
+      var ba = beritaAcara(req, 'srh_' + b.id, 'pemilik ' + p.id);
+      addRiwayat(b, 'unit_siap', 'pemilik', { unit_siap: 'ya', foto_serah: JSON.stringify(ba) });
       notify('admin', 'Unit siap', unitLabel(b) + ' untuk ' + b.id + ' sudah disiapkan ' + p.nama, b.id);
-      notifPerental(b, 'Unit siap', unitLabel(b) + ' untuk ' + b.id + ' sudah disiapkan. Ketuk "Unit sudah saya terima" saat serah terima.');
+      notifPerental(b, 'Unit siap', unitLabel(b) + ' untuk ' + b.id + ' sudah disiapkan. Periksa unit & foto kondisinya, lalu ketuk "Unit sudah saya terima" saat serah terima.');
+      return { booking: bookingForOwner(findBooking(b.id)) };
+    },
+    terimaBayar: function (req) {
+      var p = authPemilik(req), b = findBooking(req.id);
+      if (!b || String(b.pemilik_id) !== String(p.id)) fail('Booking tidak ditemukan.');
+      if (b.status !== 'menunggu_bayar') fail(b.status === 'lunas' ? 'Pembayaran sudah dikonfirmasi.' : 'Order belum disetujui pengelola.');
+      if (!yes(req.paksa) && !String(b.bayar_lapor || '')) fail('Penyewa belum melapor pembayaran. Konfirmasi hanya bila dana sudah masuk ke rekening Anda.');
+      lunaskan(b, 'pemilik ' + p.id);
+      return { booking: bookingForOwner(findBooking(b.id)) };
+    },
+    tolakBayar: function (req) {
+      var p = authPemilik(req), b = findBooking(req.id);
+      if (!b || String(b.pemilik_id) !== String(p.id)) fail('Booking tidak ditemukan.');
+      if (b.status !== 'menunggu_bayar' || !String(b.bayar_lapor || '')) fail('Tidak ada laporan pembayaran.');
+      addRiwayat(b, 'bayar_ditolak', 'pemilik', { bayar_lapor: '' });
+      notifPerental(b, 'Pembayaran belum diterima mitra', 'Dana untuk ' + b.id + ' belum masuk ke rekening mitra. Periksa kembali transfer Anda atau hubungi pengelola.');
+      notify('admin', 'Mitra belum menerima pembayaran', p.nama + ' menyatakan dana ' + b.id + ' belum masuk.', b.id);
+      return { booking: bookingForOwner(findBooking(b.id)) };
+    },
+    depositSelesai: function (req) {
+      var p = authPemilik(req), b = findBooking(req.id);
+      if (!b || String(b.pemilik_id) !== String(p.id)) fail('Booking tidak ditemukan.');
+      if (!num(b.deposit) || b.deposit_status !== 'ditahan') fail('Tidak ada deposit yang perlu diselesaikan.');
+      if (['selesai', 'batal'].indexOf(b.status) < 0) fail('Deposit diselesaikan setelah unit kembali.');
+      var pot = Math.max(0, Math.min(num(b.deposit), Math.round(num(req.potong))));
+      if (pot > 0 && !txt(req.alasan, 200)) fail('Isi alasan potongan deposit dan lampirkan bukti di foto pengembalian.');
+      addRiwayat(b, 'deposit', 'pemilik', { deposit_status: pot > 0 ? 'dipotong' : 'dikembalikan', deposit_potong: pot, deposit_ket: txt(req.alasan, 200) });
+      notifPerental(b, pot > 0 ? 'Deposit dikembalikan sebagian' : 'Deposit dikembalikan', 'Deposit ' + b.id + ': ' + rp(num(b.deposit) - pot) + ' dikembalikan mitra' + (pot > 0 ? ', dipotong ' + rp(pot) + ' (' + txt(req.alasan, 120) + '). Bila keberatan, hubungi pengelola melalui chat.' : '.'));
+      if (pot > 0) notify('admin', 'Deposit dipotong mitra', p.nama + ' memotong ' + rp(pot) + ' dari deposit ' + b.id + ': ' + txt(req.alasan, 120), b.id);
+      return { booking: bookingForOwner(findBooking(b.id)) };
+    },
+    saldoMitra: function (req) {
+      var p = authPemilik(req), s = settings();
+      return { saldo: saldoOf(p.id), fee_mitra: feeMitraOf(s), saldo_wajib: yes(s.saldo_wajib), saldo_min: num(s.saldo_min),
+        riwayat: store.all('Saldo').filter(function (x) { return String(x.pemilik_id) === String(p.id); }).slice(-80).reverse().map(saldoOut),
+        rekening: publicApp().bayar.filter(function (x) { return x.akun || x.qr; }) };
+    },
+    topupSaldo: function (req) {
+      var p = authPemilik(req), n = Math.round(num(req.nominal));
+      if (n < 10000) fail('Minimal isi ulang Rp10.000.');
+      if (n > 100000000) fail('Nominal terlalu besar.');
+      var bukti = '';
+      if (/^data:image\/(jpeg|png|webp);base64,/.test(String(req.bukti || ''))) { if (!store.saveImage) fail('Penyimpanan foto belum tersedia.'); bukti = store.saveImage('topup_' + p.id + '_' + Date.now() + '.jpg', req.bukti); }
+      if (!bukti) fail('Lampirkan foto bukti transfer.');
+      var r = catatSaldo(p.id, n, 'Isi ulang saldo via ' + (txt(req.metode, 30) || 'transfer'), '', 'menunggu', { bukti: bukti, oleh: 'pemilik' });
+      notify('admin', 'Isi ulang saldo mitra', p.nama + ' (' + p.id + ') mengisi saldo ' + rp(n) + '. Cek bukti lalu setujui.', r.id);
+      return { ok: true, id: r.id };
+    },
+    unitKembali: function (req) {
+      var p = authPemilik(req), b = findBooking(req.id);
+      if (!b || String(b.pemilik_id) !== String(p.id)) fail('Booking tidak ditemukan.');
+      if (b.status !== 'berjalan') fail('Pengembalian hanya untuk booking yang sedang berjalan.');
+      var ba = beritaAcara(req, 'kmb_' + b.id, 'pemilik ' + p.id);
+      selesaikan(b, 'pemilik', ba, req.kondisi === 'rusak' ? 'rusak' : 'baik');
       return { booking: bookingForOwner(findBooking(b.id)) };
     },
     ubahPemilik: function (req) {
       var p = authPemilik(req), x = req.patch || {}, patch = {};
       ['bank', 'alamat', 'kota', 'nama'].forEach(function (k) { if (k in x) patch[k] = k === 'kota' ? vrWilayah(txt(x[k], 60)) : txt(x[k], k === 'alamat' ? 300 : 160); });
+      if ('qris' in x) { var q = String(x.qris || ''); if (!q) patch.qris = ''; else if (/^data:image\//.test(q)) { if (!store.saveImage) fail('Penyimpanan foto belum tersedia.'); patch.qris = store.saveImage('qris_' + p.id + '_' + Date.now() + '.jpg', q); } else if (/^https?:\/\//.test(q)) patch.qris = q; }
       if ('pin_baru' in x) { var np = String(x.pin_baru); if (!/^\d{4,8}$/.test(np)) fail('PIN harus 4 sampai 8 angka.'); patch.pin = np; }
       store.update('Pemilik', 'id', p.id, patch);
       return { ok: true };
@@ -1960,6 +2108,7 @@ function vrCreateLogic(store) {
         app: publicApp(), pengaturan: set, driver: drivers(s).map(function (d) { var h = hargaDriver(s, d); d.harga_mitra = h.mitra; d.harga_final = h.final; return d; }),
         chat_belum: s.__monitor ? 0 : store.all('Chat').filter(function (c) { return String(c.dari) === 'user' && !String(c.dibaca || ''); }).length,
         pemilik: store.all('Pemilik').filter(function (p) { return p.status !== 'hapus'; }).map(function (p) { var x = pemilikOut(p); x.pin = ro ? '' : String(p.pin || ''); return x; }),
+        saldo: store.all('Saldo').slice(-400).map(function (x) { var o = saldoOut(x); o.pemilik_id = String(x.pemilik_id); return o; }),
         member: store.all('Member').filter(function (m) { return m.status !== 'hapus'; }).map(function (m) { var x = memberOut(m); x.pin = ro ? '' : String(m.pin || ''); x.poin = saldoPoin(m.wa); x.ktp = String(m.ktp || ''); x.sim = String(m.sim || ''); x.selfie = String(m.selfie || ''); return x; }),
         monitor: ro, monitor_aktif: !!s.monitor_pin,
         unit: store.all('Unit').filter(function (u) { return u.status !== 'hapus'; }).map(unitFull),
@@ -2041,7 +2190,7 @@ function vrCreateLogic(store) {
         if (req.wakil) { ex.mitra_ok = 'ya'; if (b.driver) ex.driver_ok = 'ya'; }
         o = changeStatus(b, 'menunggu_bayar', 'pengelola', ex);
         if (String(b.bayar_lapor || '')) notifPerental(b, 'Order disetujui', 'Order ' + b.id + ' disetujui. Pembayaran Anda sedang divalidasi.');
-        else notifPerental(b, 'Order disetujui - silakan bayar', 'Order ' + b.id + ' disetujui. Bayar ' + rp(num(b.total) - num(b.diskon_poin)) + ' dalam ' + (num(s.batas_bayar_jam) || 3) + ' jam lewat aplikasi.');
+        else notifPerental(b, 'Order disetujui - silakan bayar', 'Order ' + b.id + ' disetujui. Bayar ' + rp(tagihan(b)) + ' langsung ke rekening mitra (lihat di aplikasi) dalam ' + (num(s.batas_bayar_jam) || 3) + ' jam lewat aplikasi.');
         notifPemilik(b, 'Order disetujui', unitLabel(b) + ' (' + b.id + ') disetujui, menunggu pembayaran penyewa.');
         if (b.driver) notifDriver(b, 'Order disetujui', 'Order ' + b.id + ' disetujui, menunggu pembayaran penyewa.');
         return { booking: o };
@@ -2050,11 +2199,7 @@ function vrCreateLogic(store) {
         if (b.status === 'menunggu_mitra') fail('Ketersediaan unit' + (butuhDriver(b) ? ' / driver' : '') + ' belum dikonfirmasi. Catat konfirmasi mitra terlebih dahulu.');
         if (b.status !== 'menunggu_bayar' && b.status !== 'menunggu_setuju') fail('Booking tidak sedang menunggu pembayaran.');
         if (butuhDriver(b) && !b.driver) fail('Tugaskan driver terlebih dahulu.');
-        o = changeStatus(b, 'lunas', 'pengelola', b.harga_waktu ? null : { harga_waktu: nowIso() });
-        notifPerental(b, 'Pembayaran diterima', 'Booking ' + b.id + ' lunas & tervalidasi. Unit sedang disiapkan mitra.');
-        notifPemilik(b, 'Pembayaran lunas - siapkan unit', unitLabel(b) + ' - ' + vrDateKey(b.tgl_mulai) + ', ' + num(b.durasi) + ' hari. Mohon siapkan unit lalu ketuk "Unit siap".');
-        if (b.driver) notifDriver(b, 'Pembayaran lunas', 'Order ' + b.id + ' lunas. Bersiap sesuai jadwal ' + vrDateKey(b.tgl_mulai) + (b.jam ? ' ' + b.jam : '') + '.');
-        return { booking: o };
+        return { booking: lunaskan(b, 'pengelola') };
       }
       if (a === 'tolak_bayar') {
         if (VR_PRABAYAR.indexOf(b.status) < 0 || !String(b.bayar_lapor || '')) fail('Tidak ada bukti bayar untuk ditolak.');
@@ -2090,7 +2235,9 @@ function vrCreateLogic(store) {
       }
       if (a === 'serahkan') {
         if (b.status !== 'lunas') fail('Unit hanya bisa diserahkan untuk booking yang sudah lunas.');
-        o = changeStatus(b, 'berjalan', 'pengelola', { terima_waktu: nowIso() });
+        var exS = { terima_waktu: nowIso() };
+        if (!String(b.foto_serah || '')) exS.foto_serah = JSON.stringify(beritaAcara(req, 'srh_' + b.id, 'pengelola'));
+        o = changeStatus(b, 'berjalan', 'pengelola', exS);
         notifPerental(b, 'Unit diserahkan', 'Selamat berkendara! Booking ' + b.id + ' sedang berjalan.');
         notifPemilik(b, 'Unit diterima penyewa', unitLabel(b) + ' (' + b.id + ') sudah diserahkan. Pembayaran sewa unit segera ditransfer.');
         if (b.driver) notifDriver(b, 'Perjalanan dimulai', 'Order ' + b.id + ' berjalan. Bagikan lokasi selama perjalanan.');
@@ -2098,13 +2245,18 @@ function vrCreateLogic(store) {
       }
       if (a === 'selesai') {
         if (b.status !== 'berjalan') fail('Booking belum berjalan.');
-        var ap = publicApp(), dapat = Math.floor((num(b.total) - num(b.diskon_poin)) / ap.poin.per_rp);
-        changeStatus(b, 'selesai', 'pengelola', { poin_didapat: dapat });
-        if (dapat > 0) catatPoin(b.hp, dapat, b.id, 'Poin transaksi ' + b.id);
-        notifPerental(b, 'Unit dikembalikan - terima kasih!', 'Booking ' + b.id + ' selesai.' + (dapat > 0 ? ' Anda mendapat ' + dapat + ' poin.' : ''));
-        notifPemilik(b, 'Order selesai', unitLabel(b) + ' (' + b.id + ') sudah dikembalikan.');
-        if (b.driver) notifDriver(b, 'Tugas selesai', 'Order ' + b.id + ' selesai. Terima kasih!');
-        return { booking: bookingOut(findBooking(b.id)) };
+        var baK = String(b.foto_kembali || '') ? null : beritaAcara(req, 'kmb_' + b.id, 'pengelola');
+        return { booking: bookingOut(selesaikan(b, 'pengelola', baK, req.kondisi === 'rusak' ? 'rusak' : 'baik')) };
+      }
+      if (a === 'deposit') {
+        if (!num(b.deposit)) fail('Booking ini tanpa deposit.');
+        if (b.deposit_status === 'dikembalikan' || b.deposit_status === 'dipotong') fail('Deposit sudah diselesaikan.');
+        if (['selesai', 'batal'].indexOf(b.status) < 0) fail('Deposit diselesaikan setelah unit kembali atau order batal.');
+        var pot = Math.max(0, Math.min(num(b.deposit), Math.round(num(req.potong))));
+        if (pot > 0 && !txt(req.alasan, 200)) fail('Isi alasan potongan deposit (kerusakan, denda, dll).');
+        o = addRiwayat(b, 'deposit', 'pengelola', { deposit_status: pot > 0 ? 'dipotong' : 'dikembalikan', deposit_potong: pot, deposit_ket: txt(req.alasan, 200) });
+        notifPerental(b, pot > 0 ? 'Deposit dikembalikan sebagian' : 'Deposit dikembalikan', 'Deposit ' + b.id + ': ' + rp(num(b.deposit) - pot) + ' dikembalikan' + (pot > 0 ? ', dipotong ' + rp(pot) + ' (' + txt(req.alasan, 120) + ').' : '.'));
+        return { booking: o };
       }
       if (a === 'batal') {
         if (b.status === 'selesai' || b.status === 'batal') fail('Booking sudah ' + VR_STATUS_LABEL[b.status].toLowerCase() + '.');
@@ -2173,6 +2325,25 @@ function vrCreateLogic(store) {
     },
     /* Hapus mitra (beserta armadanya), member, atau satu unit armada. Ditolak bila masih ada order berjalan.
        Data riwayat order tetap tersimpan; data pribadi (PIN, WhatsApp, rekening, dokumen) dikosongkan. */
+    adminSaldo: function (req) {
+      authAdmin(req);
+      if (req.aksi === 'setujui' || req.aksi === 'tolak') {
+        var r = store.all('Saldo').filter(function (x) { return String(x.id) === String(req.id); })[0];
+        if (!r || r.status !== 'menunggu') fail('Permintaan isi ulang tidak ditemukan.');
+        store.update('Saldo', 'id', r.id, { status: req.aksi === 'setujui' ? 'ok' : 'tolak', oleh: 'pengelola' });
+        notify('P:' + r.pemilik_id, req.aksi === 'setujui' ? 'Saldo masuk' : 'Isi ulang ditolak', req.aksi === 'setujui' ? 'Isi ulang ' + rp(num(r.delta)) + ' disetujui. Saldo fee Anda sekarang ' + rp(saldoOf(r.pemilik_id)) + '.' : 'Isi ulang ' + rp(num(r.delta)) + ' ditolak: ' + (txt(req.alasan, 120) || 'bukti transfer tidak sesuai') + '.', '');
+        return { ok: true };
+      }
+      if (req.aksi === 'koreksi') {
+        var p = byId('Pemilik', req.pemilik_id); if (!p) fail('Mitra tidak ditemukan.');
+        var d = Math.round(num(req.delta)); if (!d) fail('Isi nominal koreksi.');
+        if (!txt(req.ket, 200)) fail('Isi keterangan koreksi.');
+        catatSaldo(p.id, d, 'Koreksi pengelola: ' + txt(req.ket, 160), '', 'ok', { oleh: 'pengelola' });
+        notify('P:' + p.id, 'Saldo dikoreksi', (d > 0 ? '+' : '') + rp(d) + ': ' + txt(req.ket, 120), '');
+        return { ok: true };
+      }
+      fail('Aksi tidak dikenal.');
+    },
     infoLayanan: function () { return { layanan_aktif: layananAktif(settings()) }; },
     adminHapus: function (req) {
       authAdmin(req);
@@ -2227,6 +2398,10 @@ function vrCreateLogic(store) {
         });
         setSetting('kota', KN.filter(function (k, i, a) { return a.indexOf(k) === i; }).join(';'));
       }
+      if ('fee_mitra' in v) { var fm = num(v.fee_mitra); if (fm < 0 || fm > 50) fail('Fee aplikasi mitra 0 sampai 50 persen.'); setSetting('fee_mitra', fm); }
+      if ('saldo_wajib' in v) setSetting('saldo_wajib', yes(v.saldo_wajib) ? 'ya' : 'tidak');
+      if ('saldo_min' in v) { var sm = Math.round(num(v.saldo_min)); if (sm < 0) fail('Saldo minimum tidak valid.'); setSetting('saldo_min', sm); }
+      ['deposit_motor', 'deposit_mobil'].forEach(function (k) { if (k in v) { var dv = Math.round(num(v[k])); if (dv < 0 || dv > 100000000) fail('Nilai deposit tidak valid.'); setSetting(k, dv); } });
       if ('layanan_aktif' in v) {
         var LA = (Array.isArray(v.layanan_aktif) ? v.layanan_aktif : vrList(v.layanan_aktif)).filter(function (k) { return VR_LAYANAN_SAKELAR.some(function (x) { return x[0] === k; }); });
         if (!LA.length) fail('Buka minimal satu layanan.');
@@ -2364,7 +2539,10 @@ function vrSeed() {
   var Notif = [{ id: 'N0001', waktu: iso(now - 0.5 * H), untuk: 'admin', judul: 'Permintaan Tour Wisata', isi: 'Awaludin - tentukan harga (VT-DEMO-B2)', ref: 'VT-DEMO-B2' },
     { id: 'N0002', waktu: iso(now - 20 * H), untuk: 'P:P001', judul: 'Sewa unit dibayar', isi: 'Pembayaran sewa unit Rp140.250 untuk VT-DEMO-C3 sudah ditransfer.', ref: 'VT-DEMO-C3' },
     { id: 'N0003', waktu: iso(now - 20 * H), untuk: 'B:VT-DEMO-C3', judul: 'Perjalanan dimulai', isi: 'Selamat berkendara! Booking VT-DEMO-C3 sedang berjalan.', ref: 'VT-DEMO-C3' }];
-  return { Pengaturan: Pengaturan, Pemilik: Pemilik, Unit: Unit, Member: Member, Booking: Booking, Poin: Poin, Notif: Notif };
+  var Saldo = [{ id: 'S0000001', waktu: iso(now - 240 * H), pemilik_id: 'P001', delta: 500000, ket: 'Isi ulang saldo via BCA', booking_id: '', status: 'ok', bukti: '', oleh: 'pengelola' },
+    { id: 'S0000002', waktu: iso(now - 200 * H), pemilik_id: 'P002', delta: 300000, ket: 'Isi ulang saldo via BCA', booking_id: '', status: 'ok', bukti: '', oleh: 'pengelola' },
+    { id: 'S0000003', waktu: iso(now - 3 * H), pemilik_id: 'P002', delta: 200000, ket: 'Isi ulang saldo via QRIS', booking_id: '', status: 'menunggu', bukti: 'img/qris-demo.png', oleh: 'pemilik' }];
+  return { Pengaturan: Pengaturan, Pemilik: Pemilik, Unit: Unit, Member: Member, Booking: Booking, Poin: Poin, Notif: Notif, Saldo: Saldo };
 }
 
 if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrProvinsiOf: vrProvinsiOf, vrWilayahBuka: vrWilayahBuka, vrCreateLogic: vrCreateLogic, vrSeed: vrSeed, VR_JENIS: VR_JENIS, vrAddDays: vrAddDays, vrToday: vrToday, vrHargaPeriode: vrHargaPeriode, vrHargaAntar: vrHargaAntar, vrJarak: vrJarak, vrTarifKm: vrTarifKm };
@@ -2453,25 +2631,25 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     return 'https://www.google.com/maps/dir/?api=1&origin=' + f(t[0]) + '&destination=' + f(t[t.length - 1]) + (t.length > 2 ? '&waypoints=' + t.slice(1, -1).map(f).join('%7C') : '') + '&travelmode=driving';
   }
   function statusLabel(b) {
-    if (['menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && b.bayar_lapor) return 'Verifikasi bayar';
+    if (b.status === 'menunggu_bayar' && b.bayar_lapor) return 'Cek bayar mitra';
     if (b.status === 'lunas' && b.unit_siap) return 'Lunas, unit siap';
     if (b.status === 'lunas') return 'Lunas, unit disiapkan';
     return VR_STATUS_LABEL[b.status] || b.status;
   }
-  function stClass(b) { return ['menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && b.bayar_lapor ? 'cek' : b.status; }
+  function stClass(b) { return b.status === 'menunggu_bayar' && b.bayar_lapor ? 'cek' : b.status; }
   /* Alur order (sama di semua aplikasi) */
-  var ALUR = ['Dipesan', 'Bayar', 'Cek unit', 'Validasi', 'Unit siap', 'Diterima', 'Kembali'];
+  var ALUR = ['Dipesan', 'Cek unit', 'Disetujui', 'Bayar', 'Unit siap', 'Diterima', 'Kembali'];
   var LANJUT = ['lunas', 'berjalan', 'selesai'];
   function alur(b) {
     if (b.status === 'batal' || !b.status) return '';
     var lanjut = LANJUT.indexOf(b.status) >= 0;
-    var done = [b.status !== 'menunggu_harga', !!b.bayar_lapor || lanjut, b.status === 'menunggu_setuju' || (b.status === 'menunggu_bayar' && !!b.harga_waktu) || lanjut,
+    var done = [b.status !== 'menunggu_harga', b.status === 'menunggu_setuju' || b.status === 'menunggu_bayar' || lanjut, b.status === 'menunggu_bayar' || lanjut,
       lanjut, (b.status === 'lunas' && b.unit_siap) || b.status === 'berjalan' || b.status === 'selesai', b.status === 'berjalan' || b.status === 'selesai', b.status === 'selesai'];
     var c = done.indexOf(false); if (c < 0) c = done.length;
     var L = ALUR.slice(); if (isAntar(b)) { L[2] = 'Mitra & supir'; L[4] = 'Siap jemput'; L[5] = 'Dijemput'; L[6] = 'Sampai'; } else if (b.tipe === 'trip') { L[0] = 'Harga'; L[5] = 'Dijemput'; L[6] = 'Selesai'; }
     return '<div class="alur">' + L.map(function (t, i) { var d = done[i]; return '<span class="as' + (d ? ' done' : i === c ? ' cur' : '') + '"><i>' + (d ? '✓' : '') + '</i>' + t + '</span>'; }).join('') + '</div>';
   }
-  function bisaBayar(b) { return ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && b.total > 0; }
+  function bisaBayar(b) { return b.status === 'menunggu_bayar' && b.total > 0; }
   function pill(b) { return '<span class="pill st-' + esc(stClass(b)) + '">' + esc(statusLabel(b)) + '</span>'; }
   function jadwal(b) {
     if (isTrip(b)) return tgl(b.tgl_mulai, true) + (b.jam ? ' pukul ' + b.jam : '') + (b.durasi > 1 && !isAntar(b) ? ' (' + b.durasi + ' hari)' : '');
@@ -2502,16 +2680,16 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       if (b.catatan) t += '\nCatatan: ' + b.catatan;
       if (b.total) t += '\n\n*Total bayar: ' + rp(b.bayar) + '*' + (b.diskon_poin ? ' (potongan poin ' + rp(b.diskon_poin) + ')' : '') + (b.metode ? '\nPembayaran: ' + b.metode : '');
       t += '\n\nNama: ' + b.nama + '\nWA: ' + b.hp + (b.member_id ? '\nMember: ' + b.member_id : '');
-      t += b.total ? '\n\nBukti pembayaran saya lampirkan di chat ini. Mohon diverifikasi. Terima kasih.' : '\n\nMohon info harganya. Terima kasih.';
+      t += b.total ? '\n\nSaya sudah membayar ke rekening mitra. Bukti pembayaran saya lampirkan di chat ini. Terima kasih.' : '\n\nMohon info harganya. Terima kasih.';
       return t;
     },
     keperental: function (b) {
       var s = {
         menunggu_harga: 'sedang kami hitung harganya. Kami kabari segera.',
         menunggu_mitra: 'sedang menunggu konfirmasi mitra' + (b.layanan !== 'lepas' ? ' & supir' : '') + '. Kami kabari segera.',
-        menunggu_setuju: 'unit tersedia dan sedang menunggu persetujuan pengelola.',
-        menunggu_bayar: b.bayar_lapor ? 'sedang kami verifikasi pembayarannya.' : 'menunggu pembayaran sebesar *' + rp(b.bayar) + '*. Silakan bayar lewat aplikasi Vast Travel.',
-        lunas: 'sudah *LUNAS dan terkonfirmasi*. Unit kami siapkan sesuai jadwal.',
+        menunggu_setuju: 'unit tersedia dan sedang menunggu persetujuan pengelola. Pembayaran dilakukan setelah disetujui.',
+        menunggu_bayar: b.bayar_lapor ? 'sedang dicek mitra (pembayaran masuk ke rekening mitra).' : 'sudah disetujui. Silakan bayar *' + rp(b.bayar) + '* langsung ke rekening mitra yang tertera di aplikasi Vast Travel.',
+        lunas: 'sudah *LUNAS* (dikonfirmasi mitra). Unit disiapkan sesuai jadwal.',
         berjalan: 'sudah *berjalan*. Selamat berkendara, hati-hati di jalan!',
         selesai: 'sudah *selesai*. Terima kasih sudah memakai Vast Travel!' + (b.poin_didapat ? ' Anda mendapat ' + b.poin_didapat + ' poin.' : ''),
         batal: '*dibatalkan*. Bila sudah membayar, tim kami akan menghubungi untuk pengembalian dana.'
@@ -2614,6 +2792,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   function brand(sub) { return '<div class="brand-logo"><span class="mchip"><img src="' + imgUrl('logo-mark.png') + '" alt=""></span><img class="word" src="' + imgUrl('logo-word-white.png') + '" alt="Vast Travel">' + (sub ? '<span class="role">' + esc(sub) + '</span>' : '') + '</div>'; }
 
   var ICON = {
+    cam: '<path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/>',
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     down: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
@@ -3351,21 +3530,77 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
 
   /* ---------- Kebijakan Privasi & Syarat Ketentuan (wajib disetujui saat mendaftar) ---------- */
   var PRIVASI = [
-    ['Pengelola aplikasi', 'Aplikasi Vast Travel dikelola oleh PT Alekatama Karya Persada ("Kami"), selaku pengendali data pribadi dan pihak yang menyewakan unit kepada penyewa.'],
-    ['Data yang kami kumpulkan', 'Nama, nomor WhatsApp, alamat dan wilayah; data pemesanan (unit, jadwal, lokasi serah terima, pembayaran); untuk member: foto KTP, SIM dan swafoto untuk verifikasi identitas; untuk mitra: data unit dan rekening pencairan; lokasi perangkat hanya bila Anda mengizinkannya (misalnya berbagi lokasi saat unit dipakai atau menentukan titik jemput).'],
-    ['Tujuan penggunaan', 'Memproses pemesanan dan pembayaran, memverifikasi identitas penyewa demi keamanan unit, menghubungkan penyewa dengan pengelola dan mitra pemilik unit, mengirim notifikasi layanan, membuat rekap transaksi, serta memenuhi kewajiban hukum.'],
+    ['Pengelola aplikasi', 'Aplikasi Vast Travel dikelola oleh PT Alekatama Karya Persada ("Kami") sebagai penyedia platform yang mempertemukan penyewa dengan mitra pemilik kendaraan, sekaligus pengendali data pribadi di aplikasi ini.'],
+    ['Data yang kami kumpulkan', 'Nama, nomor WhatsApp, alamat dan wilayah; data pemesanan (unit, jadwal, lokasi serah terima, laporan pembayaran, foto serah terima dan pengembalian); untuk member: foto KTP, SIM dan swafoto untuk verifikasi identitas; untuk mitra: data unit, rekening/QRIS penerimaan, dan saldo fee; lokasi perangkat hanya bila Anda mengizinkannya.'],
+    ['Tujuan penggunaan', 'Memproses pemesanan, memverifikasi identitas penyewa demi keamanan unit, menghubungkan penyewa dengan mitra, mencatat serah terima, mengirim notifikasi layanan, membuat rekap transaksi, serta memenuhi kewajiban hukum.'],
     ['Foto KTP, SIM & swafoto', 'Hanya dilihat pengelola untuk verifikasi. Setelah member diverifikasi, foto dokumen dihapus dari server; yang tersimpan hanya status verifikasi dan tanggalnya.'],
-    ['Pembagian data', 'Mitra pemilik unit hanya menerima data yang perlu untuk serah terima (nama, jadwal, lokasi). Kami tidak menjual data pribadi. Data dapat diberikan kepada aparat bila diwajibkan peraturan perundang-undangan.'],
+    ['Pembagian data', 'Untuk pesanan yang disetujui, mitra menerima nama, nomor WhatsApp, jadwal dan lokasi serah terima penyewa, serta foto serah terima, karena perjanjian sewa terjadi langsung antara penyewa dan mitra. Penyewa menerima nama, nomor WhatsApp, dan rekening/QRIS mitra untuk membayar dan berkoordinasi. Kami tidak menjual data pribadi. Data dapat diberikan kepada aparat bila diwajibkan peraturan perundang-undangan.'],
     ['Penyimpanan & keamanan', 'Data disimpan di server berpengaman dengan akses terbatas (PIN per akun). Data pemesanan disimpan selama diperlukan untuk pembukuan dan kewajiban pajak; data akun yang dihapus dikosongkan dari data pribadinya.'],
     ['Hak Anda', 'Anda berhak mengakses, memperbaiki, menarik persetujuan, dan meminta penghapusan data pribadi Anda dengan menghubungi pengelola melalui chat di aplikasi atau WhatsApp. Permintaan diproses paling lambat 3x24 jam kerja.'],
-    ['Syarat penyewaan', 'Unit disewakan oleh PT Alekatama Karya Persada tanpa pengemudi kepada member terverifikasi yang memiliki SIM sesuai. Penyewa bertanggung jawab atas penggunaan, kebersihan, denda tilang, dan kerusakan selama masa sewa; unit dikembalikan sesuai jadwal dan lokasi yang disepakati. Pembatalan & pengembalian dana mengikuti ketentuan di halaman pembayaran.'],
-    ['Syarat mitra', 'Mitra menjamin unit miliknya sah, layak jalan, berasuransi bila ada, dan pajak kendaraannya hidup. PT Alekatama Karya Persada menyewa unit mitra sesuai harga sewa harian yang ditetapkan mitra, lalu menyewakannya kepada penyewa atas nama Vast Travel. Pembayaran sewa unit ditransfer ke rekening mitra setelah unit diterima penyewa. Hubungan ini adalah sewa-menyewa unit, bukan bagi hasil, dan mitra tidak menerima dana dari penyewa secara langsung.']
+    ['Peran platform', 'PT Alekatama Karya Persada bukan pemilik, penyewa, maupun pihak yang menyewakan kendaraan. Perjanjian sewa terjadi langsung antara penyewa dan mitra pemilik unit, dan penyewa membayar langsung ke rekening/QRIS mitra. Kami menyediakan aplikasi, verifikasi member, persetujuan pesanan, pencatatan serah terima, dan mediasi bila terjadi perselisihan, tanpa menanggung kewajiban para pihak dalam perjanjian sewa.'],
+    ['Syarat penyewa', 'Sewa lepas kunci khusus member terverifikasi yang memiliki SIM sesuai. Penyewa menyetujui Perjanjian Sewa dengan mitra pada setiap pesanan, membayar sewa dan deposit langsung ke mitra setelah pesanan disetujui, memeriksa unit saat serah terima, dan bertanggung jawab atas penggunaan, kebersihan, denda tilang, serta kerusakan atau kehilangan selama masa sewa. Deposit dikembalikan mitra setelah unit kembali dalam kondisi sesuai foto serah terima; potongan wajib disertai alasan dan bukti foto, dan keberatan dapat diajukan ke pengelola.'],
+    ['Syarat mitra', 'Mitra menjamin unit miliknya sah, layak jalan, pajaknya hidup, dan berasuransi; mitra bertanggung jawab atas unitnya dan atas pemenuhan Perjanjian Sewa kepada penyewa. Mitra menetapkan harga sewa, menerima pembayaran langsung dari penyewa, dan wajib mengonfirmasi pembayaran yang diterima secara jujur di aplikasi. Atas setiap pesanan yang lunas, mitra membayar fee aplikasi kepada PT Alekatama Karya Persada sebesar persentase yang berlaku di aplikasi, dipotong dari saldo fee prabayar mitra. Fee dikembalikan ke saldo bila pesanan dibatalkan. Hubungan ini adalah kemitraan penggunaan platform, bukan sewa-menyewa dengan pengelola dan bukan bagi hasil.']
   ];
   function privasiHtml() { return PRIVASI.map(function (p) { return '<h4 style="margin:12px 0 4px">' + esc(p[0]) + '</h4><p class="small" style="margin:0;line-height:1.55">' + esc(p[1]) + '</p>'; }).join(''); }
   function privasiOpen() {
     sheet('<h2>Kebijakan Privasi & Syarat Ketentuan</h2><div class="xs muted">' + esc(CFG.NAMA_APP || 'Vast Travel') + ' · PT Alekatama Karya Persada · berlaku sejak 21 November 2026</div>' + privasiHtml() +
       '<p class="xs muted" style="margin-top:14px">Pertanyaan: hubungi pengelola melalui menu Chat atau Bantuan di aplikasi.</p><button class="btn go block" data-close>Mengerti</button>');
   }
+  /* Perjanjian sewa per pesanan, langsung antara penyewa dan mitra */
+  function perjanjianSewa(o) {
+    o = o || {};
+    return [
+      ['Para pihak', 'Perjanjian ini dibuat langsung antara penyewa ' + (o.penyewa ? '(' + o.penyewa + ') ' : '') + 'dan mitra pemilik unit ' + (o.mitra ? '(' + o.mitra + ') ' : '') + 'melalui aplikasi Vast Travel. PT Alekatama Karya Persada hanya penyedia platform dan bukan pihak dalam perjanjian ini.'],
+      ['Objek & jadwal', (o.unit ? o.unit + '. ' : '') + (o.jadwal ? 'Masa sewa ' + o.jadwal + '. ' : '') + 'Unit diserahkan dan dikembalikan di lokasi yang disepakati dalam pesanan.'],
+      ['Pembayaran', 'Penyewa membayar sewa' + (o.deposit ? ' dan deposit ' + rp(o.deposit) : '') + ' langsung ke rekening/QRIS mitra setelah pesanan disetujui. Pesanan berlaku setelah mitra mengonfirmasi pembayaran.'],
+      ['Serah terima', 'Kondisi unit dicatat dengan foto, persentase baterai dan km saat serah terima dan pengembalian. Penyewa memeriksa unit dan menyatakan kondisinya sesuai foto sebelum memakai unit.'],
+      ['Tanggung jawab penyewa', 'Memakai unit dengan wajar sesuai hukum, tidak memindahtangankan atau menyewakan ulang, menanggung denda tilang, kerusakan, dan kehilangan selama masa sewa, serta mengembalikan unit tepat waktu.'],
+      ['Tanggung jawab mitra', 'Menyerahkan unit yang sah, layak jalan, bersih, berasuransi, dengan baterai cukup, tepat waktu sesuai pesanan.'],
+      ['Deposit', 'Deposit dikembalikan mitra setelah unit kembali. Potongan hanya untuk kerusakan, kehilangan, kekurangan baterai berlebih, atau keterlambatan, disertai alasan dan bukti foto.'],
+      ['Perselisihan', 'Diselesaikan secara musyawarah; pengelola dapat memediasi berdasarkan catatan dan foto di aplikasi.']
+    ];
+  }
+  function perjanjianOpen(o) {
+    sheet('<h2>Perjanjian Sewa</h2><div class="xs muted">Antara penyewa dan mitra pemilik unit</div>' + perjanjianSewa(o).map(function (p) { return '<h4 style="margin:12px 0 4px">' + esc(p[0]) + '</h4><p class="small" style="margin:0;line-height:1.55">' + esc(p[1]) + '</p>'; }).join('') + '<button class="btn go block" data-close style="margin-top:14px">Mengerti</button>');
+  }
+  /* Berita acara serah terima / pengembalian (foto + baterai + km) */
+  function baSheet(o, onKirim) {
+    var F = [];
+    function render(el) {
+      el.querySelector('#ba-th').innerHTML = F.map(function (f, i) { return '<div style="position:relative"><img src="' + f + '" style="width:72px;height:72px;object-fit:cover;border-radius:10px"><button class="hbtn" data-rm="' + i + '" style="position:absolute;top:-6px;right:-6px;width:24px;height:24px;font-size:14px">&times;</button></div>'; }).join('');
+      el.querySelector('#ba-n').textContent = F.length + ' / min. 4 foto';
+      el.querySelectorAll('[data-rm]').forEach(function (x) { x.onclick = function () { F.splice(+x.dataset.rm, 1); render(el); }; });
+    }
+    sheet('<h2>' + esc(o.judul) + '</h2>' + (o.info ? '<div class="note info small">' + o.info + '</div>' : '') +
+      '<div class="row between"><b class="small">Foto kondisi unit</b><span class="xs muted" id="ba-n"></span></div><div class="xs muted">Depan, belakang, kiri, kanan, dasbor (baterai & km), dan bagian yang lecet.</div>' +
+      '<div class="row" id="ba-th" style="flex-wrap:wrap;gap:8px;margin:8px 0"></div><div class="row" style="gap:8px"><button class="btn sm" id="ba-cam">' + ic('cam') + ' Kamera</button><button class="btn sm ghost" id="ba-gal">Galeri</button></div>' +
+      '<div class="grid"><label class="f">Baterai (%)<input id="ba-bat" type="number" inputmode="numeric" min="0" max="100"></label><label class="f">Odometer (km)<input id="ba-km" type="number" inputmode="numeric" min="0"></label></div>' +
+      (o.kondisi ? '<label class="f">Kondisi unit<select id="ba-kon"><option value="baik">Baik, sesuai saat serah terima</option><option value="rusak">Ada kerusakan / kekurangan</option></select></label>' : '') +
+      '<label class="f">Catatan <span class="hint">opsional</span><input id="ba-cat" placeholder="Lecet, kelengkapan, dll."></label>' +
+      '<button class="btn go block" id="ba-go">' + esc(o.tombol || 'Simpan') + '</button>', function (el) {
+      render(el);
+      var add = function (src) { pickPhotos(src ? 1 : 8 - F.length, src).then(function (a) { F = F.concat(a).slice(0, 8); render(el); }); };
+      el.querySelector('#ba-cam').onclick = function () { add('camera'); };
+      el.querySelector('#ba-gal').onclick = function () { add(''); };
+      el.querySelector('#ba-go').onclick = function () {
+        var bt = this;
+        if (F.length < 4) return toast('Ambil minimal 4 foto kondisi unit.', true);
+        var bat = el.querySelector('#ba-bat').value; if (bat === '') return toast('Isi persentase baterai.', true);
+        var req = { foto: F, baterai: bat, km: el.querySelector('#ba-km').value, catatan: el.querySelector('#ba-cat').value };
+        if (o.kondisi) req.kondisi = el.querySelector('#ba-kon').value;
+        busy(bt, true, 'Mengunggah foto...');
+        Promise.resolve(onKirim(req)).then(function () { closeSheet(); }).catch(function (e) { busy(bt, false); toast(e.message, true); });
+      };
+    });
+  }
+  function baView(ba, judul) {
+    if (!ba || !ba.foto) return '';
+    return '<div class="small" style="margin-top:6px"><b>' + esc(judul) + '</b> · baterai ' + ba.baterai + '%' + (ba.km ? ' · ' + ba.km.toLocaleString('id-ID') + ' km' : '') + (ba.catatan ? ' · ' + esc(ba.catatan) : '') + '</div><div class="row" style="gap:6px;overflow-x:auto">' + ba.foto.map(function (f) { return '<img src="' + esc(imgUrl(f)) + '" data-zoom style="width:64px;height:64px;object-fit:cover;border-radius:8px;flex:none">'; }).join('') + '</div>';
+  }
+  document.addEventListener('click', function (e) {
+    var im = e.target.closest && e.target.closest('img[data-zoom]'); if (!im) return;
+    var all = Array.prototype.slice.call(im.parentNode.querySelectorAll('img[data-zoom]')); zoomGallery(all.map(function (x) { return x.getAttribute('src'); }), all.indexOf(im));
+  });
   /* Sakelar persetujuan (bukan centang) untuk form pendaftaran */
   function setujuHtml(id) {
     return '<label class="row" style="gap:10px;align-items:flex-start;margin:8px 0;cursor:pointer"><input type="checkbox" id="' + id + '" style="margin-top:2px"><span class="small">Saya telah membaca dan menyetujui <a href="#" data-privasi style="font-weight:700">Kebijakan Privasi & Syarat Ketentuan</a>, termasuk pemrosesan data pribadi untuk verifikasi.</span></label>';
@@ -3373,7 +3608,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('[data-privasi]'); if (!a) return; e.preventDefault(); e.stopPropagation(); privasiOpen(); }, true);
 
   window.VR = { DEMO: DEMO, CFG: CFG, api: api, rp: rp, esc: esc, wa: wa, tgl: tgl, waktu: waktu, sameMonth: sameMonth, sapaan: sapaan,
-    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, privasiOpen: privasiOpen, setujuHtml: setujuHtml, PRIVASI: PRIVASI, pickList: pickList, pilihWilayah: pilihWilayah, wilBtn: wilBtn, setWilayahBuka: function (l) { WIL_BUKA = l || []; }, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
+    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, privasiOpen: privasiOpen, setujuHtml: setujuHtml, perjanjianSewa: perjanjianSewa, perjanjianOpen: perjanjianOpen, baSheet: baSheet, baView: baView, PRIVASI: PRIVASI, pickList: pickList, pilihWilayah: pilihWilayah, wilBtn: wilBtn, setWilayahBuka: function (l) { WIL_BUKA = l || []; }, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
     cached: cached, loadFast: loadFast, uiBusy: uiBusy, clearCached: clearCached,
     trackStart: trackStart, trackStop: trackStop, trackOn: trackOn, liveMap: liveMap, lokLabel: lokLabel, lokWarna: lokWarna,
     vehicleSvg: vehicleSvg, unitImg: unitImg, models: models, modelOf: modelOf, modelFoto: modelFoto, brands: brands, modelImg: modelImg, imgUrl: imgUrl, warnaHex: warnaHex, fotoList: fotoList, pickPhotos: pickPhotos, scenery: scenery,
@@ -3430,18 +3665,20 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   function pemilikOf(id) { return S.d.pemilik.filter(function (p) { return p.id === id; })[0] || { nama: '-', wa: '', bank: '', alamat: '' }; }
   var SAH = ['lunas', 'berjalan', 'selesai'], DITERIMA = ['berjalan', 'selesai'];
   function butuhDriver(b) { return b.layanan !== 'lepas'; }
-  function belumPayout(b) { return DITERIMA.indexOf(b.status) >= 0 && (b.payout !== 'sudah' || (b.driver && b.bagian_driver > 0 && b.payout_driver !== 'sudah')); }
-  function sudahBayar(b) { return ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && !!b.bayar_lapor; }
+  function belumPayout(b) { return b.status === 'selesai' && b.deposit > 0 && b.deposit_status === 'ditahan'; }
+  function sudahBayar(b) { return b.status === 'menunggu_bayar' && !!b.bayar_lapor; }
+  function topupMenunggu() { return (S.d.saldo || []).filter(function (x) { return x.status === 'menunggu'; }); }
+  function saldoP(id) { return (S.d.saldo || []).filter(function (x) { return x.pemilik_id === id && x.status === 'ok'; }).reduce(function (t, x) { return t + x.delta; }, 0); }
   function perluSetuju(b) { return b.status === 'menunggu_harga' || b.status === 'menunggu_setuju' || (b.status === 'menunggu_mitra' && butuhDriver(b) && (!b.driver || b.driver_ok === 'tolak')); }
   function perluTindakan(b) {
-    return perluSetuju(b) || sudahBayar(b) || b.status === 'lunas' ||
+    return perluSetuju(b) || (b.status === 'lunas' && !b.unit_siap) ||
       belumPayout(b) || (b.status === 'berjalan' && b.tgl_selesai <= vrToday());
   }
   function setBadge(id, n) { var e = document.getElementById(id); e.hidden = !n; e.textContent = n; }
   function counts() {
     var B = S.d.booking;
     return { cek: B.filter(sudahBayar).length, harga: B.filter(function (b) { return b.status === 'menunggu_harga'; }).length,
-      payout: B.filter(belumPayout).length, setuju: B.filter(perluSetuju).length, unit: S.d.unit.filter(function (u) { return u.status === 'menunggu'; }).length,
+      payout: B.filter(belumPayout).length, topup: topupMenunggu().length, setuju: B.filter(perluSetuju).length, unit: S.d.unit.filter(function (u) { return u.status === 'menunggu'; }).length,
       mitra: S.d.pemilik.filter(function (p) { return p.status === 'menunggu'; }).length, member: S.d.member.filter(function (m) { return m.status === 'menunggu'; }).length };
   }
 
@@ -3450,7 +3687,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     return V.loadFast('adminData', { pin: S.pin }, !S.d, function (d, dariCache) {
       S.d = d; document.getElementById('nav').hidden = false; document.body.classList.remove('login-scr');
       S.ro = MON || !!d.monitor; document.body.classList.toggle('ro', S.ro);
-      var c = counts(); setBadge('b-bk', c.cek + c.setuju + c.payout); setBadge('b-ar', c.unit);
+      var c = counts(); setBadge('b-bk', c.setuju + c.payout); setBadge('b-ar', c.unit);
       if (!S.notif) { S.notif = 1; if (!MON) V.chatSet({ peran: 'pengelola', payload: function () { return { pin: S.pin }; }, buka: function () { go('chat'); } }); V.notifStart({ peran: 'pengelola', app: MON ? 'Vast Travel Monitor' : 'Vast Travel Pengelola', payload: function () { return { pin: S.pin }; }, onNew: function () { load(); } }); }
       if (dariCache !== 'diam' && S.tab !== 'peta') render();
     }, function (e) {
@@ -3468,7 +3705,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   function renderLogin() {
     document.getElementById('nav').hidden = true; document.body.classList.add('login-scr');
     app.innerHTML = '<header class="hero">' + V.scenery() + '<div class="hero-top">' + V.brand(MON ? 'Monitor' : 'Admin') + '</div><div class="hello"><h1>' + (MON ? 'Monitor Vast Travel' : 'Pengelola Vast Travel') + '</h1><p>' +
-      (MON ? 'Pantau booking, armada, pembayaran & lokasi unit secara langsung (hanya melihat).' : 'Verifikasi pembayaran, tentukan harga perjalanan, bayar sewa unit ke mitra.') + '</p></div></header>' +
+      (MON ? 'Pantau booking, armada, pembayaran & lokasi unit secara langsung (hanya melihat).' : 'Setujui order, pantau pembayaran penyewa ke mitra, kelola fee & saldo mitra.') + '</p></div></header>' +
       '<div class="login"><img class="hook-login" src="' + V.imgUrl('img/hook.jpg') + '" alt="Vast Travel">' + V.demoBanner(MON ? 'PIN monitor demo: 9999.' : 'PIN demo: 0000.') + '<div class="card stack"><label class="f">' + (MON ? 'PIN monitor' : 'PIN pengelola') + '<input id="pin" type="password" inputmode="numeric"></label><button class="btn block" id="go">Masuk</button></div></div>';
     V.bindDemoReset();
     var go2 = function () { var b = document.getElementById('go'); V.busy(b, true); S.pin = document.getElementById('pin').value.trim();
@@ -3482,24 +3719,25 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     var d = S.d, B = d.booking, today = vrToday(), c = counts();
     var sah = B.filter(function (b) { return SAH.indexOf(b.status) >= 0; }), bulan = sah.filter(function (b) { return V.sameMonth(b.waktu); });
     var sum = function (a, k) { return a.reduce(function (s, b) { return s + b[k]; }, 0); };
-    var pend = sum(bulan, 'komisi') - sum(bulan, 'diskon_poin'), hold = sah.filter(function (b) { return b.payout !== 'sudah'; });
+    var pend = sum(bulan, 'komisi') - sum(bulan, 'diskon_poin'), tp = topupMenunggu();
     var aksi = B.filter(perluTindakan).length;
     var h = '<header class="hero">' + V.scenery() + heroTop() + '<div class="hello"><h1>Halo, ' + (S.ro ? 'Tim Monitor' : 'Pengelola') + ' 👋' + (S.ro ? '<span class="ro-badge">hanya lihat</span>' : '') + '</h1><p>' + V.sapaan() + '! ' + (S.ro ? aksi + ' booking sedang menunggu tindakan pengelola.' : 'Ada ' + aksi + ' hal yang perlu ditindaklanjuti.') + '</p></div></header>' +
-      '<div class="float"><div class="statcard"><div><b class="num">' + rp(pend).replace('Rp ', 'Rp') + '</b><span>Pendapatan admin bulan ini</span></div><div><b>' + aksi + '</b><span>Perlu tindakan</span></div><div data-q="peta" style="cursor:pointer"><b>' + B.filter(function (b) { return b.status === 'berjalan'; }).length + '</b><span>Sedang berjalan ›</span></div></div></div>' + V.demoBanner() + '<main>';
+      '<div class="float"><div class="statcard"><div><b class="num">' + rp(pend).replace('Rp ', 'Rp') + '</b><span>Fee aplikasi bersih bulan ini</span></div><div><b>' + aksi + '</b><span>Perlu tindakan</span></div><div data-q="peta" style="cursor:pointer"><b>' + B.filter(function (b) { return b.status === 'berjalan'; }).length + '</b><span>Sedang berjalan ›</span></div></div></div>' + V.demoBanner() + '<main>';
     if (WEB || WIDE.matches) h += '<div class="hook-web"><img src="' + V.imgUrl('img/hook.jpg') + '" alt="Vast Travel - Sewa kendaraan listrik untuk semua kebutuhan"></div>';
-    var Q = [['b:cek', 'wallet', 'Verifikasi Bayar', c.cek], ['b:setuju', 'check', 'Order Baru', c.setuju], ['b:payout', 'send', 'Bayar Sewa Unit', c.payout], ['armada', 'car', 'Armada', c.unit],
+    var Q = [['b:setuju', 'check', 'Setujui Order', c.setuju], ['b:cek', 'wallet', 'Cek Bayar Mitra', c.cek], ['saldo', 'money', 'Saldo & Fee Mitra', c.topup], ['armada', 'car', 'Armada', c.unit],
       ['u:pemilik', 'key', 'Mitra Pemilik', c.mitra], ['u:member', 'users', 'Member', c.member], ['peta', 'pin', 'Peta Live', B.filter(function (b) { return b.status === 'berjalan'; }).length], S.ro ? ['atur', 'gear', 'Akun'] : ['chat', 'help', 'Chat', d.chat_belum || 0]];
-    if (!S.ro && !(d.app.bayar || []).length) h += '<div class="note warn"><b>Metode pembayaran belum diisi.</b> Penyewa hanya bisa meminta nomor rekening lewat WhatsApp. <button class="linkbtn" data-q="atur">Isi rekening, e-wallet & QRIS</button></div>';
+    if (!S.ro && !(d.app.bayar || []).length) h += '<div class="note warn"><b>Rekening pengelola belum diisi.</b> Mitra perlu rekening ini untuk mengisi saldo fee. <button class="linkbtn" data-q="atur">Isi rekening, e-wallet & QRIS</button></div>';
+    if (!S.ro && tp.length) h += '<div class="note warn"><b>' + tp.length + ' permintaan isi saldo mitra</b> menunggu verifikasi. <button class="linkbtn" data-q="saldo">Cek sekarang</button></div>';
     h += '<div class="qgrid">' + Q.map(function (q) { return '<button class="q" data-q="' + q[0] + '"><span class="qi">' + ic(q[1]) + '</span>' + q[2] + (q[3] ? '<span class="n">' + q[3] + '</span>' : '') + '</button>'; }).join('') + '</div>' +
       '<button class="card row" id="rk-open" style="width:100%;text-align:left;cursor:pointer;gap:12px;border:1.5px solid var(--g500)"><span class="qi" style="flex:none;width:40px;height:40px;border-radius:12px;background:var(--g50);color:var(--g700);display:grid;place-items:center">' + ic('report') + '</span><span class="grow"><b>Rekap order & transaksi</b><span class="xs muted" style="display:block">Per minggu, bulan, atau tanggal pilihan · unduh PDF</span></span>' + ic('chev') + '</button>';
-    h += '<div class="tiles"><div class="tile hot"><div class="k">Omzet sewa bulan ini</div><div class="v">' + rp(sum(bulan, 'total')) + '</div></div>' +
-      '<div class="tile' + (hold.length ? ' alert' : '') + '"><div class="k">Sewa unit belum dibayar</div><div class="v">' + rp(sum(hold, 'bagian_pemilik')) + '</div></div>' +
+    h += '<div class="tiles"><div class="tile hot"><div class="k">Nilai transaksi (GMV) bulan ini</div><div class="v">' + rp(sum(bulan, 'total')) + '</div></div>' +
+      '<div class="tile' + (tp.length ? ' alert' : '') + '"><div class="k">Total saldo fee mitra</div><div class="v">' + rp((d.saldo || []).filter(function (x) { return x.status === 'ok'; }).reduce(function (t, x) { return t + x.delta; }, 0)) + '</div></div>' +
       '<div class="tile"><div class="k">Mulai hari ini</div><div class="v">' + sah.filter(function (b) { return b.tgl_mulai === today; }).length + '</div></div>' +
       '<div class="tile"><div class="k">Unit aktif</div><div class="v">' + d.unit.filter(function (u) { return u.status === 'aktif'; }).length + '</div></div></div>';
     h += '<h3>Ringkasan bulan ini</h3><div class="card stack">' + Object.keys(VR_LAYANAN).map(function (k) {
       var a = bulan.filter(function (b) { return b.layanan === k; });
       return '<div class="row between"><span>' + VR_LAYANAN[k].label + ' <span class="xs muted">(' + a.length + ')</span></span><b class="num">' + rp(sum(a, 'komisi')) + '</b></div>';
-    }).join('') + '<hr><div class="row between small"><span>Potongan poin (ditanggung admin)</span><b class="num" style="color:var(--red)">-' + rp(sum(bulan, 'diskon_poin')) + '</b></div><div class="row between"><b>Pendapatan bersih admin</b><b class="num">' + rp(pend) + '</b></div></div>';
+    }).join('') + '<hr><div class="row between small"><span>Kompensasi poin ke saldo mitra</span><b class="num" style="color:var(--red)">-' + rp(sum(bulan, 'diskon_poin')) + '</b></div><div class="row between"><b>Fee aplikasi bersih</b><b class="num">' + rp(pend) + '</b></div></div>';
     if (WIDE.matches) {
       h += '<div class="dash2"><div class="card stack"><div class="row between"><h3 style="margin:0">Peta live armada</h3><button class="linkbtn" data-q="peta">Buka peta penuh ›</button></div><div class="livemap" id="mini-map" style="height:360px"></div></div>' +
         '<div class="card stack"><h3 style="margin:0">Booking terbaru</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>No.</th><th>Penyewa</th><th>Layanan</th><th>Jadwal</th><th>Status</th><th class="r">Bayar</th></tr></thead><tbody>' +
@@ -3530,11 +3768,11 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     setuju: ['Order baru', perluSetuju],
     konfirmasi: ['Cek ketersediaan', function (b) { return b.status === 'menunggu_mitra'; }],
     harga: ['Tentukan harga', function (b) { return b.status === 'menunggu_harga'; }],
-    cek: ['Cek bukti bayar', sudahBayar],
+    cek: ['Menunggu konfirmasi mitra', sudahBayar],
     menunggu_bayar: ['Belum bayar', function (b) { return V.bisaBayar(b) && !b.bayar_lapor; }],
     lunas: ['Lunas', function (b) { return b.status === 'lunas'; }],
     berjalan: ['Berjalan', function (b) { return b.status === 'berjalan'; }],
-    payout: ['Sewa unit belum dibayar', belumPayout],
+    payout: ['Deposit belum selesai', belumPayout],
     selesai: ['Selesai', function (b) { return b.status === 'selesai'; }],
     batal: ['Batal', function (b) { return b.status === 'batal'; }],
     semua: ['Semua', function () { return true; }],
@@ -3547,32 +3785,27 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     var aktif = ['menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar', 'lunas', 'berjalan'].indexOf(b.status) >= 0;
     if (b.status === 'menunggu_mitra' || b.status === 'menunggu_setuju') {
       var okM = b.mitra_ok === 'ya', okD = !butuhDriver(b) || (b.driver && b.driver_ok === 'ya');
-      act += '<div class="card stack" style="padding:10px;margin:0"><b class="small">Laporan: konfirmasi mitra' + (butuhDriver(b) ? ' & supir' : '') + '</b><div class="xs muted">Order langsung lanjut ke pembayaran setelah diterima. Anda tetap bisa menolak / membatalkan.</div>' +
+      act += '<div class="card stack" style="padding:10px;margin:0"><b class="small">Laporan: konfirmasi mitra' + (butuhDriver(b) ? ' & supir' : '') + '</b><div class="xs muted">Setelah mitra' + (butuhDriver(b) ? ' & supir' : '') + ' menerima, order menunggu persetujuan Anda sebelum penyewa membayar ke mitra.</div>' +
         '<div class="row between small"><span>Mitra ' + esc(p ? p.nama : '') + '</span>' + (okM ? '<span class="tag">' + ic('check') + ' diterima</span>' : '<span class="row" style="gap:6px"><span class="tag wait">menunggu</span>' + (p ? V.waBtn(V.wa(p.wa, 'Halo ' + p.nama + ', mohon konfirmasi ketersediaan ' + V.unitNama(b.unit, b) + ' (' + (b.tnkb || '') + ') untuk ' + V.jadwal(b) + ' (order ' + b.id + ') di aplikasi Vast Travel Mitra. Terima kasih.'), 'WA', 'sm') : '') + '<button class="btn sm ghost" data-wakil="mitra" data-id="' + b.id + '">Catat ✓</button></span>') + '</div>' +
         (butuhDriver(b) ? '<div class="row between small"><span>Driver ' + esc(b.driver || '-') + '</span>' + (!b.driver ? '<span class="tag no">' + (b.driver_ok === 'tolak' ? 'menolak, ditawarkan ke supir lain' : 'ditawarkan ke semua supir') + '</span>' : okD ? '<span class="tag">' + ic('check') + ' diterima</span>' : '<span class="row" style="gap:6px"><span class="tag wait">menunggu</span><button class="btn sm ghost" data-wakil="driver" data-id="' + b.id + '">Catat ✓</button></span>') + '</div>' : '') + '</div>';
-      if (b.status === 'menunggu_setuju' && !b.bayar_lapor) act += '<button class="btn block soft" data-a="setujui" data-id="' + b.id + '">' + ic('check') + ' Setujui order · ingatkan penyewa bayar</button>';
+      if (b.status === 'menunggu_setuju') act += '<button class="btn block go" data-a="setujui" data-id="' + b.id + '">' + ic('check') + ' Setujui order · penyewa bayar</button>';
       if (b.tipe === 'trip') act += '<button class="linkbtn small" style="align-self:flex-start" data-harga="' + b.id + '">Ubah harga / unit / driver</button>';
     }
     if (aktif && butuhDriver(b) && b.status !== 'berjalan') act += '<div class="row"><label class="f grow" style="margin:0">Driver<select data-drv="' + b.id + '"><option value="">- pilih driver -</option>' + S.d.driver.map(function (d) { return '<option value="' + esc(d.nama) + '"' + (b.driver === d.nama ? ' selected' : '') + '>' + esc(d.nama) + ' · ' + rp(d.harga_final) + '/hr</option>'; }).join('') + '</select></label>' +
       (b.driver ? (function () { var dr = S.d.driver.filter(function (d) { return d.nama === b.driver; })[0]; return dr ? V.waBtn(V.wa(dr.wa, V.MSG.tugasDriver(b, p, dr.nama)), 'Tugas', 'sm') : ''; })() : '') + '</div>';
-    if (sudahBayar(b)) act += '<div class="note small ' + (b.status === 'menunggu_mitra' ? 'warn' : 'info') + '">Penyewa sudah membayar via <b>' + esc(b.metode || '-') + '</b> (' + V.waktu(b.bayar_lapor) + ').' + (b.status === 'menunggu_mitra' ? ' Validasi setelah mitra' + (butuhDriver(b) ? ' & driver' : '') + ' mengonfirmasi ketersediaan.' : ' Siap divalidasi.') + '</div>';
-    if (b.status === 'menunggu_setuju' && b.bayar_lapor) act += '<div class="row-btn"><button class="btn sm go" data-a="verifikasi" data-id="' + b.id + '">' + ic('check') + ' Validasi pembayaran (lunas)</button><button class="btn sm ghost" data-a="tolak_bayar" data-id="' + b.id + '">Bukti tidak sesuai</button></div>';
-    if (b.status === 'menunggu_mitra' && b.bayar_lapor) act += '<button class="btn sm ghost" style="align-self:flex-start" data-a="tolak_bayar" data-id="' + b.id + '">Bukti tidak sesuai</button>';
-    if (b.status === 'menunggu_bayar') {
-      act += '<div class="row-btn"><button class="btn sm" data-a="verifikasi" data-id="' + b.id + '">' + ic('check') + ' Verifikasi lunas</button>' +
-        (b.bayar_lapor ? '<button class="btn sm ghost" data-a="tolak_bayar" data-id="' + b.id + '">Bukti tidak sesuai</button>' : V.waBtn(waP(V.MSG.keperental(b)), 'Ingatkan bayar', 'sm')) + '</div>';
-      if (b.tipe === 'trip' && !b.bayar_lapor) act += '<button class="linkbtn small" style="align-self:flex-start" data-harga="' + b.id + '">Ubah harga / unit</button>';
+    if (sudahBayar(b)) act += '<div class="note small info">Penyewa melapor sudah membayar <b>' + rp(b.bayar) + '</b> ke mitra via <b>' + esc(b.metode || '-') + '</b> (' + V.waktu(b.bayar_lapor) + '). Menunggu mitra mengonfirmasi dana masuk.</div>' +
+      '<div class="row-btn"><button class="btn sm" data-a="verifikasi" data-id="' + b.id + '">' + ic('check') + ' Tandai lunas (atas konfirmasi mitra)</button><button class="btn sm ghost" data-a="tolak_bayar" data-id="' + b.id + '">Dana belum masuk</button></div>';
+    if (b.status === 'menunggu_bayar' && !b.bayar_lapor) {
+      act += '<div class="row-btn">' + V.waBtn(waP(V.MSG.keperental(b)), 'Ingatkan bayar ke mitra', 'sm') + '</div>';
+      if (b.tipe === 'trip') act += '<button class="linkbtn small" style="align-self:flex-start" data-harga="' + b.id + '">Ubah harga / unit</button>';
     }
     if (b.status === 'lunas' || b.status === 'berjalan') {
       act += '<div class="row-btn">' + (p ? V.waBtn(V.wa(p.wa, V.MSG.orderKePemilik(b, p)), 'Order ke pemilik', 'sm') : '') + V.waBtn(waP(V.MSG.keperental(b)), 'Kabari penyewa', 'sm') + '</div>';
     }
-    if (b.status === 'lunas') act += '<button class="btn sm block soft" data-a="serahkan" data-id="' + b.id + '">Unit diserahkan · mulai</button>';
-    if (b.status === 'berjalan') act += '<button class="btn sm block soft" data-a="selesai" data-id="' + b.id + '">Unit kembali · selesai (beri poin)</button>';
-    if (b.status === 'lunas' && b.payout !== 'sudah') act += '<div class="xs muted">Sewa unit' + (b.driver ? ' & jasa driver' : '') + ' dibayar setelah unit diterima penyewa.</div>';
-    if (DITERIMA.indexOf(b.status) >= 0 && b.payout !== 'sudah') act += '<button class="btn sm block" data-pay="' + b.id + '">' + ic('send') + ' Bayar sewa unit ' + rp(b.bagian_pemilik) + ' ke mitra</button>';
-    if (DITERIMA.indexOf(b.status) >= 0 && b.driver && b.bagian_driver > 0 && b.payout_driver !== 'sudah') act += '<button class="btn sm block soft" data-payd="' + b.id + '">' + ic('send') + ' Bayar jasa ' + rp(b.bagian_driver) + ' ke driver ' + esc(b.driver) + '</button>';
-    if (b.payout_driver === 'sudah') act += '<span class="tag" style="align-self:flex-start">Jasa driver dibayar ' + V.waktu(b.payout_driver_waktu) + '</span>';
-    if (b.payout === 'sudah' && p) act += '<div class="row between"><span class="tag">Sewa unit dibayar ' + V.waktu(b.payout_waktu) + '</span>' + V.waBtn(V.wa(p.wa, V.MSG.payoutKePemilik(b, p)), 'Bukti ke pemilik', 'sm') + '</div>';
+    if (b.status === 'lunas') act += '<button class="btn sm block soft" data-ba="serahkan" data-id="' + b.id + '">' + (b.foto_serah ? 'Unit diserahkan · mulai' : ic('cam') + ' Foto & serahkan unit · mulai') + '</button>';
+    if (b.status === 'berjalan') act += '<button class="btn sm block soft" data-ba="selesai" data-id="' + b.id + '">' + (b.foto_kembali ? 'Unit kembali · selesai' : ic('cam') + ' Foto pengembalian · selesai') + '</button>';
+    if (belumPayout(b)) act += '<div class="note small warn">Deposit ' + rp(b.deposit) + ' belum diselesaikan mitra.</div><button class="btn sm block" data-dep="' + b.id + '">' + ic('money') + ' Mediasi / catat penyelesaian deposit</button>';
+    if (b.deposit_status === 'dipotong' || b.deposit_status === 'dikembalikan') act += '<span class="tag" style="align-self:flex-start">Deposit ' + (b.deposit_status === 'dipotong' ? 'dipotong ' + rp(b.deposit_potong) + (b.deposit_ket ? ' · ' + esc(b.deposit_ket) : '') : 'dikembalikan penuh') + '</span>';
     act += '<div class="row-btn"><button class="btn sm ghost" data-ch="R:' + esc(b.hp) + '" data-chn="' + esc(b.nama) + '">' + ic('help') + ' Chat penyewa</button>' + (p ? '<button class="btn sm ghost" data-ch="P:' + esc(p.id) + '" data-chn="' + esc(p.nama) + '">' + ic('key') + ' Chat mitra</button>' : '') + '</div>';
     if (b.status !== 'selesai' && b.status !== 'batal') act += ['menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0 && !b.bayar_lapor ?
       '<button class="btn sm ghost" style="color:var(--red);align-self:flex-start;border-color:var(--red)" data-a="batal" data-id="' + b.id + '">✕ Tolak order</button>' :
@@ -3585,10 +3818,12 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       (b.unit ? '<dt>Unit</dt><dd>' + esc(V.unitNama(b.unit)) + ' · ' + esc(p ? p.nama : '') + (b.unit_siap ? ' <span class="tag">Unit siap</span>' : '') + '</dd>' : '') +
       (butuhDriver(b) ? '<dt>Driver</dt><dd>' + (b.driver ? esc(b.driver) : '<span class="muted">dipilihkan pengelola</span>') + '</dd>' : '') +
       (b.terima_waktu ? '<dt>Diterima</dt><dd>' + V.waktu(b.terima_waktu) + '</dd>' : '') + (b.alasan && b.status === 'batal' ? '<dt>Alasan</dt><dd>' + esc(b.alasan) + '</dd>' : '') +
-      (b.total ? '<dt>Bayar</dt><dd>' + esc(b.metode || '-') + (b.bayar_lapor ? ' · bukti ' + V.waktu(b.bayar_lapor) : '') + '</dd>' : '') + '</dl>' +
-      (b.total ? '<div class="lines num"><div class="l"><span>Nilai sewa</span><span>' + rp(b.total) + '</span></div>' + (b.diskon_poin ? '<div class="l"><span>Potongan poin</span><span>-' + rp(b.diskon_poin) + '</span></div>' : '') +
-        '<div class="l"><b>Dibayar penyewa</b><b>' + rp(b.bayar) + '</b></div>' + (b.biaya_driver ? '<div class="l muted"><span>Termasuk biaya driver</span><span>' + rp(b.biaya_driver) + '</span></div>' : '') +
-        '<div class="l muted"><span>Admin / pemilik' + (b.bagian_driver ? ' / driver' : '') + '</span><span>' + rp(b.komisi) + ' / ' + rp(b.bagian_pemilik) + (b.bagian_driver ? ' / ' + rp(b.bagian_driver) : '') + '</span></div></div>' : '') + V.alur(b) +
+      (b.total ? '<dt>Bayar ke mitra</dt><dd>' + esc(b.metode || '-') + (b.bayar_lapor ? ' · lapor ' + V.waktu(b.bayar_lapor) : '') + '</dd>' : '') + '</dl>' +
+      (b.total ? '<div class="lines num"><div class="l"><span>Nilai sewa</span><span>' + rp(b.total) + '</span></div>' + (b.diskon_poin ? '<div class="l"><span>Potongan poin (diganti ke saldo mitra)</span><span>-' + rp(b.diskon_poin) + '</span></div>' : '') +
+        (b.deposit ? '<div class="l"><span>Deposit (dipegang mitra)</span><span>' + rp(b.deposit) + '</span></div>' : '') +
+        '<div class="l"><b>Dibayar penyewa ke mitra</b><b>' + rp(b.bayar) + '</b></div>' + (b.biaya_driver ? '<div class="l muted"><span>Termasuk biaya driver</span><span>' + rp(b.biaya_driver) + '</span></div>' : '') +
+        '<div class="l muted"><span>Fee aplikasi' + (b.fee_dipotong === 'ya' ? ' (terpotong dari saldo)' : b.fee_dipotong === 'kembali' ? ' (dikembalikan)' : '') + ' / bersih mitra</span><span>' + rp(b.komisi) + ' / ' + rp(b.bagian_pemilik) + '</span></div></div>' : '') +
+      V.baView(b.foto_serah, 'Foto serah terima') + V.baView(b.foto_kembali, 'Foto pengembalian' + (b.kondisi_kembali === 'rusak' ? ' · ada kerusakan' : '')) + V.alur(b) +
       (b.status === 'berjalan' || (b.status === 'lunas' && b.driver) ? '<button class="btn sm soft" style="align-self:flex-start" data-lacak="' + b.id + '">' + ic('pin') + ' Lihat lokasi unit</button>' : '') +
       (act ? '<div class="adm stack">' + act + '</div>' : '') + '</div>';
   }
@@ -3611,6 +3846,8 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     });
     app.querySelectorAll('[data-a]').forEach(function (x) { x.onclick = function () { aksi(x, x.dataset.id, x.dataset.a); }; });
     app.querySelectorAll('[data-pay]').forEach(function (x) { x.onclick = function () { payout(x.dataset.pay); }; });
+    app.querySelectorAll('[data-ba]').forEach(function (x) { x.onclick = function () { aksiBA(x, x.dataset.id, x.dataset.ba); }; });
+    app.querySelectorAll('[data-dep]').forEach(function (x) { x.onclick = function () { depositAdmin(x.dataset.dep); }; });
     app.querySelectorAll('[data-payd]').forEach(function (x) { x.onclick = function () { payoutDriver(x.dataset.payd); }; });
     app.querySelectorAll('[data-ch]').forEach(function (x) { x.onclick = function () { chatAdmin(x.dataset.ch, x.dataset.chn); }; });
     app.querySelectorAll('[data-wakil]').forEach(function (x) {
@@ -3660,19 +3897,63 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     });
   }
   function aksi(btn, id, a) {
-    var label = { setujui: 'Setujui order ini? Penyewa mendapat pengingat untuk membayar.', verifikasi: 'Pembayaran sudah masuk dan sesuai? Mitra langsung diminta menyiapkan unit.', tolak_bayar: 'Tandai bukti bayar tidak sesuai?', serahkan: 'Unit sudah diserahkan / perjalanan dimulai?', selesai: 'Unit sudah kembali dalam kondisi baik? Poin otomatis diberikan ke penyewa.', batal: 'Batalkan booking ini? Poin yang dipakai dikembalikan; dana yang sudah dibayar dikembalikan manual.' }[a];
+    var label = { setujui: 'Setujui order ini? Penyewa mendapat pengingat untuk membayar.', verifikasi: 'Mitra sudah mengonfirmasi dana masuk (mis. lewat chat)? Order ditandai lunas dan fee dipotong dari saldo mitra.', tolak_bayar: 'Tandai dana belum masuk ke rekening mitra?', serahkan: 'Unit sudah diserahkan / perjalanan dimulai?', selesai: 'Unit sudah kembali dalam kondisi baik? Poin otomatis diberikan ke penyewa.', batal: 'Batalkan booking ini? Poin dikembalikan, fee yang sudah terpotong kembali ke saldo mitra. Dana yang sudah dibayar ke mitra dikembalikan mitra ke penyewa.' }[a];
     V.confirm(label, a === 'batal' ? 'Ya, batalkan' : 'Ya').then(function () {
       V.busy(btn, true);
       V.api('adminBooking', { pin: S.pin, id: id, aksi: a }).then(function (r) {
         var b = r.booking, p = pemilikOf(b.pemilik_id); gantiBk(b);
         if (a === 'setujui') V.toast('Order disetujui. Penyewa sudah diberi tahu untuk membayar.');
-        else if (a === 'verifikasi') V.sheet('<h2>Lunas tervalidasi</h2><div class="small muted">Penyewa, mitra' + (b.driver ? ' & driver' : '') + ' sudah menerima notifikasi. Mitra diminta menyiapkan unit. Sewa unit dibayar ke mitra setelah unit diterima penyewa.</div>' +
+        else if (a === 'verifikasi') V.sheet('<h2>Ditandai lunas</h2><div class="small muted">Penyewa, mitra' + (b.driver ? ' & driver' : '') + ' sudah menerima notifikasi. Fee ' + rp(b.komisi) + ' dipotong dari saldo mitra. Mitra diminta menyiapkan unit.</div>' +
           V.waBtn(V.wa(b.hp, V.MSG.keperental(b)), 'Konfirmasi ke penyewa', 'block') + V.waBtn(V.wa(p.wa, V.MSG.orderKePemilik(b, p)), 'Kirim order ke pemilik unit', 'block'));
-        else if (a === 'tolak_bayar') V.sheet('<h2>Minta bukti ulang</h2>' + V.waBtn(V.wa(b.hp, V.MSG.tolakBayar(b)), 'Kabari penyewa', 'block'));
+        else if (a === 'tolak_bayar') V.sheet('<h2>Dana belum masuk</h2>' + V.waBtn(V.wa(b.hp, V.MSG.tolakBayar(b)), 'Kabari penyewa', 'block'));
         else V.sheet('<h2>' + esc(V.statusLabel(b)) + '</h2>' + (b.poin_didapat ? '<div class="note">Penyewa mendapat <b>' + b.poin_didapat.toLocaleString('id-ID') + ' poin</b>.</div>' : '') + V.waBtn(V.wa(b.hp, V.MSG.keperental(b)), 'Kabari penyewa', 'block'));
         load();
       }).catch(function (e) { V.busy(btn, false); V.toast(e.message, true); });
     });
+  }
+  function aksiBA(btn, id, a) {
+    var b = S.d.booking.filter(function (z) { return z.id === id; })[0];
+    if ((a === 'serahkan' && b.foto_serah) || (a === 'selesai' && b.foto_kembali)) return aksi(btn, id, a);
+    V.baSheet(a === 'serahkan' ? { judul: 'Foto serah terima', info: 'Mitra belum mengunggah foto. Catat kondisi unit saat diserahkan ke penyewa.', tombol: 'Simpan & mulai sewa' } :
+      { judul: 'Foto pengembalian', info: 'Catat kondisi unit saat kembali. Poin otomatis diberikan bila kondisi baik.', tombol: 'Simpan & selesaikan', kondisi: true }, function (req) {
+      return V.api('adminBooking', Object.assign(req, { pin: S.pin, id: id, aksi: a })).then(function (r) { gantiBk(r.booking); V.toast(a === 'serahkan' ? 'Sewa dimulai.' : 'Order selesai.'); load(); });
+    });
+  }
+  function depositAdmin(id) {
+    var b = S.d.booking.filter(function (z) { return z.id === id; })[0];
+    V.sheet('<h2>Penyelesaian deposit</h2><div class="small muted">' + esc(b.id) + ' · deposit ' + rp(b.deposit) + ' dipegang mitra</div><div class="note info small">Gunakan bila mitra & penyewa sudah sepakat (hasil mediasi). Pengembalian dana dilakukan mitra ke penyewa.</div>' +
+      '<label class="f">Potongan (Rp)<input id="dp-pot" type="number" inputmode="numeric" min="0" value="0"></label><label class="f">Alasan<input id="dp-al" placeholder="Wajib bila ada potongan"></label><button class="btn go block" id="dp-go">Catat penyelesaian</button>', function (el) {
+      el.querySelector('#dp-go').onclick = function () {
+        var bt = this; V.busy(bt, true);
+        V.api('adminBooking', { pin: S.pin, id: id, aksi: 'deposit', potong: el.querySelector('#dp-pot').value, alasan: el.querySelector('#dp-al').value }).then(function (r) { V.closeSheet(); gantiBk(r.booking); V.toast('Deposit tercatat.'); load(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); });
+      };
+    });
+  }
+  /* ---------------- SALDO & FEE MITRA ---------------- */
+  function renderSaldo() {
+    var d = S.d, tp = topupMenunggu(), ps = d.pemilik.filter(function (p) { return p.status === 'aktif'; });
+    var h = '<div class="subhead"><button class="hbtn" id="back" aria-label="Kembali">' + ic('back') + '</button><h2>Saldo & Fee Mitra</h2></div><main>' +
+      '<div class="note small">Penyewa membayar langsung ke mitra. Mitra membayar fee aplikasi <b>' + (d.app.fee_mitra || 0) + '%</b> dari saldo prabayar; fee dipotong otomatis saat order lunas. Ubah besaran fee di <button class="linkbtn" id="to-atur">Pengaturan</button>.</div>' +
+      '<h3>Permintaan isi saldo' + (tp.length ? ' (' + tp.length + ')' : '') + '</h3>' +
+      (tp.length ? tp.map(function (x) { var p = pemilikOf(x.pemilik_id); return '<div class="card stack"><div class="row between"><div><b>' + esc(p.nama) + '</b><div class="xs muted">' + esc(x.pemilik_id) + ' · ' + V.waktu(x.waktu) + '</div></div><b class="num">' + rp(x.delta) + '</b></div>' +
+        (x.bukti ? '<img src="' + esc(V.imgUrl(x.bukti)) + '" data-zoom style="max-width:160px;max-height:160px;border-radius:10px;object-fit:cover">' : '') + '<div class="xs muted">' + esc(x.ket) + '</div>' +
+        (S.ro ? '' : '<div class="row-btn"><button class="btn sm go" data-tps="' + x.id + '">' + ic('check') + ' Dana masuk · setujui</button><button class="btn sm ghost" data-tpx="' + x.id + '">Tolak</button></div>') + '</div>'; }).join('') : '<div class="empty small">Tidak ada permintaan.</div>') +
+      '<h3>Saldo per mitra</h3>' + ps.map(function (p) { var v = saldoP(p.id); return '<div class="card row"><div class="grow"><b>' + esc(p.nama) + '</b><div class="xs muted">' + esc(p.id) + ' · ' + esc(p.kota || '') + '</div></div><b class="num" style="color:' + (v <= 0 ? 'var(--red)' : 'inherit') + '">' + rp(v) + '</b>' + (S.ro ? '' : '<button class="btn sm ghost" data-kor="' + p.id + '">Koreksi</button>') + '</div>'; }).join('') +
+      '<h3>Riwayat terbaru</h3>' + (d.saldo || []).slice().reverse().slice(0, 60).map(function (x) { var p = pemilikOf(x.pemilik_id); return '<div class="card row"><div class="grow"><b class="small">' + esc(p.nama) + '</b><div class="xs muted">' + esc(x.ket) + ' · ' + V.waktu(x.waktu) + (x.status !== 'ok' ? ' · ' + x.status : '') + '</div></div><b class="num" style="color:' + (x.status !== 'ok' ? '#999' : x.delta < 0 ? 'var(--red)' : 'var(--g700)') + '">' + (x.delta > 0 ? '+' : '') + rp(x.delta) + '</b></div>'; }).join('') + '</main>';
+    app.innerHTML = h;
+    document.getElementById('back').onclick = function () { go('beranda'); };
+    document.getElementById('to-atur').onclick = function () { go('atur'); setTimeout(function () { var f = document.getElementById('fee-card'); if (f) f.scrollIntoView({ behavior: 'smooth' }); }, 120); };
+    function kirim(x, body, msg) { V.busy(x, true); V.api('adminSaldo', Object.assign({ pin: S.pin }, body)).then(function () { V.toast(msg); V.closeSheet(); load(); }).catch(function (e) { V.busy(x, false); V.toast(e.message, true); }); }
+    app.querySelectorAll('[data-tps]').forEach(function (x) { x.onclick = function () { V.confirm('Dana sudah masuk ke rekening pengelola sesuai nominal?').then(function () { kirim(x, { aksi: 'setujui', id: x.dataset.tps }, 'Saldo mitra bertambah.'); }); }; });
+    app.querySelectorAll('[data-tpx]').forEach(function (x) { x.onclick = function () {
+      V.sheet('<h2>Tolak isi saldo</h2><label class="f">Alasan<select id="tx">' + ['Dana belum masuk', 'Nominal tidak sesuai', 'Bukti tidak jelas'].map(function (t) { return '<option>' + t + '</option>'; }).join('') + '</select></label><button class="btn block" id="tx-go">Tolak</button>', function (el) {
+        el.querySelector('#tx-go').onclick = function () { kirim(this, { aksi: 'tolak', id: x.dataset.tpx, alasan: el.querySelector('#tx').value }, 'Ditolak, mitra dikabari.'); };
+      }); }; });
+    app.querySelectorAll('[data-kor]').forEach(function (x) { x.onclick = function () {
+      var p = pemilikOf(x.dataset.kor);
+      V.sheet('<h2>Koreksi saldo</h2><div class="small muted">' + esc(p.nama) + ' · saldo ' + rp(saldoP(p.id)) + '</div><label class="f">Nominal <span class="hint">positif menambah, negatif mengurangi</span><input id="kr-n" type="number" inputmode="numeric"></label><label class="f">Keterangan<input id="kr-k" placeholder="mis. bonus mitra baru, koreksi salah input"></label><button class="btn go block" id="kr-go">Simpan koreksi</button>', function (el) {
+        el.querySelector('#kr-go').onclick = function () { kirim(this, { aksi: 'koreksi', pemilik_id: p.id, delta: el.querySelector('#kr-n').value, ket: el.querySelector('#kr-k').value }, 'Saldo dikoreksi.'); };
+      }); }; });
   }
   function payoutDriver(id) {
     var b = find(id), dr = S.d.driver.filter(function (z) { return z.nama === b.driver; })[0] || { nama: b.driver, wa: '' };
@@ -3951,9 +4232,12 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
         '<button type="button" class="btn sm ' + (q ? 'soft' : 'ghost') + '" data-qr="' + k + '" style="flex:none;min-width:64px;padding:4px 8px">' + (q ? '<img src="' + esc(q) + '" style="width:30px;height:30px;object-fit:contain;border-radius:4px"> QR' : V.ic('plus') + ' QR') + '</button></div>';
     }
     app.innerHTML = shortHero('Pengaturan', 'Tarif, pembayaran, layanan & poin') + '<main>' +
-      '<div class="card stack"><h3>Harga sewa & biaya layanan</h3><div class="xs muted">Harga sewa harian ditentukan oleh mitra (pemilik unit). Sistem otomatis menambahkan biaya layanan di bawah ini, sehingga harga yang tampil ke penyewa sudah termasuk semuanya.</div>' +
-      f('biaya_admin', 'Biaya layanan admin (%)', 'ditambahkan ke harga mitra, mis. 5 / 10 / 15', 'decimal') +
+      '<div class="card stack" id="fee-card"><h3>' + V.ic('money') + ' Fee aplikasi mitra</h3><div class="xs muted">Harga sewa ditentukan mitra dan tampil apa adanya ke penyewa. Penyewa membayar langsung ke mitra; mitra membayar fee aplikasi ke pengelola, dipotong otomatis dari saldo prabayar saat order lunas.</div>' +
+      f('fee_mitra', 'Fee aplikasi dari mitra (%)', 'dari nilai sewa per order, mis. 5 / 10 / 15', 'decimal') +
       '<div class="note small" id="ba-ex"></div>' +
+      '<label class="row between" style="gap:10px;padding:6px 2px"><span><b class="small">Wajib saldo cukup</b><span class="xs muted" style="display:block">Order baru ditolak bila saldo mitra kurang dari fee order tersebut</span></span><input type="checkbox" id="sw-saldo"' + (s.saldo_wajib !== 'tidak' ? ' checked' : '') + '></label>' +
+      f('saldo_min', 'Saldo minimum agar unit tampil (Rp)', '0 = tidak dibatasi', 'numeric') +
+      '<div class="grid">' + f('deposit_motor', 'Deposit motor (Rp)', 'lepas kunci, dibayar ke mitra', 'numeric') + f('deposit_mobil', 'Deposit mobil (Rp)', 'lepas kunci, dibayar ke mitra', 'numeric') + '</div>' +
       f('biaya_driver', 'Fee pengelola untuk supir (%)', 'ditambahkan ke tarif yang diisi supir, mis. 10', 'decimal') +
       '<div class="note small" id="bd-ex"></div>' +
       f('komisi', 'Margin pengelola layanan perjalanan (%)', 'untuk harga yang diinput manual oleh pengelola (antar bandara, dll.)', 'decimal') + '</div>' +
@@ -3998,7 +4282,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     document.getElementById('sv').onclick = function () {
       var b = this, v = {};
       app.querySelectorAll('[data-k]').forEach(function (x) { v[x.dataset.k] = x.value; });
-      v.tarif_km = tkBaca();
+      v.tarif_km = tkBaca(); v.saldo_wajib = document.getElementById('sw-saldo').checked;
       var np = document.getElementById('np').value; if (np) v.admin_pin_baru = np;
       var mp = document.getElementById('mp').value.trim(); if (mp) v.monitor_pin_baru = mp;
       V.busy(b, true);
@@ -4007,8 +4291,8 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     };
     document.getElementById('out').onclick = tanyaKeluar;
     app.querySelectorAll('[data-cp]').forEach(function (x) { x.onclick = function () { V.copy(x.dataset.cp); }; });
-    var bai = app.querySelector('[data-k="biaya_admin"]'), bex = document.getElementById('ba-ex');
-    function contoh() { var p2 = Number(bai.value) || 0; bex.innerHTML = 'Contoh: mitra mengisi <b>Rp300.000</b>/hari → tampil ke penyewa <b>' + V.rp(vrHargaFinal(300000, p2)) + '</b>/hari (biaya layanan ' + V.rp(vrHargaFinal(300000, p2) - 300000) + ').'; }
+    var bai = app.querySelector('[data-k="fee_mitra"]'), bex = document.getElementById('ba-ex');
+    function contoh() { var p2 = Number(bai.value) || 0; bex.innerHTML = 'Contoh: sewa <b>Rp300.000</b> x 2 hari = Rp600.000 dibayar penyewa ke mitra → fee pengelola <b>' + V.rp(Math.round(600000 * p2 / 100)) + '</b> dipotong dari saldo mitra, mitra bersih ' + V.rp(600000 - Math.round(600000 * p2 / 100)) + '.'; }
     if (bai) { bai.oninput = contoh; contoh(); }
     app.querySelectorAll('[data-la]').forEach(function (c) { c.onchange = function () {
       var L = Array.prototype.filter.call(app.querySelectorAll('[data-la]'), function (z) { return z.checked; }).map(function (z) { return z.dataset.la; });
@@ -4164,27 +4448,27 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   }
 
   function render() { if (!S.d) return; if (S.tab !== 'peta' && S.tab !== 'beranda') stopLive(); else if (S.live && !document.body.contains(S.live.el)) stopLive();
-    ({ beranda: renderBeranda, booking: renderBooking, armada: renderArmada, user: renderUser, atur: renderAtur, peta: renderPeta, chat: renderChat })[S.tab](); }
+    ({ beranda: renderBeranda, booking: renderBooking, armada: renderArmada, user: renderUser, atur: renderAtur, peta: renderPeta, chat: renderChat, saldo: renderSaldo })[S.tab](); }
   /* ---------------- REKAP ORDER & TRANSAKSI -> PDF ---------------- */
   function rekapAdmin() {
-    V.rekapOpen({ aksi: 'adminRekap', payload: function () { return { pin: S.pin }; }, judul: 'Rekap Order & Transaksi', sub: 'Vast Travel · semua mitra & layanan',
-      file: 'Rekap-VastTravel', state: S.rk = S.rk || { preset: 'minggu', basis: 'order' }, nilai: function (b) { return b.lunas ? b.bayar : 0; },
+    V.rekapOpen({ aksi: 'adminRekap', payload: function () { return { pin: S.pin }; }, judul: 'Rekap Order, Transaksi & Fee Aplikasi', sub: 'Vast Travel · semua mitra & layanan',
+      file: 'Rekap-VastTravel', state: S.rk = S.rk || { preset: 'minggu', basis: 'order' }, nilai: function (b) { return b.lunas ? b.komisi - b.diskon_poin : 0; },
       olah: function (d) {
-        var L = d.baris, ok = L.filter(function (b) { return b.lunas; }), sum = function (a, f) { return a.reduce(function (t, b) { return t + f(b); }, 0); };
-        var omzet = sum(ok, function (b) { return b.bayar; }), kom = sum(ok, function (b) { return b.komisi - b.diskon_poin; }), mit = sum(ok, function (b) { return b.bagian_pemilik; }), sup = sum(ok, function (b) { return b.bagian_driver; });
-        var mBelum = sum(ok.filter(function (b) { return b.payout !== 'sudah'; }), function (b) { return b.bagian_pemilik; }), sBelum = sum(ok.filter(function (b) { return b.driver && b.payout_driver !== 'sudah'; }), function (b) { return b.bagian_driver; });
+        var L = d.baris, ok = L.filter(function (b) { return b.lunas; }), sum = function (a, f) { return a.reduce(function (t, b) { return t + (f(b) || 0); }, 0); };
+        var gmv = sum(ok, function (b) { return b.bayar; }), fee = sum(ok, function (b) { return b.komisi; }), poin = sum(ok, function (b) { return b.diskon_poin; }), mit = sum(ok, function (b) { return b.bagian_pemilik; });
+        var dep = sum(ok, function (b) { return b.deposit; }), depBelum = sum(L.filter(function (b) { return b.deposit_status === 'ditahan'; }), function (b) { return b.deposit; });
         var pend = L.filter(function (b) { return ['menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar'].indexOf(b.status) >= 0; });
         return {
           info: [['Jumlah order', String(L.length)], ['Lunas / berjalan / selesai', String(ok.length)], ['Belum bayar / proses', String(pend.length)], ['Batal', String(L.filter(function (b) { return b.status === 'batal'; }).length)],
-            ['Omzet diterima', rp(omzet)], ['Pendapatan pengelola', rp(kom)], ['Bagian mitra pemilik', rp(mit)], ['Bagian supir', rp(sup)],
-            ['Belum ditransfer ke mitra', rp(mBelum)], ['Belum ditransfer ke supir', rp(sBelum)], ['Potongan poin', rp(sum(ok, function (b) { return b.diskon_poin; }))], ['Nilai order proses', rp(sum(pend, function (b) { return b.bayar; }))]],
-          kolom: [{ t: 'No', w: 2.5 }, { t: 'No. Order', w: 10.5 }, { t: 'Tgl order', w: 6.5 }, { t: 'Jadwal', w: 6.5 }, { t: 'Layanan', w: 8.5 }, { t: 'Unit / TNKB', w: 12 }, { t: 'Penyewa', w: 8 }, { t: 'Supir', w: 5.5 },
-            { t: 'Status', w: 9 }, { t: 'Metode', w: 5.5 }, { t: 'Dibayar', w: 9, kanan: 1 }, { t: 'Pengelola', w: 7.5, kanan: 1 }, { t: 'Mitra', w: 7.5, kanan: 1 }, { t: 'Supir (Rp)', w: 7.5, kanan: 1 }],
+            ['Nilai transaksi (dibayar ke mitra)', rp(gmv)], ['Fee aplikasi', rp(fee)], ['Kompensasi poin', rp(poin)], ['Fee bersih pengelola', rp(fee - poin)],
+            ['Pendapatan bersih mitra', rp(mit)], ['Deposit dipegang mitra', rp(dep)], ['Deposit belum diselesaikan', rp(depBelum)], ['Nilai order proses', rp(sum(pend, function (b) { return b.bayar; }))]],
+          kolom: [{ t: 'No', w: 2.5 }, { t: 'No. Order', w: 10.5 }, { t: 'Tgl order', w: 6.5 }, { t: 'Jadwal', w: 6.5 }, { t: 'Layanan', w: 8.5 }, { t: 'Unit / TNKB', w: 12 }, { t: 'Penyewa', w: 9 }, { t: 'Mitra', w: 9 },
+            { t: 'Status', w: 9 }, { t: 'Metode', w: 5.5 }, { t: 'Nilai sewa', w: 9, kanan: 1 }, { t: 'Fee', w: 7.5, kanan: 1 }, { t: 'Bersih mitra', w: 9, kanan: 1 }],
           baris: L.map(function (b, i) {
-            return [i + 1, b.id, V.tglPdf(b.tgl_order), V.tglPdf(b.tgl_mulai), b.layanan + (b.jarak ? ' ' + V.km(b.jarak) : ''), b.unit + (b.tnkb ? ' / ' + b.tnkb : ''), b.nama, b.driver || '-', b.status_label, b.metode || '-',
-              b.lunas ? rp(b.bayar) : (b.status === 'batal' ? '-' : '(' + rp(b.bayar) + ')'), b.lunas ? rp(b.komisi - b.diskon_poin) : '-', b.lunas ? rp(b.bagian_pemilik) : '-', b.lunas && b.bagian_driver ? rp(b.bagian_driver) : '-'];
+            return [i + 1, b.id, V.tglPdf(b.tgl_order), V.tglPdf(b.tgl_mulai), b.layanan + (b.jarak ? ' ' + V.km(b.jarak) : ''), b.unit + (b.tnkb ? ' / ' + b.tnkb : ''), b.nama, pemilikOf(b.pemilik_id).nama, b.status_label, b.metode || '-',
+              b.lunas ? rp(b.bayar) : (b.status === 'batal' ? '-' : '(' + rp(b.bayar) + ')'), b.lunas ? rp(b.komisi) : '-', b.lunas ? rp(b.bagian_pemilik) : '-'];
           }),
-          total: ['', 'TOTAL (lunas)', '', '', '', '', '', '', '', '', rp(omzet), rp(kom), rp(mit), rp(sup)]
+          total: ['', 'TOTAL (lunas)', '', '', '', '', '', '', '', '', rp(gmv), rp(fee), rp(mit)]
         };
       } });
   }
