@@ -569,6 +569,41 @@ div.f .hint { font-weight: 500; }
 .dur[aria-pressed=true]::after { content: none !important; display: none !important; }
 .dur[aria-pressed=true] { box-shadow: inset 4px 0 0 var(--g500); }
 
+/* ===== Banner kustom (gambar / GIF / video) dari pengelola ===== */
+.bnr { position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 24px rgba(11, 61, 42, .18); background: #dfeee5; }
+.bnr-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.bnr-track::-webkit-scrollbar { display: none; }
+.bnr-s { flex: 0 0 100%; position: relative; aspect-ratio: 2 / 1; scroll-snap-align: start; cursor: pointer; overflow: hidden; }
+.bnr-m { width: 100%; height: 100%; object-fit: cover; display: block; background: #0b3d2a; }
+.bnr-t { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 14px 12px; color: #fff; background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .62)); display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+.bnr-t b { font: 800 16px var(--f-head, var(--f-body)); line-height: 1.2; text-shadow: 0 1px 6px rgba(0, 0, 0, .4); }
+.bnr-t span { font-size: 12.5px; opacity: .95; }
+.bnr-vid { position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, .45); color: #fff; font-size: 10px; padding: 3px 7px; border-radius: 99px; pointer-events: none; }
+.bnr-dots { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; gap: 5px; pointer-events: none; }
+.bnr-dots i { width: 6px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, .55); transition: width .2s; }
+.bnr-dots i.on { width: 16px; background: #fff; }
+.bnr.promo-bnr .bnr-s { aspect-ratio: 16 / 7; }
+.bnr.login-bnr { margin: 0 0 14px; }
+/* Foto unit di detail kendaraan: lapisan bayangan & judul tidak menghalangi ketukan / cubit untuk zoom */
+.detail-hero .shade, .detail-hero .ttl, .detail-hero .gdots { pointer-events: none; }
+/* Pilih lokasi di daftar kendaraan */
+.lokbar { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; }
+.lokbar .sel { flex: 1; }
+/* Kuota sewa (token) */
+.tokcard { background: linear-gradient(120deg, #0b3d2a, #13703f 60%, #22b14c); color: #fff; border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tokcard .tk-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.tokcard .tk-c { background: rgba(255, 255, 255, .14); border-radius: 12px; padding: 6px 10px; display: flex; flex-direction: column; min-width: 92px; }
+.tokcard .tk-c b { font: 800 20px var(--f-body); }
+.tokcard .tk-c span { font-size: 11px; opacity: .9; }
+.tokopt { border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.tokopt.on { border-color: var(--g600); background: #effaf2; }
+.depcard { border: 1.5px dashed var(--g600); border-radius: 16px; padding: 12px 14px; background: #f3fbf5; }
+.fsw { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid var(--line); }
+.fsw:first-of-type { border-top: 0; }
+.bnr-adm { display: flex; gap: 10px; align-items: center; }
+.bnr-adm .thumb { width: 84px; height: 46px; border-radius: 10px; overflow: hidden; flex: none; background: #0b3d2a; }
+.bnr-adm .thumb img, .bnr-adm .thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 </style>
 </head>
 <body class="app-pengelola">
@@ -607,14 +642,17 @@ var VR_TABLES = {
   Saldo: ['id', 'waktu', 'pemilik_id', 'delta', 'ket', 'booking_id', 'status', 'bukti', 'oleh'],
   Unit: ['id', 'pemilik_id', 'jenis', 'merk', 'model', 'tahun', 'warna', 'tnkb', 'transmisi', 'kapasitas', 'kota', 'foto', 'fitur',
     'status', 'tersedia', 'diubah', 'jarak_km', 'charging', 'bagasi', 'model_id', 'harga'],
-  Member: ['id', 'nama', 'wa', 'alamat', 'kota', 'pin', 'status', 'catatan', 'dibuat', 'ktp', 'sim', 'selfie'],
+  Member: ['id', 'nama', 'wa', 'alamat', 'kota', 'pin', 'status', 'catatan', 'dibuat', 'ktp', 'sim', 'selfie',
+    'deposit', 'deposit_status', 'deposit_bukti', 'deposit_waktu', 'deposit_ket', 'rek_kembali'],
   Chat: ['id', 'thread', 'dari', 'nama', 'teks', 'waktu', 'dibaca'],
   Booking: ['id', 'waktu', 'unit_id', 'pemilik_id', 'member_id', 'nama', 'hp', 'layanan', 'tgl_mulai', 'durasi', 'tgl_selesai', 'jam',
     'lokasi', 'tujuan', 'catatan', 'tarif', 'total', 'komisi', 'bagian_pemilik', 'metode', 'bayar_lapor', 'status', 'unit_siap',
     'driver', 'payout', 'payout_waktu', 'riwayat', 'diubah', 'tipe', 'jenis_unit', 'penumpang', 'bandara', 'harga_waktu',
     'diskon_poin', 'bayar', 'poin_didapat', 'biaya_driver', 'bagian_driver', 'mitra_ok', 'driver_ok', 'payout_driver', 'payout_driver_waktu',
     'terima_waktu', 'alasan', 'sembunyi', 'jarak', 'titik', 'driver_tolak', 'unit_tolak', 'deposit', 'deposit_status', 'deposit_potong', 'deposit_ket',
-    'setuju_sewa', 'foto_serah', 'foto_kembali', 'kondisi_kembali', 'fee_dipotong'],
+    'setuju_sewa', 'foto_serah', 'foto_kembali', 'kondisi_kembali', 'fee_dipotong', 'token'],
+  /* Kuota sewa (token): 1 token = sewa 1 hari kendaraan sejenis. delta + beli/kembali, - dipakai */
+  Token: ['id', 'waktu', 'member_id', 'hp', 'jenis', 'delta', 'harga', 'total', 'status', 'booking_id', 'ket', 'metode', 'bukti', 'oleh', 'tipe'],
   Notif: ['id', 'waktu', 'untuk', 'judul', 'isi', 'ref'],
   Poin: ['id', 'waktu', 'hp', 'delta', 'booking_id', 'ket'],
   Pengaturan: ['kunci', 'nilai'],
@@ -625,6 +663,7 @@ var VR_TEXT_COLUMNS = {
   Pemilik: ['id', 'wa', 'pin', 'dibuat'], Member: ['id', 'wa', 'pin', 'dibuat'], Unit: ['id', 'pemilik_id', 'tnkb', 'tahun', 'diubah'],
   Booking: ['id', 'waktu', 'unit_id', 'pemilik_id', 'member_id', 'hp', 'tgl_mulai', 'tgl_selesai', 'jam', 'bayar_lapor', 'payout_waktu', 'diubah', 'harga_waktu', 'payout_driver_waktu', 'terima_waktu'],
   Notif: ['id', 'waktu', 'untuk', 'ref'], Poin: ['id', 'waktu', 'hp', 'booking_id'], Saldo: ['id', 'waktu', 'pemilik_id', 'booking_id'],
+  Token: ['id', 'waktu', 'member_id', 'hp', 'booking_id'],
   Pengaturan: ['kunci', 'nilai'], Model: ['id'], Perangkat: ['token', 'kunci', 'diubah']
 };
 var VR_DEFAULTS = {
@@ -638,9 +677,12 @@ var VR_DEFAULTS = {
   outlet: 'Outlet Vast Travel Malang=Kota Malang',
   promo: 'Sewa Mobil Listrik Lebih Hemat!=Kumpulkan poin tiap transaksi;Antar Jemput Bandara=Harga sesuai rute;Tour Wisata Malang Raya=Tanya harga paket',
   poin_per_rp: '1000', poin_min_tukar: '1000', poin_maks_persen: '50',
+  /* Sakelar fitur (bisa dinyalakan / dimatikan pengelola kapan saja) */
+  fitur_token: 'ya', fitur_deposit_member: 'ya', fitur_push_promo: 'ya', fitur_lokasi: 'ya', fitur_banner: 'ya',
+  token_paket: '[]', deposit_member: '500000', banner: '[]',
   layanan_aktif: 'lepas', fee_mitra: '10', saldo_wajib: 'ya', saldo_min: '0', deposit_motor: '300000', deposit_mobil: '1000000', tarif_km: '', fee_antar: '10', bagi_supir_antar: '60', faktor_jalan: '1.3', antar_maks_km: '150'
 };
-var VR_EMPTY_OK = ['tarif_km', 'musim_libur', 'promo_event', 'qris', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'driver', 'promo', 'outlet'];
+var VR_EMPTY_OK = ['token_paket', 'banner', 'tarif_km', 'musim_libur', 'promo_event', 'qris', 'rek_bca', 'rek_mandiri', 'rek_bri', 'rek_bni', 'rek_bsi', 'linkaja', 'dana', 'gopay', 'ovo', 'shopeepay', 'driver', 'promo', 'outlet'];
 /* Gambar QR per metode bayar (QR DANA, GoPay, dll.) diunggah pengelola: kunci "qr_<set>" */
 var VR_QR_KEYS = ['qr_rek_bca', 'qr_rek_mandiri', 'qr_rek_bri', 'qr_rek_bni', 'qr_rek_bsi', 'qr_dana', 'qr_ovo', 'qr_gopay', 'qr_linkaja', 'qr_shopeepay'];
 VR_EMPTY_OK = VR_EMPTY_OK.concat(VR_QR_KEYS);
@@ -786,6 +828,15 @@ function vrWilayahCari(v) { return vrWilayah(v).replace(/^Kab\. /, 'Kabupaten ')
 var VR_LAYANAN_SAKELAR = [['lepas', 'Sewa lepas kunci', 'Mobil & motor tanpa sopir (izin paling ringan: NIB)'], ['driver', 'Sewa dengan driver', 'Butuh izin angkutan sewa'],
   ['bandara', 'Antar Bandara', 'Butuh izin angkutan sewa'], ['citytour', 'City Tour', 'Butuh izin angkutan sewa'], ['wisata', 'Tour Wisata', 'Butuh izin angkutan sewa'],
   ['antar', 'Minta Antar', 'Butuh izin angkutan sewa khusus / ojol'], ['supir', 'Mode Supir di aplikasi Mitra', 'Dipakai layanan berpengemudi']];
+/* Sakelar fitur tambahan di aplikasi Pengelola: [kunci, judul, keterangan] */
+var VR_FITUR = [
+  ['token', 'Kuota sewa (token)', 'Penyewa membeli token sewa di muka dengan harga khusus; 1 token = sewa 1 hari, dipakai kapan saja'],
+  ['deposit_member', 'Deposit member terverifikasi', 'Member wajib menaruh deposit saat diverifikasi; dikembalikan bila member menonaktifkan statusnya'],
+  ['push_promo', 'Push notifikasi promo & event', 'Kirim notifikasi promo & event wisata ke HP penyewa / mitra; ketuk notifikasi langsung membuka promonya'],
+  ['lokasi', 'Pilih unit sesuai lokasi', 'Penyewa memilih lokasi; hanya unit dari kota tersebut yang tampil (awal: Semua lokasi)'],
+  ['banner', 'Banner kustom', 'Banner gambar / GIF / video dari pengelola tampil di aplikasi penyewa & mitra (mati = banner bawaan)']
+];
+var VR_JENIS_TOKEN = ['motor', 'mobil5', 'mobil7', 'mobil9', 'niaga'];
 /* ---------- Minta Antar: tarif per km per kategori kendaraan ---------- */
 var VR_TARIF_KM = {
   motor: { dasar: 5000, km: 2500, min: 10000 }, mobil5: { dasar: 10000, km: 4000, min: 25000 }, mobil7: { dasar: 12000, km: 5000, min: 30000 },
@@ -938,6 +989,12 @@ function vrCreateLogic(store) {
   }
   function lunaskan(b, oleh) {
     var o = changeStatus(b, 'lunas', oleh, b.harga_waktu ? null : { harga_waktu: nowIso() });
+    if (pakaiToken(b)) {
+      notifPerental(b, 'Order dikonfirmasi', 'Booking ' + b.id + ' memakai ' + num(b.token) + ' token sewa. Unit sedang disiapkan mitra.');
+      notifPemilik(b, 'Order siap disiapkan', unitLabel(b) + ' - ' + vrDateKey(b.tgl_mulai) + ', ' + num(b.durasi) + ' hari. Dibayar penyewa dengan kuota sewa: sewa unit ' + rp(num(b.bagian_pemilik)) + ' ditransfer pengelola setelah unit diserahkan. Siapkan unit lalu ketuk "Unit siap".');
+      if (oleh !== 'pengelola') notify('admin', 'Order token lunas', b.id + ' - ' + b.nama + ' (token). Teruskan sewa unit ' + rp(num(b.bagian_pemilik)) + ' ke mitra setelah unit diserahkan.', b.id);
+      return o;
+    }
     potongFee(findBooking(b.id));
     if (num(b.diskon_poin) > 0 && b.pemilik_id) catatSaldo(b.pemilik_id, num(b.diskon_poin), 'Kompensasi poin penyewa ' + b.id, b.id, 'ok');
     notifPerental(b, 'Pembayaran diterima', 'Booking ' + b.id + ' lunas. Unit sedang disiapkan mitra.');
@@ -959,7 +1016,8 @@ function vrCreateLogic(store) {
   function promoEvent(s) {
     var arr = parseJson(s.promo_event, []);
     return (Array.isArray(arr) ? arr : []).map(function (p) {
-      return { id: txt(p.id, 12), judul: txt(p.judul, 80), ket: txt(p.ket, 300), foto: /^(https?:\/\/|img\/)/i.test(String(p.foto || '')) ? txt(p.foto, 500) : '',
+      var ft = /^(https?:\/\/|img\/)/i.test(String(p.foto || '')) ? txt(p.foto, 500) : '';
+      return { id: txt(p.id, 16), judul: txt(p.judul, 80), ket: txt(p.ket, 300), foto: ft, tipe: ft ? tipeMedia(ft, p.tipe) : '',
         link: /^(https?:\/\/|wa\.me)/i.test(String(p.link || '')) ? txt(p.link, 500) : '', kategori: txt(p.kategori, 30), berlaku: txt(p.berlaku, 60), aktif: p.aktif !== false };
     }).filter(function (p) { return p.judul; });
   }
@@ -993,6 +1051,65 @@ function vrCreateLogic(store) {
   function wilayahBuka(s) { return vrList(String(s.kota) === 'Malang;Batu;Surabaya;Sidoarjo' ? VR_DEFAULTS.kota : s.kota).map(vrWilayah).filter(function (k, i, a) { return k && a.indexOf(k) === i; }); }
   function cekWilayah(u, s) { if (!vrWilayahBuka(wilayahBuka(s), u.kota)) fail('Wilayah ' + (vrWilayah(u.kota) || '-') + ' belum dibuka untuk menerima order.'); }
   function layananAktif(s) { var L = vrList(String(s.layanan_aktif === undefined ? 'lepas' : s.layanan_aktif)).filter(function (k) { return VR_LAYANAN_SAKELAR.some(function (x) { return x[0] === k; }); }); return L; }
+  /* ---------- Sakelar fitur, kuota sewa (token), banner ---------- */
+  function fiturOn(s, k) { return String(s['fitur_' + k] === undefined ? 'ya' : s['fitur_' + k]) !== 'tidak'; }
+  function fiturMap(s) { var o = {}; VR_FITUR.forEach(function (f) { o[f[0]] = fiturOn(s, f[0]); }); return o; }
+  function tokenPaket(s) {
+    var arr = parseJson(s.token_paket, []);
+    return (Array.isArray(arr) ? arr : []).map(function (p) {
+      return { jenis: String(p.jenis || ''), harga: Math.round(num(p.harga)), kuota: Math.max(0, Math.round(num(p.kuota))), maks_beli: Math.max(0, Math.round(num(p.maks_beli))),
+        aktif: p.aktif !== false && String(p.aktif) !== 'tidak', ket: txt(p.ket, 120) };
+    }).filter(function (p, i, a) { return VR_JENIS_TOKEN.indexOf(p.jenis) >= 0 && p.harga > 0 && a.map(function (x) { return x.jenis; }).indexOf(p.jenis) === i; });
+  }
+  function paketOf(s, jenis) { return tokenPaket(s).filter(function (p) { return p.jenis === jenis; })[0] || null; }
+  function tokenRows(memberId) { return store.all('Token').filter(function (t) { return String(t.member_id) === String(memberId); }); }
+  function tokenSaldo(memberId, jenis) { return tokenRows(memberId).filter(function (t) { return t.status === 'ok' && (!jenis || t.jenis === jenis); }).reduce(function (a, t) { return a + num(t.delta); }, 0); }
+  function tokenSaldoMap(memberId) { var o = {}; VR_JENIS_TOKEN.forEach(function (j) { var n = tokenSaldo(memberId, j); if (n) o[j] = n; }); return o; }
+  function tokenTerjual(jenis) { return store.all('Token').filter(function (t) { return t.jenis === jenis && t.tipe === 'beli' && (t.status === 'ok' || t.status === 'menunggu'); }).reduce(function (a, t) { return a + num(t.delta); }, 0); }
+  function tokenPaketPublik(s) { return fiturOn(s, 'token') ? tokenPaket(s).filter(function (p) { return p.aktif; }).map(function (p) { p.sisa = Math.max(0, p.kuota - tokenTerjual(p.jenis)); p.label = VR_JENIS[p.jenis].pendek; return p; }) : []; }
+  function tokenOut(t) {
+    return { id: String(t.id), waktu: String(t.waktu), member_id: String(t.member_id), jenis: String(t.jenis), delta: num(t.delta), harga: num(t.harga), total: num(t.total), status: String(t.status),
+      booking_id: String(t.booking_id || ''), ket: String(t.ket || ''), metode: String(t.metode || ''), bukti: String(t.bukti || ''), tipe: String(t.tipe || '') };
+  }
+  /* Nilai token yang belum dipakai (untuk dikembalikan saat member nonaktif): harga beli terakhir per jenis */
+  function nilaiTokenSisa(memberId) {
+    var tot = 0, rows = tokenRows(memberId);
+    VR_JENIS_TOKEN.forEach(function (j) {
+      var n = tokenSaldo(memberId, j); if (n <= 0) return;
+      var beli = rows.filter(function (t) { return t.jenis === j && t.tipe === 'beli' && t.status === 'ok'; }), h = beli.length ? num(beli[beli.length - 1].harga) : num((paketOf(settings(), j) || {}).harga);
+      tot += n * h;
+    });
+    return tot;
+  }
+  function simpanBukti(d, prefix) {
+    d = String(d || '');
+    if (/^https?:\/\//.test(d)) return d.slice(0, 500);
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(d)) return '';
+    if (d.length > 4000000) fail('Ukuran foto bukti terlalu besar.');
+    if (!store.saveImage) return '';
+    return store.saveImage(prefix + '_' + rid('', 8) + '_' + Date.now() + '.jpg', d);
+  }
+  function mediaOk(u) { return /^(https?:\/\/|img\/)/i.test(String(u || '')) ? txt(u, 600) : ''; }
+  function tipeMedia(u, t) { if (['gambar', 'gif', 'video'].indexOf(t) >= 0) return t; return /\.(mp4|webm|m4v|mov)(\?|#|$)/i.test(String(u)) ? 'video' : /\.gif(\?|#|$)/i.test(String(u)) ? 'gif' : 'gambar'; }
+  function bannerList(s) {
+    var arr = parseJson(s.banner, []);
+    return (Array.isArray(arr) ? arr : []).map(function (b, i) {
+      var media = mediaOk(b.media);
+      return { id: txt(b.id, 20) || ('BN' + i), slot: b.slot === 'promo' ? 'promo' : 'utama', target: ['penyewa', 'mitra', 'semua'].indexOf(b.target) >= 0 ? b.target : 'semua',
+        tipe: tipeMedia(media, b.tipe), media: media, judul: txt(b.judul, 80), sub: txt(b.sub, 140), aksi: ['sewa', 'promo', 'link', 'chat', ''].indexOf(b.aksi) >= 0 ? b.aksi : '',
+        link: /^(https?:\/\/|wa\.me)/i.test(String(b.link || '')) ? txt(b.link, 500) : '', aktif: b.aktif !== false };
+    }).filter(function (b) { return b.media; });
+  }
+  function bannerPublik(s, target) {
+    if (!fiturOn(s, 'banner')) return [];
+    return bannerList(s).filter(function (b) { return b.aktif && (!target || b.target === 'semua' || b.target === target); });
+  }
+  /* Notifikasi siaran (semua penyewa / semua mitra): tersimpan di lonceng + push ke topik FCM aplikasi */
+  function siarkan(peran, judul, isi, ref, data) {
+    var w = nowIso();
+    store.insert('Notif', { id: rid('N', 8), waktu: w, untuk: 'ALL:' + peran, judul: txt(judul, 80), isi: txt(isi, 300), ref: ref || '' });
+    if (store.pushTopic) { try { store.pushTopic('vt_' + peran, txt(judul, 80), txt(isi, 300), Object.assign({ ref: String(ref || ''), untuk: 'ALL:' + peran, peran: peran, waktu: w }, data || {})); } catch (e) { /* tetap tersimpan */ } }
+  }
   function cekLayanan(s, k) { if (layananAktif(s).indexOf(k) < 0) fail('Layanan ' + (VR_LAYANAN[k] ? VR_LAYANAN[k].label : k) + ' belum dibuka. Silakan pilih layanan lain.'); }
   function publicApp() {
     var s = settings(), o = {};
@@ -1029,6 +1146,10 @@ function vrCreateLogic(store) {
     o.bayar_semua = VR_PAY.map(function (p) { return { k: p.k, label: p.label, warna: p.warna, grup: p.grup, akun: s[p.set] || '', qr: qrOf(p) }; });
     o.poin = { per_rp: num(s.poin_per_rp) || 1000, min: num(s.poin_min_tukar) || 0, maks_persen: num(s.poin_maks_persen) || 50 };
     o.model = models(false);
+    o.fitur = fiturMap(s);
+    o.banner = bannerPublik(s, '');
+    o.token_paket = tokenPaketPublik(s);
+    o.deposit_member = fiturOn(s, 'deposit_member') ? Math.max(0, Math.round(num(s.deposit_member))) : 0;
     return o;
   }
   function modelOut(m) {
@@ -1067,7 +1188,9 @@ function vrCreateLogic(store) {
     return out;
   }
   function memberOut(m) {
-    return { id: String(m.id), nama: m.nama, wa: vrNormWa(m.wa), alamat: m.alamat, kota: vrWilayah(m.kota), status: m.status, catatan: m.catatan, dibuat: String(m.dibuat) };
+    return { id: String(m.id), nama: m.nama, wa: vrNormWa(m.wa), alamat: m.alamat, kota: vrWilayah(m.kota), status: m.status, catatan: m.catatan, dibuat: String(m.dibuat),
+      deposit: num(m.deposit), deposit_status: String(m.deposit_status || ''), deposit_waktu: String(m.deposit_waktu || ''), deposit_ket: String(m.deposit_ket || ''),
+      deposit_bukti: String(m.deposit_bukti || ''), rek_kembali: String(m.rek_kembali || '') };
   }
   function bayarKe(b) {
     var p = b.pemilik_id ? byId('Pemilik', b.pemilik_id) : null;
@@ -1083,7 +1206,7 @@ function vrCreateLogic(store) {
       penumpang: num(b.penumpang), bandara: String(b.bandara || ''),
       tgl_mulai: vrDateKey(b.tgl_mulai), durasi: num(b.durasi), tgl_selesai: vrDateKey(b.tgl_selesai), jam: String(b.jam || ''),
       lokasi: b.lokasi, tujuan: b.tujuan, catatan: b.catatan, tarif: num(b.tarif), total: total, komisi: num(b.komisi),
-      bagian_pemilik: num(b.bagian_pemilik), diskon_poin: disk, deposit: num(b.deposit), bayar: total - disk + num(b.deposit),
+      bagian_pemilik: num(b.bagian_pemilik), diskon_poin: disk, deposit: num(b.deposit), bayar: tagihan(b), token: num(b.token),
       deposit_status: String(b.deposit_status || ''), deposit_potong: num(b.deposit_potong), deposit_ket: String(b.deposit_ket || ''), setuju_sewa: String(b.setuju_sewa || ''),
       foto_serah: parseJson(b.foto_serah, null), foto_kembali: parseJson(b.foto_kembali, null), kondisi_kembali: String(b.kondisi_kembali || ''),
       fee: num(b.komisi), fee_dipotong: String(b.fee_dipotong || ''), bayar_ke: bayarKe(b),
@@ -1105,7 +1228,7 @@ function vrCreateLogic(store) {
       tujuan: o.layanan === 'antar' ? o.tujuan : '', jarak: o.jarak, titik: o.layanan === 'antar' ? o.titik : [], jenis_unit: o.jenis_unit, penumpang: o.penumpang,
       foto_serah: o.foto_serah, foto_kembali: o.foto_kembali, kondisi_kembali: o.kondisi_kembali,
       fee: o.fee, fee_dipotong: o.fee_dipotong, deposit: o.deposit, deposit_status: o.deposit_status, deposit_potong: o.deposit_potong, deposit_ket: o.deposit_ket,
-      bayar: o.bayar, diskon_poin: o.diskon_poin, metode: o.metode, catatan: o.catatan,
+      bayar: o.bayar, diskon_poin: o.diskon_poin, metode: o.metode, catatan: o.catatan, token: o.token,
       penyewa: ['menunggu_bayar', 'lunas', 'berjalan', 'selesai'].indexOf(o.status) >= 0 ? { nama: o.nama, hp: o.hp } : null };
   }
 
@@ -1197,7 +1320,9 @@ function vrCreateLogic(store) {
     return patch;
   }
   /* Setelah mitra (dan driver bila ada) mengonfirmasi ketersediaan -> menunggu persetujuan pengelola */
-  function tagihan(b) { return num(b.total) - num(b.diskon_poin) + num(b.deposit); }
+  /* Booking dengan kuota sewa (token): sewa unit sudah dibayar di muka ke pengelola, penyewa hanya membayar deposit (bila ada) */
+  function pakaiToken(b) { return num(b.token) > 0; }
+  function tagihan(b) { return (pakaiToken(b) ? 0 : num(b.total) - num(b.diskon_poin)) + num(b.deposit); }
   function depositOf(s, jenis, layanan) { if (layanan !== 'lepas') return 0; var v = num(jenis === 'motor' ? s.deposit_motor : s.deposit_mobil); return v > 0 ? Math.round(v) : 0; }
   function cekKonfirmasi(id, oleh) {
     var b = findBooking(id);
@@ -1313,6 +1438,12 @@ function vrCreateLogic(store) {
     if (p.status !== 'aktif') fail('Akun mitra belum aktif. Tunggu verifikasi pengelola.');
     return p;
   }
+  /* Login member tanpa syarat terverifikasi (untuk melihat status deposit / nonaktif) */
+  function authMemberStatus(req) {
+    var m = byId('Member', req.member_id);
+    if (!m || !String(m.pin) || String(m.pin) !== String(req.pin)) fail('ID member atau PIN salah.');
+    return m;
+  }
   function authMember(req) {
     var m = byId('Member', req.member_id);
     if (!m || !String(m.pin) || String(m.pin) !== String(req.pin)) fail('ID member atau PIN salah.');
@@ -1382,8 +1513,10 @@ function vrCreateLogic(store) {
     var adaPoin = num(b.diskon_poin) > 0;
     kembalikanPoin(b, 'Pengembalian poin (booking batal)');
     kembalikanFee(findBooking(b.id));
+    var tokKembali = 0;
+    store.all('Token').filter(function (t) { return String(t.booking_id) === String(b.id) && t.tipe === 'pakai' && t.status === 'ok'; }).forEach(function (t) { tokKembali += -num(t.delta); store.update('Token', 'id', t.id, { status: 'batal', ket: String(t.ket || '') + ' (dikembalikan: booking batal)' }); });
     var o = changeStatus(findBooking(b.id), 'batal', oleh, alasan ? { alasan: txt(alasan, 200) } : null);
-    notifPerental(b, 'Booking dibatalkan', 'Booking ' + b.id + ' dibatalkan' + (alasan ? ': ' + txt(alasan, 120) : '.') + (adaPoin ? ' Poin Anda sudah dikembalikan.' : ''));
+    notifPerental(b, 'Booking dibatalkan', 'Booking ' + b.id + ' dibatalkan' + (alasan ? ': ' + txt(alasan, 120) : '.') + (adaPoin ? ' Poin Anda sudah dikembalikan.' : '') + (tokKembali ? ' ' + tokKembali + ' token sewa sudah dikembalikan ke saldo Anda.' : ''));
     if (b.status !== 'menunggu_harga') { notifPemilik(b, 'Order dibatalkan', unitLabel(b) + ' (' + b.id + ') dibatalkan.'); if (b.driver) notifDriver(b, 'Tugas dibatalkan', 'Order ' + b.id + ' dibatalkan.'); }
     return o;
   }
@@ -1391,15 +1524,16 @@ function vrCreateLogic(store) {
   function kunciNotif(req) {
     var keys = {};
     if (req.peran === 'pengelola') { authAdmin(req, true); keys.admin = 1; }
-    else if (req.peran === 'pemilik') { keys['P:' + String(authPemilik(req).id)] = 1; }
+    else if (req.peran === 'pemilik') { keys['P:' + String(authPemilik(req).id)] = 1; keys['ALL:pemilik'] = 1; }
     else if (req.peran === 'driver') { keys['D:' + authDriver(req).wa] = 1; }
     else {
       var hp = vrNormWa(req.hp), ids = (req.ids || []).map(String), isMember = false;
-      if (req.member_id) { var m = authMember(req); hp = vrNormWa(m.wa); isMember = true; }
+      if (req.member_id) { var m = authMemberStatus(req); hp = vrNormWa(m.wa); isMember = true; }
       store.all('Booking').forEach(function (b) {
         if (vrNormWa(b.hp) === hp && (isMember || ids.indexOf(String(b.id)) >= 0)) keys['B:' + b.id] = 1;
       });
       if (isMember || Object.keys(keys).length) keys['H:' + hp] = 1;
+      keys['ALL:perental'] = 1;
     }
     return keys;
   }
@@ -1464,12 +1598,18 @@ function vrCreateLogic(store) {
       if (!jenis || jenis.layanan.indexOf(layanan) < 0) fail('Pilih jenis layanan yang tersedia untuk unit ini.');
       cekLayanan(s, layanan);
       if (layanan === 'lepas' && !req.member_id) fail('Lepas kunci khusus member terverifikasi. Masuk sebagai member atau daftar dulu.');
-      var P = perentalDari(req);
+      var P = perentalDari(req), pakaiTok = yes(req.pakai_token);
+      if (pakaiTok) {
+        if (!fiturOn(s, 'token')) fail('Fitur kuota sewa (token) sedang tidak aktif. Pesan dengan pembayaran biasa.');
+        if (!P.member) fail('Kuota sewa (token) khusus member. Masuk sebagai member terlebih dahulu.');
+        if (layanan !== 'lepas') fail('Kuota sewa (token) hanya untuk sewa lepas kunci.');
+      }
       var mulai = vrDateKey(req.tgl_mulai), durasi = Math.floor(num(req.durasi)), maks = num(s.maks_hari) || 29;
       if (!mulai) fail('Pilih tanggal mulai sewa.');
       if (mulai < vrToday()) fail('Tanggal mulai tidak boleh sebelum hari ini.');
       if (durasi < 1) fail('Durasi minimal 1 hari.');
       if (durasi > maks) fail('Untuk sewa lebih dari ' + maks + ' hari gunakan paket bulanan. Hubungi pengelola.');
+      if (pakaiTok) { var sTok = tokenSaldo(P.member.id, u.jenis); if (sTok < durasi) fail('Token ' + VR_JENIS[u.jenis].pendek + ' tidak cukup: sisa ' + sTok + ', dibutuhkan ' + durasi + ' token (' + durasi + ' hari).'); }
       var selesai = vrAddDays(mulai, durasi), lokasi = txt(req.lokasi, 300);
       if (lokasi.length < 5) fail('Isi lokasi pengambilan / penjemputan.');
       if (bentrok(u.id, mulai, selesai, '', s)) fail('Unit ini sudah dipesan pada tanggal tersebut. Pilih tanggal atau unit lain.');
@@ -1486,7 +1626,7 @@ function vrCreateLogic(store) {
       h.total = pu.final + h.biaya_driver;
       var feeU = Math.round(pu.final * feeMitraOf(s) / 100);
       h.bagian_pemilik = pu.final - feeU; h.komisi = feeU + (h.biaya_driver - h.bagian_driver);
-      if (yes(s.saldo_wajib) && saldoOf(u.pemilik_id) < feeU) {
+      if (!pakaiTok && yes(s.saldo_wajib) && saldoOf(u.pemilik_id) < feeU) {
         notify('P:' + u.pemilik_id, 'Order tertahan: saldo fee kurang', 'Ada penyewa yang ingin menyewa ' + u.merk + ' ' + u.model + ', tetapi saldo fee Anda (' + rp(saldoOf(u.pemilik_id)) + ') kurang dari fee ' + rp(feeU) + '. Isi ulang saldo di menu Pendapatan.', u.id);
         fail('Unit ini sementara tidak bisa dipesan. Silakan pilih unit lain.');
       }
@@ -1498,14 +1638,16 @@ function vrCreateLogic(store) {
         nama: P.nama, hp: P.hp, layanan: layanan, tipe: 'harian', jenis_unit: u.jenis, penumpang: '', bandara: '',
         tgl_mulai: mulai, durasi: durasi, tgl_selesai: selesai, jam: txt(req.jam, 10),
         lokasi: lokasi, tujuan: '', catatan: txt(req.catatan, 300), tarif: tarif, total: h.total, komisi: h.komisi,
-        bagian_pemilik: h.bagian_pemilik, diskon_poin: 0, bayar: h.total + dep, deposit: dep, deposit_status: dep ? 'ditahan' : '', setuju_sewa: nowIso(),
-        poin_didapat: 0, metode: txt(req.metode, 20), bayar_lapor: '', status: 'menunggu_mitra',
+        bagian_pemilik: h.bagian_pemilik, diskon_poin: 0, bayar: (pakaiTok ? 0 : h.total) + dep, deposit: dep, deposit_status: dep ? 'ditahan' : '', setuju_sewa: nowIso(),
+        poin_didapat: 0, metode: pakaiTok ? 'Token' : txt(req.metode, 20), bayar_lapor: '', status: 'menunggu_mitra', token: pakaiTok ? durasi : '',
         unit_siap: 'tidak', driver: drv ? drv.nama : '', payout: 'belum', payout_waktu: '', harga_waktu: '',
         biaya_driver: h.biaya_driver, bagian_driver: h.bagian_driver, mitra_ok: '', driver_ok: '', payout_driver: 'belum', payout_driver_waktu: '', terima_waktu: '', alasan: '',
         riwayat: JSON.stringify([{ s: 'menunggu_mitra', t: nowIso(), oleh: 'perental' }]), diubah: nowIso()
       });
+      if (pakaiTok) store.insert('Token', { id: rid('T', 8), waktu: nowIso(), member_id: String(P.member.id), hp: P.hp, jenis: u.jenis, delta: -durasi, harga: 0, total: 0, status: 'ok',
+        booking_id: id, ket: 'Dipakai untuk ' + id + ' (' + durasi + ' hari)', metode: '', bukti: '', oleh: 'perental', tipe: 'pakai' });
       var nb = findBooking(id);
-      notify('admin', 'Order baru', P.nama + ' - ' + u.merk + ' ' + u.model + ', ' + durasi + ' hari' + (layanan === 'driver' ? (drv ? ', driver ' + drv.nama : ', driver dipilihkan pengelola') : '') + ' (' + id + ')', id);
+      notify('admin', 'Order baru', P.nama + ' - ' + u.merk + ' ' + u.model + ', ' + durasi + ' hari' + (pakaiTok ? ' · bayar ' + durasi + ' token' : '') + (layanan === 'driver' ? (drv ? ', driver ' + drv.nama : ', driver dipilihkan pengelola') : '') + ' (' + id + ')', id);
       mintaKonfirmasi(nb);
       return { booking: bookingOut(nb) };
     },
@@ -1626,6 +1768,7 @@ function vrCreateLogic(store) {
     pakaiPoin: function (req) {
       var m = authMember(req), b = findBooking(req.id), app = publicApp();
       if (!b || vrNormWa(b.hp) !== vrNormWa(m.wa)) fail('Booking tidak ditemukan.');
+      if (pakaiToken(b)) fail('Booking ini dibayar dengan kuota sewa (token); poin tidak bisa dipakai.');
       if (VR_PRABAYAR.indexOf(b.status) < 0 || String(b.bayar_lapor || '')) fail('Poin hanya bisa dipakai sebelum pembayaran dikirim.');
       var poin = Math.floor(num(req.poin)), total = num(b.total), saldo = saldoPoin(m.wa) + num(b.diskon_poin);
       if (poin > 0) {
@@ -1704,9 +1847,136 @@ function vrCreateLogic(store) {
     loginMember: function (req) {
       var m = findByLogin('Member', req.login);
       if (!m || !String(m.pin) || String(m.pin) !== String(req.pin)) fail('ID member atau PIN salah.');
-      if (m.status !== 'terverifikasi') fail(m.status === 'ditolak' ? 'Verifikasi member ditolak' + (m.catatan ? ': ' + m.catatan : '') + '. Unggah ulang foto KTP, SIM & selfie.' : 'Member belum terverifikasi. Pengelola sedang memeriksa KTP, SIM & selfie Anda.');
-      return { member: memberOut(m), poin: saldoPoin(m.wa) };
+      /* Member yang menunggu deposit / proses nonaktif / nonaktif tetap bisa masuk untuk melihat status & instruksi */
+      if (['terverifikasi', 'menunggu_deposit', 'nonaktif_proses', 'nonaktif'].indexOf(m.status) < 0) fail(m.status === 'ditolak' ? 'Verifikasi member ditolak' + (m.catatan ? ': ' + m.catatan : '') + '. Unggah ulang foto KTP, SIM & selfie.' : 'Member belum terverifikasi. Pengelola sedang memeriksa KTP, SIM & selfie Anda.');
+      return { member: memberOut(m), poin: saldoPoin(m.wa), token: tokenSaldoMap(m.id) };
     },
+    statusMember: function (req) {
+      var m = authMemberStatus(req), ap = publicApp();
+      return { member: memberOut(m), poin: saldoPoin(m.wa), token: tokenSaldoMap(m.id), nilai_token: nilaiTokenSisa(m.id), bayar: ap.bayar_semua, admin_wa: ap.admin_wa };
+    },
+    /* Member mengirim bukti transfer deposit verifikasi ke pengelola */
+    laporDepositMember: function (req) {
+      var m = authMemberStatus(req);
+      if (m.status !== 'menunggu_deposit') fail('Akun Anda tidak sedang menunggu deposit.');
+      var met = txt(req.metode, 20); if (!met) fail('Pilih metode pembayaran deposit.');
+      var bukti = simpanBukti(req.bukti, 'dpm');
+      store.update('Member', 'id', m.id, { deposit_status: 'dilaporkan', deposit_waktu: nowIso(), deposit_bukti: bukti || String(m.deposit_bukti || ''), deposit_ket: 'Dibayar via ' + met });
+      notify('admin', 'Deposit member dilaporkan', m.nama + ' (' + m.id + ') melapor sudah transfer deposit ' + rp(num(m.deposit)) + ' via ' + met + '. Cek dana lalu tandai diterima.', m.id);
+      return { member: memberOut(byId('Member', m.id)) };
+    },
+    /* Member menonaktifkan statusnya: deposit (dan nilai token yang belum dipakai) dikembalikan pengelola */
+    nonaktifkanMember: function (req) {
+      var m = authMemberStatus(req), wa = vrNormWa(m.wa);
+      if (m.status !== 'terverifikasi' && m.status !== 'menunggu_deposit') fail('Status member tidak bisa dinonaktifkan dari sini.');
+      var aktifB = store.all('Booking').filter(function (b) { return (String(b.member_id) === String(m.id) || vrNormWa(b.hp) === wa) && ['menunggu_harga', 'menunggu_mitra', 'menunggu_setuju', 'menunggu_bayar', 'lunas', 'berjalan'].indexOf(b.status) >= 0; });
+      if (aktifB.length) fail('Masih ada ' + aktifB.length + ' booking yang berjalan / belum selesai. Selesaikan atau batalkan dulu.');
+      var nTok = nilaiTokenSisa(m.id), rek = txt(req.rekening, 160);
+      var depTahan = num(m.deposit) > 0 && m.deposit_status === 'ditahan', dilapor = m.status === 'menunggu_deposit' && m.deposit_status === 'dilaporkan';
+      var perluKembali = depTahan || dilapor || nTok > 0;
+      if (perluKembali && rek.length < 6) fail('Isi rekening / e-wallet tujuan pengembalian dana (nama bank, nomor, atas nama).');
+      /* semua pemeriksaan selesai: baru mengubah data */
+      store.all('Token').filter(function (t) { return String(t.member_id) === String(m.id) && t.status === 'menunggu'; })
+        .forEach(function (t) { store.update('Token', 'id', t.id, { status: 'batal', ket: String(t.ket || '') + ' (dibatalkan: member nonaktif)' }); });
+      VR_JENIS_TOKEN.forEach(function (j) { var n = tokenSaldo(m.id, j); if (n > 0) store.insert('Token', { id: rid('T', 8), waktu: nowIso(), member_id: String(m.id), hp: wa, jenis: j, delta: -n, harga: 0, total: 0, status: 'ok', booking_id: '', ket: 'Sisa token dikembalikan (member nonaktif)', metode: '', bukti: '', oleh: 'perental', tipe: 'kembali' }); });
+      var patch = { status: perluKembali ? 'nonaktif_proses' : 'nonaktif', rek_kembali: rek, deposit_ket: txt(req.alasan, 160) ? 'Alasan: ' + txt(req.alasan, 160) : String(m.deposit_ket || '') };
+      if (depTahan || dilapor) patch.deposit_status = 'minta_kembali';
+      store.update('Member', 'id', m.id, patch);
+      var dana = (depTahan || dilapor ? num(m.deposit) : 0) + nTok;
+      if (perluKembali) notify('admin', 'Member minta nonaktif', m.nama + ' (' + m.id + ') menonaktifkan member. Kembalikan ' + rp(dana) + (nTok ? ' (deposit ' + rp(depTahan || dilapor ? num(m.deposit) : 0) + ' + token belum terpakai ' + rp(nTok) + ')' : ' (deposit)') + ' ke: ' + rek + '.', m.id);
+      notify('H:' + wa, perluKembali ? 'Permintaan nonaktif diterima' : 'Member dinonaktifkan', perluKembali ? 'Pengelola akan mengembalikan ' + rp(dana) + ' ke ' + rek + '. Anda mendapat notifikasi setelah ditransfer.' : 'Status member Anda sudah nonaktif. Anda bisa mengaktifkan kembali kapan saja.', m.id);
+      return { member: memberOut(byId('Member', m.id)), dana: dana };
+    },
+    aktifkanLagiMember: function (req) {
+      var m = authMemberStatus(req);
+      if (m.status !== 'nonaktif') fail(m.status === 'nonaktif_proses' ? 'Pengembalian dana masih diproses pengelola.' : 'Status member masih aktif.');
+      store.update('Member', 'id', m.id, { status: 'menunggu', deposit: '', deposit_status: '', deposit_bukti: '', deposit_waktu: '', deposit_ket: '', rek_kembali: '' });
+      notify('admin', 'Member minta aktif kembali', m.nama + ' (' + m.id + ') ingin mengaktifkan kembali member. Verifikasi & tentukan deposit.', m.id);
+      return { member: memberOut(byId('Member', m.id)) };
+    },
+
+    /* ---------- KUOTA SEWA (TOKEN) ---------- */
+    tokenSaya: function (req) {
+      var m = authMember(req), s = settings(), ap = publicApp();
+      return { aktif: fiturOn(s, 'token'), saldo: tokenSaldoMap(m.id), paket: ap.token_paket, bayar: ap.bayar_semua, admin_wa: ap.admin_wa,
+        riwayat: tokenRows(m.id).slice(-80).reverse().map(tokenOut) };
+    },
+    beliToken: function (req) {
+      var m = authMember(req), s = settings();
+      if (!fiturOn(s, 'token')) fail('Fitur kuota sewa (token) sedang tidak aktif.');
+      var p = paketOf(s, String(req.jenis || ''));
+      if (!p || !p.aktif) fail('Paket token untuk jenis kendaraan ini belum tersedia.');
+      var n = Math.floor(num(req.jumlah));
+      if (n < 1) fail('Jumlah token minimal 1.');
+      if (p.maks_beli && n > p.maks_beli) fail('Maksimal ' + p.maks_beli + ' token per pembelian.');
+      var sisa = p.kuota - tokenTerjual(p.jenis);
+      if (n > sisa) fail(sisa > 0 ? 'Kuota token ' + VR_JENIS[p.jenis].pendek + ' tersisa ' + sisa + '.' : 'Kuota token ' + VR_JENIS[p.jenis].pendek + ' sedang habis.');
+      if (store.all('Token').filter(function (t) { return String(t.member_id) === String(m.id) && t.status === 'menunggu'; }).length >= 3) fail('Masih ada 3 pembelian token yang menunggu verifikasi.');
+      var met = txt(req.metode, 20); if (!met) fail('Pilih metode pembayaran.');
+      var r = { id: rid('T', 8), waktu: nowIso(), member_id: String(m.id), hp: vrNormWa(m.wa), jenis: p.jenis, delta: n, harga: p.harga, total: n * p.harga, status: 'menunggu',
+        booking_id: '', ket: 'Beli ' + n + ' token ' + VR_JENIS[p.jenis].pendek, metode: met, bukti: simpanBukti(req.bukti, 'tok'), oleh: 'perental', tipe: 'beli' };
+      store.insert('Token', r);
+      notify('admin', 'Pembelian token sewa', m.nama + ' (' + m.id + ') membeli ' + n + ' token ' + VR_JENIS[p.jenis].pendek + ' = ' + rp(r.total) + ' via ' + met + (r.bukti ? ', bukti terlampir' : '') + '. Cek dana masuk lalu setujui.', r.id);
+      return { token: tokenOut(r), saldo: tokenSaldoMap(m.id) };
+    },
+    buktiToken: function (req) {
+      var m = authMember(req), t = byId('Token', req.id);
+      if (!t || String(t.member_id) !== String(m.id) || t.status !== 'menunggu') fail('Pembelian token tidak ditemukan.');
+      var bk = simpanBukti(req.bukti, 'tok'); if (!bk) fail('Unggah foto bukti transfer.');
+      store.update('Token', 'id', t.id, { bukti: bk });
+      notify('admin', 'Bukti beli token', m.nama + ' mengirim bukti transfer ' + rp(num(t.total)) + ' (' + t.id + ').', t.id);
+      return { token: tokenOut(byId('Token', t.id)) };
+    },
+    batalToken: function (req) {
+      var m = authMember(req), t = byId('Token', req.id);
+      if (!t || String(t.member_id) !== String(m.id) || t.status !== 'menunggu') fail('Pembelian token tidak ditemukan atau sudah diproses.');
+      store.update('Token', 'id', t.id, { status: 'batal', oleh: 'perental' });
+      return { saldo: tokenSaldoMap(m.id) };
+    },
+    adminToken: function (req) {
+      authAdmin(req);
+      var a = String(req.aksi || '');
+      if (a === 'setujui' || a === 'tolak') {
+        var t = byId('Token', req.id);
+        if (!t || t.status !== 'menunggu') fail('Pembelian token tidak ditemukan atau sudah diproses.');
+        var mb = byId('Member', t.member_id);
+        store.update('Token', 'id', t.id, { status: a === 'setujui' ? 'ok' : 'tolak', oleh: 'pengelola', ket: a === 'tolak' ? String(t.ket) + ' (ditolak: ' + (txt(req.alasan, 120) || 'dana belum diterima') + ')' : t.ket });
+        if (mb) notify('H:' + vrNormWa(mb.wa), a === 'setujui' ? 'Token sewa aktif' : 'Pembelian token ditolak', a === 'setujui' ? num(t.delta) + ' token ' + (VR_JENIS[t.jenis] || {}).pendek + ' masuk ke saldo Anda. Saldo sekarang ' + tokenSaldo(mb.id, t.jenis) + ' token. Pakai saat booking.' : 'Pembelian ' + num(t.delta) + ' token ditolak: ' + (txt(req.alasan, 120) || 'dana belum diterima') + '.', t.id);
+        return { token: tokenOut(byId('Token', t.id)) };
+      }
+      if (a === 'koreksi') {
+        var m = byId('Member', req.member_id); if (!m) fail('Member tidak ditemukan.');
+        var j = String(req.jenis || ''); if (VR_JENIS_TOKEN.indexOf(j) < 0) fail('Pilih jenis kendaraan token.');
+        var d = Math.round(num(req.delta)); if (!d) fail('Isi jumlah token koreksi (+ / -).');
+        if (d < 0 && tokenSaldo(m.id, j) + d < 0) fail('Saldo token member tidak cukup untuk dikurangi.');
+        if (!txt(req.ket, 160)) fail('Isi keterangan koreksi.');
+        var r = { id: rid('T', 8), waktu: nowIso(), member_id: String(m.id), hp: vrNormWa(m.wa), jenis: j, delta: d, harga: 0, total: 0, status: 'ok', booking_id: '', ket: 'Koreksi pengelola: ' + txt(req.ket, 140), metode: '', bukti: '', oleh: 'pengelola', tipe: 'koreksi' };
+        store.insert('Token', r);
+        notify('H:' + vrNormWa(m.wa), 'Saldo token dikoreksi', (d > 0 ? '+' : '') + d + ' token ' + VR_JENIS[j].pendek + ': ' + txt(req.ket, 120), r.id);
+        return { token: tokenOut(r) };
+      }
+      fail('Aksi tidak dikenal.');
+    },
+
+    /* ---------- PROMO & BANNER ---------- */
+    bannerPublik: function (req) {
+      var s = settings(), tg = req.target === 'mitra' ? 'mitra' : 'penyewa';
+      return { banner: bannerPublik(s, tg), fitur: fiturMap(s) };
+    },
+    /* Kirim push notifikasi promo / event wisata ke semua penyewa / mitra (ketuk = buka promo) */
+    adminPromoPush: function (req) {
+      var s = authAdmin(req);
+      if (!fiturOn(s, 'push_promo')) fail('Fitur push notifikasi promo sedang dimatikan. Nyalakan di Atur → Sakelar fitur.');
+      var id = txt(req.id, 20), p = promoEvent(s).filter(function (x) { return x.id === id; })[0], bn = null;
+      if (!p) { bn = bannerList(s).filter(function (x) { return x.id === id; })[0]; if (!bn) fail('Promo tidak ditemukan. Simpan promo terlebih dahulu.'); }
+      var judul = txt(req.judul, 80) || (p ? (p.kategori === 'Event' ? 'Event: ' : 'Promo: ') + p.judul : (bn.judul || 'Promo Vast Travel'));
+      var isi = txt(req.isi, 240) || (p ? (p.ket || p.berlaku || 'Ketuk untuk melihat promo.') : (bn.sub || 'Ketuk untuk melihat promo.'));
+      var foto = p ? (p.tipe === 'gambar' || p.tipe === 'gif' ? p.foto : '') : (bn.tipe !== 'video' ? bn.media : '');
+      var tg = req.target === 'mitra' ? ['pemilik'] : req.target === 'semua' ? ['perental', 'pemilik'] : ['perental'];
+      tg.forEach(function (peran) { siarkan(peran, judul, isi, 'promo:' + id, { tipe: 'promo', link: 'promo:' + id, foto: /^https?:\/\//.test(foto) ? foto : '' }); });
+      return { ok: true, terkirim: tg };
+    },
+
     dataMember: function (req) {
       var m = authMember(req), id = String(m.id), wa = vrNormWa(m.wa);
       return { member: memberOut(m), poin: saldoPoin(wa), booking: store.all('Booking').filter(function (b) { return (String(b.member_id) === id || vrNormWa(b.hp) === wa) && !tersembunyi(b, 'perental'); }).slice(-100).reverse().map(bookingOut) };
@@ -2109,7 +2379,8 @@ function vrCreateLogic(store) {
         chat_belum: s.__monitor ? 0 : store.all('Chat').filter(function (c) { return String(c.dari) === 'user' && !String(c.dibaca || ''); }).length,
         pemilik: store.all('Pemilik').filter(function (p) { return p.status !== 'hapus'; }).map(function (p) { var x = pemilikOut(p); x.pin = ro ? '' : String(p.pin || ''); return x; }),
         saldo: store.all('Saldo').slice(-400).map(function (x) { var o = saldoOut(x); o.pemilik_id = String(x.pemilik_id); return o; }),
-        member: store.all('Member').filter(function (m) { return m.status !== 'hapus'; }).map(function (m) { var x = memberOut(m); x.pin = ro ? '' : String(m.pin || ''); x.poin = saldoPoin(m.wa); x.ktp = String(m.ktp || ''); x.sim = String(m.sim || ''); x.selfie = String(m.selfie || ''); return x; }),
+        member: store.all('Member').filter(function (m) { return m.status !== 'hapus'; }).map(function (m) { var x = memberOut(m); x.pin = ro ? '' : String(m.pin || ''); x.poin = saldoPoin(m.wa); x.ktp = String(m.ktp || ''); x.sim = String(m.sim || ''); x.selfie = String(m.selfie || ''); x.token = tokenSaldoMap(m.id); x.nilai_token = nilaiTokenSisa(m.id); return x; }),
+        token: store.all('Token').slice(-600).map(tokenOut), fitur_daftar: VR_FITUR, banner_semua: bannerList(s), token_terjual: (function () { var o = {}; VR_JENIS_TOKEN.forEach(function (j) { o[j] = tokenTerjual(j); }); return o; })(),
         monitor: ro, monitor_aktif: !!s.monitor_pin,
         unit: store.all('Unit').filter(function (u) { return u.status !== 'hapus'; }).map(unitFull),
         booking: store.all('Booking').slice(-1500).reverse().map(bookingOut),
@@ -2146,10 +2417,10 @@ function vrCreateLogic(store) {
     adminUploadFoto: function (req) {
       authAdmin(req);
       var data = String(req.data || '');
-      if (!/^data:image\/(jpeg|png|webp);base64,/.test(data)) fail('Format foto tidak didukung. Gunakan JPG atau PNG.');
-      if (data.length > 2000000) fail('Ukuran foto terlalu besar.');
+      if (!/^data:image\/(jpeg|png|webp|gif);base64,/.test(data)) fail('Format gambar tidak didukung. Gunakan JPG, PNG atau GIF.');
+      if (data.length > 2700000) fail('Ukuran gambar terlalu besar (maks 2 MB). Untuk GIF / video besar, unggah lewat menu Banner.');
       if (!store.saveImage) fail('Penyimpanan foto belum tersedia.');
-      return { url: store.saveImage('model_' + Date.now() + '.jpg', data) };
+      return { url: store.saveImage('model_' + Date.now() + (/^data:image\/gif/.test(data) ? '.gif' : '.jpg'), data) };
     },
     adminBooking: function (req) {
       var s = authAdmin(req);
@@ -2189,7 +2460,9 @@ function vrCreateLogic(store) {
         var ex = { harga_waktu: nowIso() };
         if (req.wakil) { ex.mitra_ok = 'ya'; if (b.driver) ex.driver_ok = 'ya'; }
         o = changeStatus(b, 'menunggu_bayar', 'pengelola', ex);
-        if (String(b.bayar_lapor || '')) notifPerental(b, 'Order disetujui', 'Order ' + b.id + ' disetujui. Pembayaran Anda sedang divalidasi.');
+        if (pakaiToken(b) && tagihan(b) <= 0) return { booking: lunaskan(findBooking(b.id), 'pengelola') };
+        if (pakaiToken(b)) notifPerental(b, 'Order disetujui - bayar deposit', 'Order ' + b.id + ' disetujui (sewa dibayar ' + num(b.token) + ' token). Bayar deposit ' + rp(tagihan(b)) + ' ke rekening mitra dalam ' + (num(s.batas_bayar_jam) || 3) + ' jam.');
+        else if (String(b.bayar_lapor || '')) notifPerental(b, 'Order disetujui', 'Order ' + b.id + ' disetujui. Pembayaran Anda sedang divalidasi.');
         else notifPerental(b, 'Order disetujui - silakan bayar', 'Order ' + b.id + ' disetujui. Bayar ' + rp(tagihan(b)) + ' langsung ke rekening mitra (lihat di aplikasi) dalam ' + (num(s.batas_bayar_jam) || 3) + ' jam lewat aplikasi.');
         notifPemilik(b, 'Order disetujui', unitLabel(b) + ' (' + b.id + ') disetujui, menunggu pembayaran penyewa.');
         if (b.driver) notifDriver(b, 'Order disetujui', 'Order ' + b.id + ' disetujui, menunggu pembayaran penyewa.');
@@ -2308,19 +2581,40 @@ function vrCreateLogic(store) {
       authAdmin(req);
       var m = byId('Member', req.id), x = req.patch || {}, patch = {};
       if (!m) fail('Member tidak ditemukan.');
+      var sDep = settings(), depOn = fiturOn(sDep, 'deposit_member'), verif = false;
       if (x.status) {
-        if (['terverifikasi', 'menunggu', 'ditolak'].indexOf(x.status) < 0) fail('Status member tidak dikenal.');
+        if (['terverifikasi', 'menunggu', 'ditolak', 'nonaktif'].indexOf(x.status) < 0) fail('Status member tidak dikenal.');
         patch.status = x.status;
         if (x.status === 'terverifikasi' && !String(m.pin)) patch.pin = pin4();
+        if (x.status === 'terverifikasi') {
+          /* Fitur deposit member: setelah dokumen valid, member wajib menaruh deposit dulu (nominal ditentukan pengelola) */
+          var dv = x.deposit === undefined || String(x.deposit) === '' ? Math.round(num(sDep.deposit_member)) : Math.round(num(x.deposit));
+          if (dv < 0 || dv > 100000000) fail('Nominal deposit tidak valid.');
+          if (depOn && dv > 0 && m.deposit_status !== 'ditahan') {
+            patch.status = 'menunggu_deposit'; patch.deposit = dv; patch.deposit_status = 'menunggu'; patch.deposit_bukti = ''; patch.deposit_waktu = '';
+          } else verif = true;
+        }
+      }
+      if (x.deposit_diterima) {
+        if (m.status !== 'menunggu_deposit') fail('Member tidak sedang menunggu deposit.');
+        patch.status = 'terverifikasi'; patch.deposit_status = 'ditahan'; patch.deposit_waktu = nowIso(); verif = true;
+        if (!String(m.pin)) patch.pin = pin4();
+      }
+      if (x.deposit_kembali) {
+        if (m.status !== 'nonaktif_proses') fail('Member tidak sedang meminta pengembalian dana.');
+        patch.status = 'nonaktif'; if (num(m.deposit) > 0 && m.deposit_status === 'minta_kembali') patch.deposit_status = 'dikembalikan';
+        patch.deposit_ket = (String(m.deposit_ket || '') + ' · Dikembalikan ' + vrToday() + (txt(x.ket, 120) ? ' (' + txt(x.ket, 120) + ')' : '')).slice(0, 300);
       }
       if ('catatan' in x) patch.catatan = txt(x.catatan, 200);
       if (x.reset_pin) patch.pin = pin4();
       /* Data minimal: foto KTP/SIM/selfie dihapus setelah member diverifikasi */
-      if (x.status === 'terverifikasi') { ['ktp', 'sim', 'selfie'].forEach(function (k) { if (String(m[k] || '') && store.deleteImage) store.deleteImage(m[k]); patch[k] = ''; }); patch.catatan = 'Dokumen diverifikasi ' + vrToday() + '; foto dihapus.'; }
+      if (verif || patch.status === 'menunggu_deposit') { ['ktp', 'sim', 'selfie'].forEach(function (k) { if (String(m[k] || '') && store.deleteImage) store.deleteImage(m[k]); patch[k] = ''; }); patch.catatan = 'Dokumen diverifikasi ' + vrToday() + '; foto dihapus.'; }
       store.update('Member', 'id', m.id, patch);
-      if (x.status === 'terverifikasi') notify('H:' + vrNormWa(m.wa), 'Member terverifikasi', 'Selamat! Anda kini bisa sewa lepas kunci dan menukar poin.', m.id);
+      if (patch.status === 'menunggu_deposit') notify('H:' + vrNormWa(m.wa), 'Dokumen valid - bayar deposit', 'Dokumen Anda sudah diverifikasi. Bayar deposit member ' + rp(patch.deposit) + ' ke rekening pengelola (lihat menu Akun, masuk dengan ID ' + m.id + ' & PIN Anda). Deposit dikembalikan bila Anda menonaktifkan member.', m.id);
+      if (verif) notify('H:' + vrNormWa(m.wa), 'Member terverifikasi', 'Selamat! Anda kini bisa sewa lepas kunci' + (fiturOn(sDep, 'token') ? ', membeli kuota sewa (token),' : '') + ' dan menukar poin.', m.id);
+      if (x.deposit_kembali) notify('H:' + vrNormWa(m.wa), 'Dana dikembalikan', 'Pengembalian dana member Anda sudah ditransfer ke ' + (m.rek_kembali || 'rekening Anda') + '. Terima kasih telah bersama Vast Travel.', m.id);
       if (x.status === 'ditolak') notify('H:' + vrNormWa(m.wa), 'Verifikasi member ditolak', (txt(x.catatan, 200) || 'Foto dokumen belum sesuai.') + ' Silakan unggah ulang KTP, SIM & selfie.', m.id);
-      var y = byId('Member', m.id), out = memberOut(y); out.pin = String(y.pin || ''); out.poin = saldoPoin(y.wa);
+      var y = byId('Member', m.id), out = memberOut(y); out.pin = String(y.pin || ''); out.poin = saldoPoin(y.wa); out.token = tokenSaldoMap(y.id); out.nilai_token = nilaiTokenSisa(y.id);
       return { member: out };
     },
     /* Hapus mitra (beserta armadanya), member, atau satu unit armada. Ditolak bila masih ada order berjalan.
@@ -2426,6 +2720,24 @@ function vrCreateLogic(store) {
         if (!Array.isArray(pe)) fail('Data promo tidak valid.');
         if (pe.length > 5) fail('Maksimal 5 promo / event.');
         setSetting('promo_event', JSON.stringify(promoEvent({ promo_event: pe }).map(function (p, i) { p.id = p.id || ('E' + Date.now().toString(36) + i); return p; })));
+      }
+      VR_FITUR.forEach(function (f) { var k = 'fitur_' + f[0]; if (k in v) setSetting(k, yes(v[k]) ? 'ya' : 'tidak'); });
+      if ('deposit_member' in v) { var dmv = Math.round(num(v.deposit_member)); if (dmv < 0 || dmv > 100000000) fail('Nominal deposit member tidak valid.'); setSetting('deposit_member', dmv); }
+      if ('token_paket' in v) {
+        var tp = Array.isArray(v.token_paket) ? v.token_paket : parseJson(v.token_paket, null);
+        if (!Array.isArray(tp)) fail('Data paket token tidak valid.');
+        tp.forEach(function (x) {
+          if (VR_JENIS_TOKEN.indexOf(String(x.jenis)) < 0) fail('Jenis kendaraan paket token tidak dikenal.');
+          if (!(num(x.harga) > 0)) fail('Isi harga per token untuk ' + VR_JENIS[x.jenis].pendek + '.');
+          if (num(x.kuota) < 0 || num(x.kuota) > 100000) fail('Kuota token ' + VR_JENIS[x.jenis].pendek + ' tidak valid.');
+        });
+        setSetting('token_paket', JSON.stringify(tokenPaket({ token_paket: tp })));
+      }
+      if ('banner' in v) {
+        var bn = Array.isArray(v.banner) ? v.banner : parseJson(v.banner, null);
+        if (!Array.isArray(bn)) fail('Data banner tidak valid.');
+        if (bn.length > 12) fail('Maksimal 12 banner.');
+        setSetting('banner', JSON.stringify(bannerList({ banner: bn }).map(function (b, i) { b.id = /^BN\d+$/.test(b.id) || !b.id ? 'B' + Date.now().toString(36) + i : b.id; return b; })));
       }
       VR_QR_KEYS.forEach(function (k) {
         if (!(k in v)) return; var q = String(v[k] || '').trim();
@@ -2765,9 +3077,10 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   }
   function imgUrl(p) { return (window.VT_IMG && window.VT_IMG[p]) || p; }
   function modelImg(foto, cls) { return '<div class="' + (cls || 'uimg') + ' mdl"><img src="' + esc(imgUrl(foto)) + '" alt="" loading="lazy"></div>'; }
-  function unitImg(u, cls) {
-    var f = fotoList(u)[0] || '', n = fotoList(u).length;
-    if (f) return '<div class="' + (cls || 'uimg') + '"><img src="' + esc(f) + '" alt="" loading="lazy">' + (n > 1 ? '<span class="photo-tag">' + n + ' foto</span>' : '') + '</div>';
+  /* zoom = true: foto unit bisa diketuk untuk diperbesar (galeri layar penuh, cubit untuk zoom) */
+  function unitImg(u, cls, zoom) {
+    var L = fotoList(u), f = L[0] || '', n = L.length;
+    if (f) return '<div class="' + (cls || 'uimg') + '"' + (zoom ? ' data-zfoto="' + esc(L.join('|')) + '" style="cursor:zoom-in"' : '') + '><img src="' + esc(f) + '" alt="" loading="lazy">' + (n > 1 ? '<span class="photo-tag">' + n + ' foto</span>' : '') + '</div>';
     var mf = modelFoto(u);
     if (mf) return modelImg(mf, cls);
     return '<div class="' + (cls || 'uimg') + '">' + vehicleSvg(u && (u.jenis || u.jenis_unit), u && u.warna) + '</div>';
@@ -3062,7 +3375,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
         return '<button class="nitem" data-ref="' + esc(n.ref) + '"><span class="ndot">' + ic('bell') + '</span><span class="grow"><b>' + esc(n.judul) + '</b><span class="small">' + esc(n.isi) + '</span><span class="xs muted">' + waktu(n.waktu) + '</span></span></button>';
       }).join('') + '</div>' : '<div class="empty"><b>Belum ada notifikasi</b>Kabar booking, pembayaran, dan poin akan muncul di sini.</div>'), function (el) {
       var a = el.querySelector('#nt-ask'); if (a) a.onclick = function () { Notification.requestPermission().then(function (p) { toast(p === 'granted' ? 'Notifikasi aktif.' : 'Notifikasi tidak diizinkan.'); a.remove(); }); };
-      el.querySelectorAll('[data-ref]').forEach(function (b) { b.onclick = function () { closeSheet(); if (b.dataset.ref === 'chat' && CHAT.cfg) return CHAT.cfg.buka ? CHAT.cfg.buka() : chatOpen(CHAT.cfg); if (onTap) onTap(b.dataset.ref); }; });
+      el.querySelectorAll('[data-ref]').forEach(function (b) { b.onclick = function () { closeSheet(); if (b.dataset.ref === 'chat' && CHAT.cfg) return CHAT.cfg.buka ? CHAT.cfg.buka() : chatOpen(CHAT.cfg); if (/^promo:/.test(b.dataset.ref) && LINK.fn) return LINK.fn(b.dataset.ref); if (onTap) onTap(b.dataset.ref); }; });
     });
   }
 
@@ -3177,10 +3490,10 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
 
   /* Galeri foto layar penuh: geser antar foto (maks 5), cubit / ketuk 2x untuk zoom, geser saat diperbesar. */
   function zoomGallery(fotos, start) {
-    fotos = (fotos || []).slice(0, 5); if (!fotos.length) return;
+    fotos = (fotos || []).slice(0, 12); if (!fotos.length) return;
     var ov = document.createElement('div');
     ov.className = 'zg';
-    ov.innerHTML = '<div class="zg-track">' + fotos.map(function (f) { return '<div class="zg-slide"><img src="' + esc(f) + '" alt="" draggable="false"></div>'; }).join('') + '</div>' +
+    ov.innerHTML = '<div class="zg-track">' + fotos.map(function (f) { return '<div class="zg-slide">' + (mediaTipe(f) === 'video' ? '<video src="' + esc(imgUrl(f)) + '" controls playsinline style="max-width:100%;max-height:100%"></video>' : '<img src="' + esc(imgUrl(f)) + '" alt="" draggable="false">') + '</div>'; }).join('') + '</div>' +
       '<button class="zg-x" aria-label="Tutup">&times;</button><div class="zg-n"></div>';
     document.body.appendChild(ov);
     var track = ov.querySelector('.zg-track'), n = ov.querySelector('.zg-n'), idx = Math.max(0, Math.min(fotos.length - 1, start || 0));
@@ -3196,7 +3509,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     }
     function dist() { var a = Object.keys(pts).map(function (k) { return pts[k]; }); return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); }
     track.addEventListener('pointerdown', function (e) {
-      var img = e.target.closest('.zg-slide') && e.target.closest('.zg-slide').querySelector('img'); if (!img) return;
+      var img = e.target.closest('.zg-slide') && e.target.closest('.zg-slide').querySelector('img'); if (!img) return; /* video: kontrol bawaan */
       if (Z.img !== img) { reset(); Z = { s: 1, x: 0, y: 0, img: img }; }
       pts[e.pointerId] = { x: e.clientX, y: e.clientY };
       var k = Object.keys(pts).length;
@@ -3491,7 +3804,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
         var n = hanya ? p[1].filter(function (k) { return hanya.indexOf(k[0]) >= 0; }).length : p[1].length;
         return { v: p[0], t: p[0], kanan: n + ' kab/kota' };
       }));
-      return pickList({ judul: opt.judul || 'Pilih provinsi', sub: hanya ? 'Hanya wilayah yang sudah dibuka pengelola' : '', items: items, nilai: opt.semua && !cur ? '' : curProv, cari: true }).then(function (p) {
+      return pickList({ judul: opt.judul || 'Pilih provinsi', sub: opt.sub || (hanya ? 'Hanya wilayah yang sudah dibuka pengelola' : ''), items: items, nilai: opt.semua && !cur ? '' : curProv, cari: true }).then(function (p) {
         if (p === undefined || p === PICK_BACK) return undefined;
         if (p === '') return '';
         return langkah2(p);
@@ -3516,12 +3829,12 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     return '<input type="hidden" id="' + id + '" value="' + esc(nilai || '') + '"><button type="button" class="pkbtn wilbtn" data-wil="' + id + '"' + (o.scope ? ' data-scope="' + o.scope + '"' : '') + (o.semua ? ' data-semua="' + esc(o.semua) + '"' : '') + (o.prov ? ' data-prov="1"' : '') + '>' +
       ic('pin', 'ic pkc') + '<span class="pkv">' + esc(nilai ? vrWilayahLabel(nilai) : (o.semua || o.ph || 'Pilih provinsi & kabupaten / kota')) + '</span>' + ic('chev', 'ic pkc') + '</button>';
   }
-  var WIL_BUKA = null;
+  var WIL_BUKA = null, WIL_UNIT = null; /* WIL_UNIT: kota asal unit yang tersedia (pilihan lokasi penyewa) */
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-wil]'); if (!b) return;
     e.preventDefault();
     var inp = document.getElementById(b.dataset.wil); if (!inp) return;
-    pilihWilayah({ nilai: inp.value, hanya: b.dataset.scope === 'buka' ? (WIL_BUKA || []) : null, bolehProv: !!b.dataset.prov, semua: b.dataset.semua || '' }).then(function (v) {
+    pilihWilayah({ nilai: inp.value, hanya: b.dataset.scope === 'buka' ? (WIL_BUKA || []) : b.dataset.scope === 'unit' ? (WIL_UNIT || WIL_BUKA || []) : null, sub: b.dataset.scope === 'unit' ? 'Hanya lokasi yang memiliki unit tersedia' : '', bolehProv: !!b.dataset.prov, semua: b.dataset.semua || '' }).then(function (v) {
       if (v === undefined) return;
       inp.value = v; b.querySelector('.pkv').textContent = v ? vrWilayahLabel(v) : (b.dataset.semua || 'Pilih');
       inp.dispatchEvent(new Event('change', { bubbles: true }));
@@ -3607,8 +3920,87 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   }
   document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('[data-privasi]'); if (!a) return; e.preventDefault(); e.stopPropagation(); privasiOpen(); }, true);
 
+
+  /* ================= MEDIA, BANNER, TAUTAN NOTIFIKASI ================= */
+  function mediaTipe(u, t) { if (t === 'video' || t === 'gif' || t === 'gambar') return t; u = String(u || ''); return /\.(mp4|webm|m4v|mov)(\?|#|$)/i.test(u) ? 'video' : /\.gif(\?|#|$)/i.test(u) ? 'gif' : 'gambar'; }
+  /* Satu elemen media (gambar / GIF / video tanpa suara) */
+  function mediaEl(u, t, cls, extra) {
+    u = imgUrl(u);
+    if (mediaTipe(u, t) === 'video') return '<video class="' + (cls || '') + '" src="' + esc(u) + '" muted playsinline preload="metadata" ' + (extra || '') + '></video>';
+    return '<img class="' + (cls || '') + '" src="' + esc(u) + '" alt="" loading="lazy" ' + (extra || '') + '>';
+  }
+  /* Carousel banner: list = [{media, tipe, judul, sub, aksi, link}] */
+  function bannerHtml(list, id, cls) {
+    if (!list || !list.length) return '';
+    return '<div class="bnr ' + (cls || '') + '" id="' + id + '"><div class="bnr-track">' + list.map(function (b, i) {
+      return '<div class="bnr-s" data-bi="' + i + '" role="button" tabindex="0" aria-label="' + esc(b.judul || 'Banner ' + (i + 1)) + '">' + mediaEl(b.media, b.tipe, 'bnr-m', list.length > 1 ? '' : 'loop') +
+        (b.judul || b.sub ? '<div class="bnr-t">' + (b.judul ? '<b>' + esc(b.judul) + '</b>' : '') + (b.sub ? '<span>' + esc(b.sub) + '</span>' : '') + '</div>' : '') +
+        (mediaTipe(b.media, b.tipe) === 'video' ? '<span class="bnr-vid" aria-hidden="true">▶</span>' : '') + '</div>';
+    }).join('') + '</div>' + (list.length > 1 ? '<div class="bnr-dots">' + list.map(function (_, i) { return '<i' + (i ? '' : ' class="on"') + '></i>'; }).join('') + '</div>' : '') + '</div>';
+  }
+  function bannerBind(id, list, onTap) {
+    var root = document.getElementById(id); if (!root) return;
+    var tr = root.querySelector('.bnr-track'), dots = root.querySelectorAll('.bnr-dots i'), cur = 0, timer = null;
+    function slides() { return tr.children; }
+    function play() {
+      Array.prototype.forEach.call(slides(), function (sl, i) {
+        var v = sl.querySelector('video'); if (!v) return;
+        if (i === cur) { v.muted = true; var pr = v.play(); if (pr && pr.catch) pr.catch(function () { v.setAttribute('controls', ''); }); } else { try { v.pause(); } catch (e) { /* abaikan */ } }
+      });
+    }
+    function setCur(i) { cur = i; Array.prototype.forEach.call(dots, function (d, k) { d.className = k === i ? 'on' : ''; }); play(); jadwal(); }
+    function next() { if (!document.body.contains(root)) return clearTimeout(timer); var n = slides().length; if (n < 2) return; tr.scrollTo({ left: ((cur + 1) % n) * tr.clientWidth, behavior: 'smooth' }); }
+    function jadwal() {
+      clearTimeout(timer); if (slides().length < 2) return;
+      var v = slides()[cur] && slides()[cur].querySelector('video');
+      if (v) { v.onended = next; timer = setTimeout(next, 30000); } else timer = setTimeout(next, 5000);
+    }
+    tr.addEventListener('scroll', function () { var i = Math.round(tr.scrollLeft / Math.max(1, tr.clientWidth)); if (i !== cur) setCur(i); });
+    Array.prototype.forEach.call(slides(), function (sl) {
+      sl.onclick = function () { var b = list[Number(sl.dataset.bi)]; if (b && onTap) onTap(b, Number(sl.dataset.bi)); };
+    });
+    document.addEventListener('visibilitychange', function () { if (!document.body.contains(root)) return; if (document.visibilityState === 'visible') play(); else Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) { try { v.pause(); } catch (e) { /* abaikan */ } }); });
+    play(); jadwal();
+  }
+  /* Pilih file media (gambar / GIF / video) dari HP / komputer */
+  function pickMedia(accept) {
+    return new Promise(function (res) {
+      var inp = document.createElement('input'); inp.type = 'file'; inp.accept = accept || 'image/*,video/mp4,video/webm'; inp.style.display = 'none';
+      inp.onchange = function () { var f = inp.files && inp.files[0]; inp.remove(); res(f || null); };
+      document.body.appendChild(inp); inp.click();
+    });
+  }
+  /* Unggah media pengelola. Gambar biasa diperkecil; GIF & video dikirim apa adanya ke server (maks 25 MB). */
+  function uploadMedia(file, pin) {
+    if (!file) return Promise.reject(new Error('Tidak ada file.'));
+    var t = String(file.type || '').toLowerCase();
+    if (!/^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime))$/.test(t)) return Promise.reject(new Error('Format tidak didukung. Gunakan JPG, PNG, GIF, MP4 atau WEBM.'));
+    if (file.size > 25 * 1024 * 1024) return Promise.reject(new Error('Ukuran file maksimal 25 MB. Kompres video terlebih dahulu.'));
+    var tipe = t.indexOf('video/') === 0 ? 'video' : t === 'image/gif' ? 'gif' : 'gambar';
+    if (tipe === 'gambar') return shrink(file).then(function (d) { if (!d) throw new Error('Gambar tidak bisa dibaca.'); return api('adminUploadFoto', { pin: pin, data: d }); }).then(function (r) { return { url: r.url, tipe: 'gambar' }; });
+    if (DEMO) return new Promise(function (res, rej) { if (file.size > 3 * 1024 * 1024) return rej(new Error('Mode demo: file maks 3 MB.')); var rd = new FileReader(); rd.onload = function () { res({ url: rd.result, tipe: tipe }); }; rd.readAsDataURL(file); });
+    if (/script\.google/.test(CFG.API_URL)) return Promise.reject(new Error('Unggah video/GIF butuh server Cloudflare. Tempel tautan video sebagai gantinya.'));
+    return fetch(CFG.API_URL.replace(/\/+$/, '') + '/media?pin=' + encodeURIComponent(pin), { method: 'POST', headers: { 'Content-Type': t === 'video/quicktime' ? 'video/quicktime' : t }, body: file })
+      .then(function (r) { return r.json(); }).then(function (r) { if (!r || !r.ok) throw new Error((r && r.error) || 'Gagal mengunggah.'); return { url: r.url, tipe: r.tipe || tipe }; });
+  }
+  /* Tautan dari notifikasi yang diketuk (mis. "promo:E1"): diteruskan ke handler aplikasi */
+  var LINK = { fn: null, antre: '' };
+  function linkHandler(fn) { LINK.fn = fn; ambilLink(); if (LINK.antre) { var l = LINK.antre; LINK.antre = ''; fn(l); } }
+  function ambilLink() {
+    var l = '';
+    try { if (NATIVE && NATIVE.takeLink) l = String(NATIVE.takeLink() || ''); } catch (e) { l = ''; }
+    if (!l && /^#(promo:[A-Za-z0-9_-]+)$/.test(location.hash)) { l = location.hash.slice(1); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* abaikan */ } }
+    if (!l) return;
+    if (LINK.fn) LINK.fn(l); else LINK.antre = l;
+  }
+  /* Foto unit di kartu kecil bisa diketuk untuk diperbesar: <div data-zfoto="url1|url2"> */
+  document.addEventListener('click', function (e) {
+    var z = e.target.closest && e.target.closest('[data-zfoto]'); if (!z) return;
+    var L = String(z.getAttribute('data-zfoto') || '').split('|').filter(Boolean); if (!L.length) return;
+    e.preventDefault(); e.stopPropagation(); zoomGallery(L, 0);
+  }, true);
   window.VR = { DEMO: DEMO, CFG: CFG, api: api, rp: rp, esc: esc, wa: wa, tgl: tgl, waktu: waktu, sameMonth: sameMonth, sapaan: sapaan,
-    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, privasiOpen: privasiOpen, setujuHtml: setujuHtml, perjanjianSewa: perjanjianSewa, perjanjianOpen: perjanjianOpen, baSheet: baSheet, baView: baView, PRIVASI: PRIVASI, pickList: pickList, pilihWilayah: pilihWilayah, wilBtn: wilBtn, setWilayahBuka: function (l) { WIL_BUKA = l || []; }, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
+    unitNama: unitNama, judulBooking: judulBooking, isTrip: isTrip, isAntar: isAntar, km: km, ruteUrl: ruteUrl, buatPdf: buatPdf, simpanPdf: simpanPdf, rekapOpen: rekapOpen, tglPdf: tglPdf, privasiOpen: privasiOpen, setujuHtml: setujuHtml, perjanjianSewa: perjanjianSewa, perjanjianOpen: perjanjianOpen, baSheet: baSheet, baView: baView, PRIVASI: PRIVASI, pickList: pickList, pilihWilayah: pilihWilayah, wilBtn: wilBtn, setWilayahBuka: function (l) { WIL_BUKA = l || []; }, setWilayahUnit: function (l) { WIL_UNIT = l || []; }, leaflet: leaflet, statusLabel: statusLabel, stClass: stClass, pill: pill, jadwal: jadwal, detailTrip: detailTrip, kvTrip: kvTrip, MSG: MSG,
     cached: cached, loadFast: loadFast, uiBusy: uiBusy, clearCached: clearCached,
     trackStart: trackStart, trackStop: trackStop, trackOn: trackOn, liveMap: liveMap, lokLabel: lokLabel, lokWarna: lokWarna,
     vehicleSvg: vehicleSvg, unitImg: unitImg, models: models, modelOf: modelOf, modelFoto: modelFoto, brands: brands, modelImg: modelImg, imgUrl: imgUrl, warnaHex: warnaHex, fotoList: fotoList, pickPhotos: pickPhotos, scenery: scenery,
@@ -3616,6 +4008,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     lsGet: lsGet, lsSet: lsSet, lsDel: lsDel, demoBanner: demoBanner, bindDemoReset: bindDemoReset, busy: busy, waBtn: waBtn,
     chatSet: chatSet, chatOpen: chatOpen,
     bisaHapus: bisaHapus, pilihBar: pilihBar, pilihBox: pilihBox, pilihBind: pilihBind,
+    mediaTipe: mediaTipe, mediaEl: mediaEl, bannerHtml: bannerHtml, bannerBind: bannerBind, pickMedia: pickMedia, uploadMedia: uploadMedia, linkHandler: linkHandler, onLink: ambilLink,
     onPush: function () { poll(); segarData(); cekUpdate(); }, segarkan: segarData, alur: alur, bisaBayar: bisaBayar, cekUpdate: cekUpdate, zoomGallery: zoomGallery, notifStart: notifStart, notifPoll: poll, openNotif: openNotif, NATIVE: NATIVE };
 
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|claudeusercontent|androidplatform/.test(location.hostname)) {
@@ -3672,14 +4065,18 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
   function perluSetuju(b) { return b.status === 'menunggu_harga' || b.status === 'menunggu_setuju' || (b.status === 'menunggu_mitra' && butuhDriver(b) && (!b.driver || b.driver_ok === 'tolak')); }
   function perluTindakan(b) {
     return perluSetuju(b) || (b.status === 'lunas' && !b.unit_siap) ||
-      belumPayout(b) || (b.status === 'berjalan' && b.tgl_selesai <= vrToday());
+      belumPayout(b) || tokenBayarMitra(b) || (b.status === 'berjalan' && b.tgl_selesai <= vrToday());
   }
+  function tokenBayarMitra(b) { return b.token > 0 && (b.status === 'berjalan' || b.status === 'selesai') && b.payout !== 'sudah'; }
+  function tokenMenunggu() { return (S.d.token || []).filter(function (t) { return t.status === 'menunggu'; }); }
+  function memberProses() { return S.d.member.filter(function (m) { return m.status === 'menunggu' || m.status === 'menunggu_deposit' || m.status === 'nonaktif_proses'; }); }
+  function fiturOn(k) { return (S.d.pengaturan['fitur_' + k] || 'ya') !== 'tidak'; }
   function setBadge(id, n) { var e = document.getElementById(id); e.hidden = !n; e.textContent = n; }
   function counts() {
     var B = S.d.booking;
     return { cek: B.filter(sudahBayar).length, harga: B.filter(function (b) { return b.status === 'menunggu_harga'; }).length,
       payout: B.filter(belumPayout).length, topup: topupMenunggu().length, setuju: B.filter(perluSetuju).length, unit: S.d.unit.filter(function (u) { return u.status === 'menunggu'; }).length,
-      mitra: S.d.pemilik.filter(function (p) { return p.status === 'menunggu'; }).length, member: S.d.member.filter(function (m) { return m.status === 'menunggu'; }).length };
+      mitra: S.d.pemilik.filter(function (p) { return p.status === 'menunggu'; }).length, member: memberProses().length, token: tokenMenunggu().length, tokbayar: B.filter(tokenBayarMitra).length };
   }
 
   function load() {
@@ -3728,6 +4125,10 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       ['u:pemilik', 'key', 'Mitra Pemilik', c.mitra], ['u:member', 'users', 'Member', c.member], ['peta', 'pin', 'Peta Live', B.filter(function (b) { return b.status === 'berjalan'; }).length], S.ro ? ['atur', 'gear', 'Akun'] : ['chat', 'help', 'Chat', d.chat_belum || 0]];
     if (!S.ro && !(d.app.bayar || []).length) h += '<div class="note warn"><b>Rekening pengelola belum diisi.</b> Mitra perlu rekening ini untuk mengisi saldo fee. <button class="linkbtn" data-q="atur">Isi rekening, e-wallet & QRIS</button></div>';
     if (!S.ro && tp.length) h += '<div class="note warn"><b>' + tp.length + ' permintaan isi saldo mitra</b> menunggu verifikasi. <button class="linkbtn" data-q="saldo">Cek sekarang</button></div>';
+    if (!S.ro && c.token) h += '<div class="note warn"><b>' + c.token + ' pembelian token sewa</b> menunggu verifikasi dana. <button class="linkbtn" data-q="tok">Verifikasi</button></div>';
+    if (!S.ro && c.tokbayar) h += '<div class="note warn"><b>' + c.tokbayar + ' order token</b> perlu diteruskan pembayaran sewanya ke mitra. <button class="linkbtn" data-q="b:token">Bayar mitra</button></div>';
+    var mdp = d.member.filter(function (m) { return m.status === 'menunggu_deposit' && m.deposit_bukti; }).length, mnk = d.member.filter(function (m) { return m.status === 'nonaktif_proses'; }).length;
+    if (!S.ro && (mdp || mnk)) h += '<div class="note warn">' + (mdp ? '<b>' + mdp + ' deposit member</b> menunggu dicek. ' : '') + (mnk ? '<b>' + mnk + ' member</b> minta nonaktif & pengembalian dana. ' : '') + '<button class="linkbtn" data-q="u:member">Buka member</button></div>';
     h += '<div class="qgrid">' + Q.map(function (q) { return '<button class="q" data-q="' + q[0] + '"><span class="qi">' + ic(q[1]) + '</span>' + q[2] + (q[3] ? '<span class="n">' + q[3] + '</span>' : '') + '</button>'; }).join('') + '</div>' +
       '<button class="card row" id="rk-open" style="width:100%;text-align:left;cursor:pointer;gap:12px;border:1.5px solid var(--g500)"><span class="qi" style="flex:none;width:40px;height:40px;border-radius:12px;background:var(--g50);color:var(--g700);display:grid;place-items:center">' + ic('report') + '</span><span class="grow"><b>Rekap order & transaksi</b><span class="xs muted" style="display:block">Per minggu, bulan, atau tanggal pilihan · unduh PDF</span></span>' + ic('chev') + '</button>';
     h += '<div class="tiles"><div class="tile hot"><div class="k">Nilai transaksi (GMV) bulan ini</div><div class="v">' + rp(sum(bulan, 'total')) + '</div></div>' +
@@ -3756,6 +4157,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
         var q = x.dataset.q;
         if (q.indexOf('b:') === 0) { S.bf = q.slice(2); S.q = ''; go('booking'); }
         else if (q.indexOf('u:') === 0) { S.uf = q.slice(2); go('user'); }
+        else if (q === 'tok') { go('atur'); setTimeout(function () { var e = document.getElementById('tok-card'); if (e) e.scrollIntoView({ behavior: 'smooth' }); }, 120); }
         else if (q === 'notif') V.openNotif(function (ref) { S.q = ref || ''; S.bf = 'semua'; go('booking'); });
         else go(q);
       };
@@ -3773,6 +4175,7 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     lunas: ['Lunas', function (b) { return b.status === 'lunas'; }],
     berjalan: ['Berjalan', function (b) { return b.status === 'berjalan'; }],
     payout: ['Deposit belum selesai', belumPayout],
+    token: ['Pakai token', function (b) { return b.token > 0; }],
     selesai: ['Selesai', function (b) { return b.status === 'selesai'; }],
     batal: ['Batal', function (b) { return b.status === 'batal'; }],
     semua: ['Semua', function () { return true; }],
@@ -3804,6 +4207,8 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     }
     if (b.status === 'lunas') act += '<button class="btn sm block soft" data-ba="serahkan" data-id="' + b.id + '">' + (b.foto_serah ? 'Unit diserahkan · mulai' : ic('cam') + ' Foto & serahkan unit · mulai') + '</button>';
     if (b.status === 'berjalan') act += '<button class="btn sm block soft" data-ba="selesai" data-id="' + b.id + '">' + (b.foto_kembali ? 'Unit kembali · selesai' : ic('cam') + ' Foto pengembalian · selesai') + '</button>';
+    if (tokenBayarMitra(b)) act += '<div class="note small info">Order dibayar dengan <b>' + b.token + ' token</b> (dana sudah diterima pengelola). Teruskan sewa unit <b>' + rp(b.bagian_pemilik) + '</b> ke mitra.</div><button class="btn sm block" data-pay="' + b.id + '">' + ic('money') + ' Bayar sewa unit ke mitra</button>';
+    if (b.token > 0 && b.payout === 'sudah') act += '<span class="tag" style="align-self:flex-start">' + ic('check') + ' Sewa unit sudah dibayar ke mitra' + (b.payout_waktu ? ' · ' + V.waktu(b.payout_waktu) : '') + '</span>';
     if (belumPayout(b)) act += '<div class="note small warn">Deposit ' + rp(b.deposit) + ' belum diselesaikan mitra.</div><button class="btn sm block" data-dep="' + b.id + '">' + ic('money') + ' Mediasi / catat penyelesaian deposit</button>';
     if (b.deposit_status === 'dipotong' || b.deposit_status === 'dikembalikan') act += '<span class="tag" style="align-self:flex-start">Deposit ' + (b.deposit_status === 'dipotong' ? 'dipotong ' + rp(b.deposit_potong) + (b.deposit_ket ? ' · ' + esc(b.deposit_ket) : '') : 'dikembalikan penuh') + '</span>';
     act += '<div class="row-btn"><button class="btn sm ghost" data-ch="R:' + esc(b.hp) + '" data-chn="' + esc(b.nama) + '">' + ic('help') + ' Chat penyewa</button>' + (p ? '<button class="btn sm ghost" data-ch="P:' + esc(p.id) + '" data-chn="' + esc(p.nama) + '">' + ic('key') + ' Chat mitra</button>' : '') + '</div>';
@@ -3818,8 +4223,8 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       (b.unit ? '<dt>Unit</dt><dd>' + esc(V.unitNama(b.unit)) + ' · ' + esc(p ? p.nama : '') + (b.unit_siap ? ' <span class="tag">Unit siap</span>' : '') + '</dd>' : '') +
       (butuhDriver(b) ? '<dt>Driver</dt><dd>' + (b.driver ? esc(b.driver) : '<span class="muted">dipilihkan pengelola</span>') + '</dd>' : '') +
       (b.terima_waktu ? '<dt>Diterima</dt><dd>' + V.waktu(b.terima_waktu) + '</dd>' : '') + (b.alasan && b.status === 'batal' ? '<dt>Alasan</dt><dd>' + esc(b.alasan) + '</dd>' : '') +
-      (b.total ? '<dt>Bayar ke mitra</dt><dd>' + esc(b.metode || '-') + (b.bayar_lapor ? ' · lapor ' + V.waktu(b.bayar_lapor) : '') + '</dd>' : '') + '</dl>' +
-      (b.total ? '<div class="lines num"><div class="l"><span>Nilai sewa</span><span>' + rp(b.total) + '</span></div>' + (b.diskon_poin ? '<div class="l"><span>Potongan poin (diganti ke saldo mitra)</span><span>-' + rp(b.diskon_poin) + '</span></div>' : '') +
+      (b.total ? '<dt>Bayar ke mitra</dt><dd>' + (b.token ? '<span class="tag">' + b.token + ' token</span> ' : '') + esc(b.metode || '-') + (b.bayar_lapor ? ' · lapor ' + V.waktu(b.bayar_lapor) : '') + '</dd>' : '') + '</dl>' +
+      (b.total ? '<div class="lines num"><div class="l"><span>Nilai sewa</span><span>' + rp(b.total) + '</span></div>' + (b.token ? '<div class="l"><span>Dibayar token (' + b.token + ' token, ke pengelola)</span><span>-' + rp(b.total) + '</span></div>' : '') + (b.diskon_poin ? '<div class="l"><span>Potongan poin (diganti ke saldo mitra)</span><span>-' + rp(b.diskon_poin) + '</span></div>' : '') +
         (b.deposit ? '<div class="l"><span>Deposit (dipegang mitra)</span><span>' + rp(b.deposit) + '</span></div>' : '') +
         '<div class="l"><b>Dibayar penyewa ke mitra</b><b>' + rp(b.bayar) + '</b></div>' + (b.biaya_driver ? '<div class="l muted"><span>Termasuk biaya driver</span><span>' + rp(b.biaya_driver) + '</span></div>' : '') +
         '<div class="l muted"><span>Fee aplikasi' + (b.fee_dipotong === 'ya' ? ' (terpotong dari saldo)' : b.fee_dipotong === 'kembali' ? ' (dikembalikan)' : '') + ' / bersih mitra</span><span>' + rp(b.komisi) + ' / ' + rp(b.bagian_pemilik) + '</span></div></div>' : '') +
@@ -4099,13 +4504,35 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     });
   }
   /* ---------------- PENGGUNA ---------------- */
+  function memberTokKv(x) {
+    var t = x.token || {}, k = Object.keys(t).filter(function (j) { return t[j] > 0; });
+    return k.length ? '<dt>Token</dt><dd>' + k.map(function (j) { return t[j] + ' ' + esc(VR_JENIS[j].pendek); }).join(', ') + (x.nilai_token ? ' <span class="xs muted">(nilai ' + rp(x.nilai_token) + ')</span>' : '') + '</dd>' : '';
+  }
+  function memberDepKv(x) {
+    if (!(Number(x.deposit) > 0)) return '';
+    var L = { menunggu: 'belum dibayar', ditahan: 'dipegang pengelola', minta_kembali: 'minta dikembalikan', dikembalikan: 'sudah dikembalikan' };
+    return '<dt>Deposit</dt><dd>' + rp(x.deposit) + ' · ' + esc(L[x.deposit_status] || x.deposit_status || '-') + (x.deposit_waktu ? ' <span class="xs muted">' + V.waktu(x.deposit_waktu) + '</span>' : '') + (x.deposit_ket ? '<div class="xs muted">' + esc(x.deposit_ket) + '</div>' : '') + '</dd>';
+  }
+  function memberDepAksi(x) {
+    if (x.status === 'menunggu_deposit') return '<div class="card stack" style="padding:10px;margin:0"><b class="small">Menunggu deposit ' + rp(x.deposit) + '</b>' +
+      (x.deposit_bukti ? '<div class="row" style="gap:10px"><img src="' + esc(V.imgUrl(x.deposit_bukti)) + '" alt="Bukti deposit" data-dpz="' + esc(V.imgUrl(x.deposit_bukti)) + '" style="width:72px;height:72px;object-fit:cover;border-radius:10px;cursor:zoom-in"><div class="xs muted">Bukti transfer dikirim member' + (x.deposit_waktu ? ' ' + V.waktu(x.deposit_waktu) : '') + '. Cek mutasi rekening lalu konfirmasi.</div></div>' : '<div class="xs muted">Member belum mengirim bukti transfer.' + '</div>') +
+      '<div class="row-btn"><button class="btn sm go" data-dpok="' + esc(x.id) + '">' + ic('check') + ' Deposit diterima</button>' + V.waBtn(V.wa(x.wa, 'Halo ' + x.nama + ', dokumen member Vast Travel Anda sudah valid. Silakan bayar deposit member ' + rp(x.deposit) + ' ke rekening pengelola (lihat menu Akun di aplikasi) lalu kirim buktinya. Terima kasih.'), 'Ingatkan', 'sm') + '</div></div>';
+    if (x.status === 'nonaktif_proses') {
+      var tot = (x.deposit_status === 'minta_kembali' ? Number(x.deposit) || 0 : 0) + (Number(x.nilai_token) || 0);
+      return '<div class="card stack" style="padding:10px;margin:0"><b class="small">Minta nonaktif & pengembalian dana ' + rp(tot) + '</b><div class="xs muted">Rekening tujuan: ' + esc(x.rek_kembali || '-') + '</div>' +
+        '<button class="btn sm go" data-dpk="' + esc(x.id) + '">' + ic('money') + ' Kembalikan dana · nonaktifkan</button></div>';
+    }
+    return '';
+  }
   function renderUser() {
     var d = S.d, isP = S.uf === 'pemilik', list = (isP ? d.pemilik : d.member).slice();
-    var urut = { menunggu: 0, aktif: 1, terverifikasi: 1, nonaktif: 2, ditolak: 2 };
+    var urut = { menunggu: 0, menunggu_deposit: 0, nonaktif_proses: 0, aktif: 1, terverifikasi: 1, nonaktif: 2, ditolak: 2 };
+    var STL = { menunggu_deposit: 'menunggu deposit', nonaktif_proses: 'minta nonaktif' };
+    var depOn = fiturOn('deposit_member');
     list.sort(function (a, b) { return (urut[a.status] - urut[b.status]) || (a.dibuat < b.dibuat ? 1 : -1); });
     var h = '<div class="subhead"><button class="hbtn" id="back" aria-label="Kembali">' + ic('back') + '</button><h2>' + (isP ? 'Mitra Pemilik' : 'Member Penyewa') + '</h2></div><main>' +
       '<div class="seg"><button class="chip" data-uf="pemilik" aria-pressed="' + isP + '">Mitra (' + d.pemilik.length + ')</button><button class="chip" data-uf="member" aria-pressed="' + !isP + '">Member (' + d.member.length + ')</button></div>' +
-      (isP ? '<div class="note small">Setujui mitra setelah data & rekening dicek. PIN dibuat otomatis.</div>' : '<div class="note small">Cek foto <b>KTP, SIM & selfie</b> (ketuk untuk memperbesar), lalu verifikasi atau tolak. Member terverifikasi boleh sewa <b>lepas kunci</b> & menukar poin.</div>');
+      (isP ? '<div class="note small">Setujui mitra setelah data & rekening dicek. PIN dibuat otomatis.</div>' : '<div class="note small">Cek foto <b>KTP, SIM & selfie</b> (ketuk untuk memperbesar), lalu verifikasi atau tolak. Member terverifikasi boleh sewa <b>lepas kunci</b>, membeli token & menukar poin.' + (depOn ? ' Saat verifikasi Anda menentukan <b>nominal deposit member</b>; member aktif setelah deposit diterima, dan deposit dikembalikan bila member menonaktifkan statusnya.' : '') + '</div>');
     function pinMsg(x) {
       var url = isP ? (V.CFG.URL_PEMILIK || '') : (V.CFG.URL_PERENTAL || '');
       return isP ? 'Halo ' + x.nama + ', akun MITRA Vast Travel Anda sudah aktif.\nID mitra: ' + x.id + '\nPIN: ' + x.pin + '\n\nMasuk di aplikasi Vast Travel Mitra' + (url ? ': ' + url : '') + ' lalu daftarkan unit Anda.'
@@ -4114,12 +4541,13 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     h += list.map(function (x) {
       var ok = isP ? x.status === 'aktif' : x.status === 'terverifikasi', wait = x.status === 'menunggu';
       return '<div class="card stack"><div class="row between wrapflex"><div><b>' + esc(x.nama) + '</b> <span class="oid muted">' + esc(x.id) + '</span><div class="xs muted">' + esc(x.kota || '-') + ' · daftar ' + V.waktu(x.dibuat) + '</div></div>' +
-        '<span class="tag ' + (ok ? '' : wait ? 'wait' : 'no') + '">' + esc(x.status) + '</span></div>' +
+        '<span class="tag ' + (ok ? '' : wait || STL[x.status] ? 'wait' : 'no') + '">' + esc(STL[x.status] || x.status) + '</span></div>' +
         '<dl class="kv"><dt>WhatsApp</dt><dd><a href="' + V.wa(x.wa) + '" target="_blank" rel="noopener">' + esc(x.wa) + '</a></dd><dt>Alamat</dt><dd>' + esc(x.alamat || '-') + '</dd>' +
-        (isP ? '<dt>Rekening</dt><dd>' + esc(x.bank || '-') + '</dd><dt>Unit</dt><dd>' + d.unit.filter(function (u) { return u.pemilik_id === x.id; }).length + '</dd>' : '<dt>Poin</dt><dd>' + (x.poin || 0).toLocaleString('id-ID') + '</dd>') +
+        (isP ? '<dt>Rekening</dt><dd>' + esc(x.bank || '-') + '</dd><dt>Unit</dt><dd>' + d.unit.filter(function (u) { return u.pemilik_id === x.id; }).length + '</dd>' : '<dt>Poin</dt><dd>' + (x.poin || 0).toLocaleString('id-ID') + '</dd>' + memberTokKv(x) + memberDepKv(x)) +
         (ok && x.pin ? '<dt>PIN</dt><dd class="oid">' + esc(x.pin) + '</dd>' : '') + (x.catatan ? '<dt>Catatan</dt><dd>' + esc(x.catatan) + '</dd>' : '') + '</dl>' +
-        (!isP ? (x.ktp || x.sim || x.selfie ? '<div class="dok3">' + [['ktp', 'KTP'], ['sim', 'SIM'], ['selfie', 'Selfie']].map(function (k) { return x[k[0]] ? '<div class="dk ok" data-dz="' + esc(x.id) + '" data-dn="' + k[0] + '"><img src="' + esc(x[k[0]]) + '" alt="" loading="lazy"><span style="position:relative;z-index:1;background:rgba(255,255,255,.85);border-radius:6px;padding:0 4px">' + k[1] + '</span></div>' : '<div class="dk">' + k[1] + '<br>belum ada</div>'; }).join('') + '</div>' : '<div class="xs muted">Dokumen belum diunggah (pendaftar lama).</div>') : '') +
-        '<div class="row-btn adm">' + (isP ? '<button class="btn sm ghost" data-ch="P:' + esc(x.id) + '" data-chn="' + esc(x.nama) + '">' + ic('help') + ' Chat</button>' : '<button class="btn sm ghost" data-ch="R:' + esc(x.wa) + '" data-chn="' + esc(x.nama) + '">' + ic('help') + ' Chat</button>') + (!ok ? '<button class="btn sm" data-ok="' + x.id + '">' + (isP ? 'Setujui mitra' : 'Verifikasi member') + '</button>' : V.waBtn(V.wa(x.wa, pinMsg(x)), 'Kirim ID & PIN', 'sm') + '<button class="btn sm ghost" data-reset="' + x.id + '">Reset PIN</button>') +
+        (!isP ? (x.ktp || x.sim || x.selfie ? '<div class="dok3">' + [['ktp', 'KTP'], ['sim', 'SIM'], ['selfie', 'Selfie']].map(function (k) { return x[k[0]] ? '<div class="dk ok" data-dz="' + esc(x.id) + '" data-dn="' + k[0] + '"><img src="' + esc(x[k[0]]) + '" alt="" loading="lazy"><span style="position:relative;z-index:1;background:rgba(255,255,255,.85);border-radius:6px;padding:0 4px">' + k[1] + '</span></div>' : '<div class="dk">' + k[1] + '<br>belum ada</div>'; }).join('') + '</div>' : (x.status === 'menunggu' ? '<div class="xs muted">Dokumen belum diunggah (pendaftar lama).</div>' : '')) : '') +
+        (!isP ? memberDepAksi(x) : '') +
+        '<div class="row-btn adm">' + (isP ? '<button class="btn sm ghost" data-ch="P:' + esc(x.id) + '" data-chn="' + esc(x.nama) + '">' + ic('help') + ' Chat</button>' : '<button class="btn sm ghost" data-ch="R:' + esc(x.wa) + '" data-chn="' + esc(x.nama) + '">' + ic('help') + ' Chat</button>') + (!ok ? (STL[x.status] ? '' : '<button class="btn sm" data-ok="' + x.id + '">' + (isP ? 'Setujui mitra' : 'Verifikasi member') + '</button>') : V.waBtn(V.wa(x.wa, pinMsg(x)), 'Kirim ID & PIN', 'sm') + '<button class="btn sm ghost" data-reset="' + x.id + '">Reset PIN</button>') +
         (x.status !== (isP ? 'nonaktif' : 'ditolak') ? '<button class="btn sm ghost" data-no="' + x.id + '">' + (isP ? 'Nonaktifkan' : 'Tolak') + '</button>' : '') + '<button class="btn sm ghost" data-hx="' + x.id + '" style="color:var(--red)">' + ic('trash') + ' Hapus</button></div></div>';
     }).join('') || '<div class="empty"><b>Belum ada data</b></div>';
     app.innerHTML = h + '</main>';
@@ -4134,11 +4562,37 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       V.busy(btn, true);
       V.api(isP ? 'adminPemilik' : 'adminMember', { pin: S.pin, id: id, patch: patch }).then(function (r) {
         var x = r.pemilik || r.member, ok = isP ? x.status === 'aktif' : x.status === 'terverifikasi';
-        if (ok && (patch.status || patch.reset_pin)) V.sheet('<h2>' + esc(x.nama) + '</h2><div>ID <b class="oid">' + esc(x.id) + '</b> · PIN <b class="oid">' + esc(x.pin) + '</b></div>' + V.waBtn(V.wa(x.wa, pinMsg(x)), 'Kirim ID & PIN via WhatsApp', 'block'));
+        if (ok && (patch.status || patch.reset_pin || patch.deposit_diterima)) V.sheet('<h2>' + esc(x.nama) + '</h2><div>ID <b class="oid">' + esc(x.id) + '</b> · PIN <b class="oid">' + esc(x.pin) + '</b></div>' + V.waBtn(V.wa(x.wa, pinMsg(x)), 'Kirim ID & PIN via WhatsApp', 'block'));
         load();
       }).catch(function (e) { V.busy(btn, false); V.toast(e.message, true); });
     }
-    app.querySelectorAll('[data-ok]').forEach(function (x) { x.onclick = function () { upd(x, x.dataset.ok, { status: isP ? 'aktif' : 'terverifikasi' }); }; });
+    app.querySelectorAll('[data-ok]').forEach(function (x) { x.onclick = function () {
+      if (isP || !depOn) return upd(x, x.dataset.ok, { status: isP ? 'aktif' : 'terverifikasi' });
+      var m = list.filter(function (z) { return z.id === x.dataset.ok; })[0];
+      V.sheet('<h2>Verifikasi member</h2><div class="small muted">' + esc(m.nama) + ' (' + esc(m.id) + '). Dokumen valid? Tentukan deposit yang wajib dibayar member ke rekening pengelola. Member aktif setelah deposit Anda terima.</div>' +
+        '<label class="f">Nominal deposit member (Rp) <span class="hint">0 = tanpa deposit, langsung aktif</span><input id="vd" type="number" inputmode="numeric" min="0" value="' + (Number(S.d.pengaturan.deposit_member) || 0) + '"></label>' +
+        '<button class="btn go block" id="vd-go">Verifikasi & minta deposit</button>', function (el) {
+        var vi = el.querySelector('#vd'), vb = el.querySelector('#vd-go');
+        vi.oninput = function () { vb.textContent = Number(vi.value) > 0 ? 'Verifikasi & minta deposit ' + rp(Number(vi.value)) : 'Verifikasi tanpa deposit'; }; vi.oninput();
+        vb.onclick = function () { V.closeSheet(); upd(x, m.id, { status: 'terverifikasi', deposit: Math.max(0, Math.round(Number(vi.value) || 0)) }); };
+      });
+    }; });
+    app.querySelectorAll('[data-dpok]').forEach(function (x) { x.onclick = function () {
+      var m = list.filter(function (z) { return z.id === x.dataset.dpok; })[0];
+      V.confirm('Deposit ' + rp(m.deposit) + ' dari ' + m.nama + ' sudah masuk ke rekening pengelola? Member langsung aktif.', 'Ya, diterima').then(function () { upd(x, m.id, { deposit_diterima: true }); });
+    }; });
+    app.querySelectorAll('[data-dpz]').forEach(function (x) { x.onclick = function () { V.zoomGallery([x.dataset.dpz], 0); }; });
+    app.querySelectorAll('[data-dpk]').forEach(function (x) { x.onclick = function () {
+      var m = list.filter(function (z) { return z.id === x.dataset.dpk; })[0], tot = (m.deposit_status === 'minta_kembali' ? Number(m.deposit) || 0 : 0) + (Number(m.nilai_token) || 0);
+      V.sheet('<h2>Kembalikan dana member</h2><div class="paybox"><div class="small">Transfer ke ' + esc(m.nama) + '</div><div class="amt num">' + rp(tot) + '</div>' +
+        '<div class="rek"><span>' + esc(m.rek_kembali || 'Rekening belum diisi member') + '</span><button class="btn sm lime" id="cp">Salin</button></div>' +
+        '<div class="small">' + (m.deposit_status === 'minta_kembali' ? 'Deposit ' + rp(m.deposit) : 'Tanpa deposit') + (Number(m.nilai_token) ? ' + sisa token ' + rp(m.nilai_token) : '') + '</div></div>' +
+        '<label class="f">Catatan <span class="hint">opsional, mis. no. referensi transfer</span><input id="dk-k" maxlength="120"></label>' +
+        '<button class="btn go block" id="dk-go">Sudah saya transfer · nonaktifkan</button>', function (el) {
+        el.querySelector('#cp').onclick = function () { V.copy(String(m.rek_kembali || '').replace(/[^\d]/g, '')); };
+        el.querySelector('#dk-go').onclick = function () { V.closeSheet(); upd(x, m.id, { deposit_kembali: true, ket: el.querySelector('#dk-k').value.trim() }); };
+      });
+    }; });
     app.querySelectorAll('[data-ch]').forEach(function (x) { x.onclick = function () { chatAdmin(x.dataset.ch, x.dataset.chn); }; });
     app.querySelectorAll('[data-dz]').forEach(function (x) { x.onclick = function () { var m = d.member.filter(function (z) { return z.id === x.dataset.dz; })[0]; if (!m) return; var L = ['ktp', 'sim', 'selfie'].filter(function (k) { return m[k]; }); V.zoomGallery(L.map(function (k) { return m[k]; }), Math.max(0, L.indexOf(x.dataset.dn))); }; });
     app.querySelectorAll('[data-no]').forEach(function (x) { x.onclick = function () {
@@ -4231,7 +4685,18 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       return '<div class="row" style="gap:8px;align-items:flex-end">' + f(k, label, hint).replace('<label class="f">', '<label class="f grow" style="margin:0">') +
         '<button type="button" class="btn sm ' + (q ? 'soft' : 'ghost') + '" data-qr="' + k + '" style="flex:none;min-width:64px;padding:4px 8px">' + (q ? '<img src="' + esc(q) + '" style="width:30px;height:30px;object-fit:contain;border-radius:4px"> QR' : V.ic('plus') + ' QR') + '</button></div>';
     }
-    app.innerHTML = shortHero('Pengaturan', 'Tarif, pembayaran, layanan & poin') + '<main>' +
+    var FD = S.d.fitur_daftar || [];
+    app.innerHTML = shortHero('Pengaturan', 'Fitur, tarif, pembayaran, layanan & poin') + '<main>' +
+      '<div class="card stack" id="fs-card"><h3>' + V.ic('gear') + ' Sakelar fitur</h3><div class="xs muted">Nyalakan / matikan fitur kapan saja. Perubahan langsung berlaku di aplikasi penyewa & mitra (tanpa perlu menekan Simpan).</div>' +
+        FD.map(function (x) { return '<label class="fsw row between" style="gap:10px;padding:8px 2px;border-top:1px solid var(--line)"><span><b class="small">' + esc(x[1]) + '</b><span class="xs muted" style="display:block">' + esc(x[2]) + '</span></span><input type="checkbox" class="sw" data-fs="' + esc(x[0]) + '"' + (fiturOn(x[0]) ? ' checked' : '') + '></label>'; }).join('') + '</div>' +
+      '<div class="card stack" id="tok-card"><div class="row between"><h3>' + V.ic('star') + ' Kuota sewa (token)</h3><button class="btn sm" id="tp-add" type="button">' + V.ic('plus') + ' Paket</button></div>' +
+        '<div class="xs muted">1 token = sewa 1 hari kendaraan sejenis (lepas kunci). Isi harga per token dan kuota maksimal yang dipublikasikan. Dana pembelian token masuk ke rekening pengelola; saat token dipakai, pengelola meneruskan sewa unit ke mitra.' + (fiturOn('token') ? '' : ' <b>Fitur sedang dimatikan.</b>') + '</div>' +
+        '<div id="tp-list" class="stack"></div><h3 style="margin-top:6px">Pembelian menunggu verifikasi</h3><div id="tw-list" class="stack"></div>' +
+        '<div class="row between"><b class="small">Riwayat token</b><button class="btn sm ghost" id="tk-kor" type="button">Koreksi saldo token</button></div><div id="tr-list" class="stack"></div></div>' +
+      '<div class="card stack" id="dm-card"><h3>' + V.ic('wallet') + ' Deposit member terverifikasi</h3><div class="xs muted">Nominal awal yang diusulkan saat memverifikasi member (bisa diubah per member). Deposit dibayar ke rekening pengelola dan dikembalikan bila member menonaktifkan statusnya.' + (fiturOn('deposit_member') ? '' : ' <b>Fitur sedang dimatikan.</b>') + '</div>' +
+        f('deposit_member', 'Deposit member standar (Rp)', '0 = tanpa deposit', 'numeric') + '</div>' +
+      '<div class="card stack" id="bn-card"><div class="row between"><h3>' + V.ic('cam') + ' Banner aplikasi</h3><button class="btn sm" id="bn-add" type="button">' + V.ic('plus') + ' Banner</button></div>' +
+        '<div class="xs muted">Gambar, GIF, atau video (maks. 25 MB, tanpa suara) untuk banner utama & banner promo di aplikasi penyewa dan mitra. Maks. 12 banner, urutkan dengan panah.' + (fiturOn('banner') ? '' : ' <b>Fitur sedang dimatikan — aplikasi memakai banner bawaan.</b>') + '</div><div id="bn-list" class="stack"></div></div>' +
       '<div class="card stack" id="fee-card"><h3>' + V.ic('money') + ' Fee aplikasi mitra</h3><div class="xs muted">Harga sewa ditentukan mitra dan tampil apa adanya ke penyewa. Penyewa membayar langsung ke mitra; mitra membayar fee aplikasi ke pengelola, dipotong otomatis dari saldo prabayar saat order lunas.</div>' +
       f('fee_mitra', 'Fee aplikasi dari mitra (%)', 'dari nilai sewa per order, mis. 5 / 10 / 15', 'decimal') +
       '<div class="note small" id="ba-ex"></div>' +
@@ -4300,6 +4765,15 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       V.api('adminPengaturan', { pin: S.pin, nilai: { layanan_aktif: L } }).then(function () { S.d.app.layanan_aktif = L; V.toast((c.checked ? 'Dibuka: ' : 'Ditutup: ') + c.closest('label').querySelector('b').textContent); })
         .catch(function (e) { c.checked = !c.checked; V.toast(e.message, true); });
     }; });
+    app.querySelectorAll('[data-fs]').forEach(function (c) { c.onchange = function () {
+      var nv = {}; nv['fitur_' + c.dataset.fs] = c.checked;
+      V.api('adminPengaturan', { pin: S.pin, nilai: nv }).then(function () { S.d.pengaturan['fitur_' + c.dataset.fs] = c.checked ? 'ya' : 'tidak'; V.toast((c.checked ? 'Dinyalakan: ' : 'Dimatikan: ') + c.closest('label').querySelector('b').textContent); peDraw(); })
+        .catch(function (e) { c.checked = !c.checked; V.toast(e.message, true); });
+    }; });
+    tpDraw(); twDraw(); bnDraw();
+    document.getElementById('tp-add').onclick = function () { tpForm(-1); };
+    document.getElementById('bn-add').onclick = function () { if (bnList().length >= 12) return V.toast('Maksimal 12 banner.', true); bnForm(-1); };
+    document.getElementById('tk-kor').onclick = tkKoreksi;
     var WL = (S.d.app.wilayah_buka || []).slice();
     function wlDraw() {
       var el = document.getElementById('wl-list'); if (!el) return;
@@ -4405,11 +4879,12 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
     var el = document.getElementById('pe-list'); if (!el) return;
     var L = peList();
     el.innerHTML = L.length ? L.map(function (p, i) {
-      return '<div class="card row" style="align-items:flex-start">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:10px">' : '<span class="ndot">' + V.ic('star') + '</span>') +
+      return '<div class="card row" style="align-items:flex-start">' + (p.foto ? V.mediaEl(p.foto, p.tipe, '', 'autoplay loop style="width:64px;height:48px;object-fit:cover;border-radius:10px;flex:none"') : '<span class="ndot">' + V.ic('star') + '</span>') +
         '<div class="grow"><b class="small">' + esc(p.judul) + '</b>' + (p.aktif === false ? ' <span class="tag no">nonaktif</span>' : '') + '<div class="xs muted">' + esc([p.kategori, p.berlaku].filter(Boolean).join(' · ')) + '</div></div>' +
-        '<button class="btn sm ghost" data-pe="' + i + '">Ubah</button></div>';
+        '<div class="stack" style="gap:4px;flex:none"><button class="btn sm ghost" data-pe="' + i + '">Ubah</button>' + (fiturOn('push_promo') && p.id && p.aktif !== false ? '<button class="btn sm soft" data-pp="' + i + '">' + V.ic('bell') + ' Kirim</button>' : '') + '</div></div>';
     }).join('') + '<div class="xs muted">' + L.length + ' dari 5 promo</div>' : '<div class="xs muted">Belum ada promo / event (maks. 5).</div>';
     el.querySelectorAll('[data-pe]').forEach(function (b) { b.onclick = function () { peForm(Number(b.dataset.pe)); }; });
+    el.querySelectorAll('[data-pp]').forEach(function (b) { b.onclick = function () { var p = L[Number(b.dataset.pp)]; pushForm(p.id, (p.kategori === 'Event' ? 'Event: ' : 'Promo: ') + p.judul, p.ket || p.berlaku, 'perental'); }; });
   }
   function peForm(i) {
     var L = peList(), x = i >= 0 ? JSON.parse(JSON.stringify(L[i])) : { judul: '', kategori: 'Hotel', ket: '', berlaku: '', link: '', foto: '', aktif: true }, up = false;
@@ -4419,31 +4894,174 @@ if (typeof module !== 'undefined') module.exports = { vrWilayah: vrWilayah, vrPr
       '<label class="f">Keterangan<textarea id="pe-t" maxlength="300" placeholder="Syarat & cara klaim">' + esc(x.ket) + '</textarea></label>' +
       '<label class="f">Masa berlaku <span class="hint">opsional</span><input id="pe-b" maxlength="60" value="' + esc(x.berlaku) + '" placeholder="s.d. 31 Des 2026"></label>' +
       '<label class="f">Link <span class="hint">opsional: situs / wa.me/62… ; kosong = tombol chat admin</span><input id="pe-l" value="' + esc(x.link) + '"></label>' +
-      '<div class="stack"><b class="small">Gambar</b><div id="pe-img"></div><button type="button" class="btn sm soft" id="pe-up">Unggah gambar</button></div>' +
+      '<div class="stack"><b class="small">Gambar / GIF / video</b><div id="pe-img"></div><div class="row" style="gap:8px"><button type="button" class="btn sm soft" id="pe-up">Unggah dari galeri</button><button type="button" class="btn sm ghost" id="pe-rmimg">Hapus media</button></div><div class="xs muted">JPG, PNG, GIF, atau video MP4 maks. 25 MB (diputar tanpa suara).</div></div>' +
       '<label class="check small"><input type="checkbox" id="pe-a"' + (x.aktif !== false ? ' checked' : '') + '> <span>Tampilkan di aplikasi penyewa</span></label>' +
       '<button class="btn go block" id="pe-s">Simpan</button>' + (i >= 0 ? '<button class="btn ghost block" id="pe-d" style="color:var(--red)">Hapus promo ini</button>' : ''), function (el) {
       function keep() { x.judul = el.querySelector('#pe-j').value.trim(); x.kategori = el.querySelector('#pe-k').value; x.ket = el.querySelector('#pe-t').value.trim(); x.berlaku = el.querySelector('#pe-b').value.trim(); x.link = el.querySelector('#pe-l').value.trim(); x.aktif = el.querySelector('#pe-a').checked; }
-      function img() {
-        el.querySelector('#pe-img').innerHTML = x.foto ? '<img src="' + esc(x.foto) + '" alt="" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px"><button type="button" class="btn sm ghost" id="pe-rmimg" style="margin-top:6px">Hapus gambar</button>' : '<div class="xs muted">Belum ada gambar</div>';
-        var rmi = el.querySelector('#pe-rmimg'); if (rmi) rmi.onclick = function () { x.foto = ''; img(); };
-      }
-      img();
-      el.querySelector('#pe-up').onclick = function () {
-        var bt = this;
-        V.pickPhotos(1).then(function (list) {
-          if (!list.length) return; up = true; V.busy(bt, true, 'Mengunggah...');
-          return V.api('adminUploadFoto', { pin: S.pin, data: list[0] }).then(function (r) { x.foto = r.url; img(); V.toast('Gambar terunggah.'); })
-            .catch(function (e) { V.toast(e.message, true); }).then(function () { up = false; V.busy(bt, false); });
-        });
-      };
+      var mx = { media: x.foto || '', tipe: x.tipe || '' }, st = mediaPicker(el, mx, '#pe-img', '#pe-up', null);
+      el.querySelector('#pe-rmimg').onclick = function () { mx.media = ''; mx.tipe = ''; el.querySelector('#pe-img').innerHTML = '<div class="xs muted">Belum ada media</div>'; };
       el.querySelector('#pe-s').onclick = function () {
-        if (up) return; keep();
+        if (st.up) return V.toast('Tunggu unggahan selesai.', true); keep(); x.foto = mx.media; x.tipe = mx.media ? mx.tipe : '';
         if (!x.judul) return V.toast('Isi judul promo.', true);
         var bt = this, list = peList(); if (i >= 0) list[i] = x; else list.unshift(x);
         V.busy(bt, true); peSave(list).then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); });
       };
       var dl = el.querySelector('#pe-d');
       if (dl) dl.onclick = function () { var bt = this, list = peList(); list.splice(i, 1); V.busy(bt, true); peSave(list, 'Promo dihapus.').then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); }); };
+    });
+  }
+
+  /* ---------------- TOKEN SEWA ---------------- */
+  function tpList() { try { var a = JSON.parse(S.d.pengaturan.token_paket || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function tpSave(list, msg) {
+    return V.api('adminPengaturan', { pin: S.pin, nilai: { token_paket: list } }).then(function () { S.d.pengaturan.token_paket = JSON.stringify(list); V.toast(msg || 'Paket token tersimpan.'); tpDraw(); load(); });
+  }
+  function tpDraw() {
+    var el = document.getElementById('tp-list'); if (!el) return;
+    var L = tpList(), TJ = S.d.token_terjual || {};
+    el.innerHTML = L.length ? L.map(function (p, i) {
+      var jual = TJ[p.jenis] || 0, sisa = Math.max(0, (Number(p.kuota) || 0) - jual);
+      return '<div class="card row" style="align-items:flex-start;margin:0"><span class="ndot">' + V.ic(p.jenis === 'motor' ? 'bolt' : 'car') + '</span><div class="grow"><b class="small">' + esc(VR_JENIS[p.jenis].pendek) + ' · ' + rp(p.harga) + '/token</b>' + (p.aktif === false ? ' <span class="tag no">nonaktif</span>' : '') +
+        '<div class="xs muted">Kuota ' + (p.kuota || 0) + ' · terjual ' + jual + ' · sisa ' + sisa + (p.maks_beli ? ' · maks ' + p.maks_beli + '/pembelian' : '') + (p.ket ? ' · ' + esc(p.ket) : '') + '</div></div><button class="btn sm ghost" data-tp="' + i + '">Ubah</button></div>';
+    }).join('') : '<div class="xs muted">Belum ada paket token. Tambah paket per jenis kendaraan.</div>';
+    el.querySelectorAll('[data-tp]').forEach(function (b) { b.onclick = function () { tpForm(Number(b.dataset.tp)); }; });
+  }
+  function tpForm(i) {
+    var L = tpList(), pakai = L.map(function (x) { return x.jenis; }), x = i >= 0 ? JSON.parse(JSON.stringify(L[i])) : { jenis: VR_JENIS_TOKEN.filter(function (j) { return pakai.indexOf(j) < 0; })[0] || '', harga: '', kuota: 50, maks_beli: 10, aktif: true, ket: '' };
+    if (!x.jenis) return V.toast('Semua jenis kendaraan sudah punya paket.', true);
+    var JS = VR_JENIS_TOKEN.filter(function (j) { return j === x.jenis || pakai.indexOf(j) < 0; });
+    V.sheet('<h2>' + (i >= 0 ? 'Ubah paket token' : 'Tambah paket token') + '</h2>' +
+      '<label class="f">Jenis kendaraan<select id="tp-j"' + (i >= 0 ? ' disabled' : '') + '>' + JS.map(function (j) { return '<option value="' + j + '"' + (x.jenis === j ? ' selected' : '') + '>' + esc(VR_JENIS[j].label) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="f">Harga per token (Rp) <span class="hint">1 token = sewa 1 hari</span><input id="tp-h" type="number" inputmode="numeric" min="1" value="' + esc(x.harga) + '"></label>' +
+      '<div class="grid"><label class="f">Kuota dipublikasikan<input id="tp-k" type="number" inputmode="numeric" min="0" value="' + esc(x.kuota) + '"></label><label class="f">Maks per pembelian <span class="hint">0 = bebas</span><input id="tp-m" type="number" inputmode="numeric" min="0" value="' + esc(x.maks_beli) + '"></label></div>' +
+      '<label class="f">Keterangan <span class="hint">opsional</span><input id="tp-t" maxlength="120" value="' + esc(x.ket) + '" placeholder="Hemat 20% dari harga normal"></label>' +
+      '<label class="fsw"><span class="small">Tampilkan & jual ke penyewa</span><input type="checkbox" id="tp-a"' + (x.aktif !== false ? ' checked' : '') + '></label>' +
+      '<button class="btn go block" id="tp-s">Simpan paket</button>' + (i >= 0 ? '<button class="btn ghost block" id="tp-d" style="color:var(--red)">Hapus paket</button>' : ''), function (el) {
+      el.querySelector('#tp-s').onclick = function () {
+        x.jenis = el.querySelector('#tp-j').value; x.harga = Number(el.querySelector('#tp-h').value) || 0; x.kuota = Number(el.querySelector('#tp-k').value) || 0;
+        x.maks_beli = Number(el.querySelector('#tp-m').value) || 0; x.ket = el.querySelector('#tp-t').value.trim(); x.aktif = el.querySelector('#tp-a').checked;
+        if (!(x.harga > 0)) return V.toast('Isi harga per token.', true);
+        var bt = this, list = tpList(); if (i >= 0) list[i] = x; else list.push(x);
+        V.busy(bt, true); tpSave(list).then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); });
+      };
+      var dl = el.querySelector('#tp-d');
+      if (dl) dl.onclick = function () { var bt = this; V.confirm('Hapus paket token ' + VR_JENIS[x.jenis].pendek + '? Token yang sudah dibeli penyewa tetap berlaku.').then(function () { var list = tpList(); list.splice(i, 1); V.busy(bt, true); tpSave(list, 'Paket dihapus.').then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); }); }); };
+    });
+  }
+  function memberOf(id) { return S.d.member.filter(function (m) { return m.id === id; })[0] || { nama: id, wa: '' }; }
+  function twDraw() {
+    var el = document.getElementById('tw-list'), er = document.getElementById('tr-list'); if (!el) return;
+    var W = tokenMenunggu().slice().reverse();
+    el.innerHTML = W.length ? W.map(function (t) {
+      var m = memberOf(t.member_id);
+      return '<div class="card stack" style="margin:0;padding:10px"><div class="row between wrapflex"><b class="small">' + esc(m.nama) + ' <span class="oid muted">' + esc(t.member_id) + '</span></b><b class="num">' + rp(t.total) + '</b></div>' +
+        '<div class="xs muted">' + t.delta + ' token ' + esc((VR_JENIS[t.jenis] || {}).pendek || t.jenis) + ' × ' + rp(t.harga) + ' · ' + esc(t.metode || '-') + ' · ' + V.waktu(t.waktu) + '</div>' +
+        (t.bukti ? '<img src="' + esc(V.imgUrl(t.bukti)) + '" alt="Bukti transfer" data-twz="' + esc(V.imgUrl(t.bukti)) + '" style="width:100%;max-height:160px;object-fit:contain;border-radius:10px;background:var(--g50);cursor:zoom-in">' : '<div class="xs muted">Bukti belum diunggah — cek mutasi rekening / WhatsApp.</div>') +
+        '<div class="row-btn"><button class="btn sm go" data-tws="' + esc(t.id) + '">' + V.ic('check') + ' Dana masuk</button><button class="btn sm ghost" data-twx="' + esc(t.id) + '">Tolak</button>' + (m.wa ? V.waBtn(V.wa(m.wa, 'Halo ' + m.nama + ', terkait pembelian ' + t.delta + ' token sewa Vast Travel (' + rp(t.total) + '): '), 'Chat', 'sm') : '') + '</div></div>';
+    }).join('') : '<div class="xs muted">Tidak ada pembelian yang menunggu.</div>';
+    el.querySelectorAll('[data-twz]').forEach(function (x) { x.onclick = function () { V.zoomGallery([x.dataset.twz], 0); }; });
+    function kirim(bt, body, msg) { V.busy(bt, true); V.api('adminToken', Object.assign({ pin: S.pin }, body)).then(function () { V.toast(msg); load(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); }); }
+    el.querySelectorAll('[data-tws]').forEach(function (x) { x.onclick = function () { kirim(x, { aksi: 'setujui', id: x.dataset.tws }, 'Token diaktifkan.'); }; });
+    el.querySelectorAll('[data-twx]').forEach(function (x) { x.onclick = function () {
+      V.sheet('<h2>Tolak pembelian token</h2><label class="f">Alasan<select id="twa">' + ['Dana belum masuk', 'Nominal tidak sesuai', 'Bukti tidak jelas'].map(function (t) { return '<option>' + t + '</option>'; }).join('') + '</select></label><button class="btn block" id="twa-go">Tolak</button>', function (sh) {
+        sh.querySelector('#twa-go').onclick = function () { var a = sh.querySelector('#twa').value; V.closeSheet(); kirim(x, { aksi: 'tolak', id: x.dataset.twx, alasan: a }, 'Pembelian ditolak.'); };
+      });
+    }; });
+    var R = (S.d.token || []).filter(function (t) { return t.status !== 'menunggu'; }).slice(-30).reverse(), TP = { beli: 'Beli', pakai: 'Pakai', kembali: 'Kembali', koreksi: 'Koreksi' };
+    if (er) er.innerHTML = R.length ? R.map(function (t) {
+      return '<div class="row between small" style="border-top:1px solid var(--line);padding:6px 0"><span><b>' + esc(memberOf(t.member_id).nama) + '</b> · ' + esc(TP[t.tipe] || t.tipe || '') + ' ' + esc((VR_JENIS[t.jenis] || {}).pendek || '') + (t.booking_id ? ' · ' + esc(t.booking_id) : '') + '<span class="xs muted" style="display:block">' + V.waktu(t.waktu) + (t.status !== 'ok' ? ' · ' + esc(t.status) : '') + (t.ket ? ' · ' + esc(t.ket) : '') + '</span></span><b class="num" style="color:' + (t.delta > 0 ? 'var(--g700)' : 'var(--red)') + '">' + (t.delta > 0 ? '+' : '') + t.delta + '</b></div>';
+    }).join('') : '<div class="xs muted">Belum ada riwayat.</div>';
+  }
+  function tkKoreksi() {
+    var M = S.d.member.filter(function (m) { return m.status === 'terverifikasi'; });
+    if (!M.length) return V.toast('Belum ada member terverifikasi.', true);
+    V.sheet('<h2>Koreksi saldo token</h2><label class="f">Member<select id="kt-m">' + M.map(function (m) { return '<option value="' + esc(m.id) + '">' + esc(m.nama) + ' (' + esc(m.id) + ')</option>'; }).join('') + '</select></label>' +
+      '<label class="f">Jenis kendaraan<select id="kt-j">' + VR_JENIS_TOKEN.map(function (j) { return '<option value="' + j + '">' + esc(VR_JENIS[j].pendek) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="f">Jumlah token <span class="hint">positif menambah, negatif mengurangi</span><input id="kt-n" type="number" inputmode="numeric"></label><label class="f">Keterangan<input id="kt-k" maxlength="140" placeholder="mis. bonus, kompensasi, salah input"></label><button class="btn go block" id="kt-go">Simpan koreksi</button>', function (el) {
+      el.querySelector('#kt-go').onclick = function () {
+        var bt = this; V.busy(bt, true);
+        V.api('adminToken', { pin: S.pin, aksi: 'koreksi', member_id: el.querySelector('#kt-m').value, jenis: el.querySelector('#kt-j').value, delta: el.querySelector('#kt-n').value, ket: el.querySelector('#kt-k').value })
+          .then(function () { V.closeSheet(); V.toast('Saldo token dikoreksi.'); load(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); });
+      };
+    });
+  }
+
+  /* ---------------- BANNER ---------------- */
+  var BN_AKSI = [['', 'Tidak ada (hanya tampil)'], ['sewa', 'Buka menu Sewa'], ['promo', 'Buka menu Promo'], ['chat', 'Chat admin'], ['link', 'Buka link']];
+  var BN_TG = [['semua', 'Penyewa & mitra'], ['penyewa', 'Aplikasi penyewa'], ['mitra', 'Aplikasi mitra']];
+  function bnList() { return (S.d.banner_semua || []).map(function (b) { return Object.assign({}, b); }); }
+  function bnSave(list, msg) {
+    return V.api('adminPengaturan', { pin: S.pin, nilai: { banner: list } }).then(function () { V.toast(msg || 'Banner tersimpan.'); return load(); });
+  }
+  function bnDraw() {
+    var el = document.getElementById('bn-list'); if (!el) return;
+    var L = bnList();
+    el.innerHTML = L.length ? L.map(function (b, i) {
+      return '<div class="bnr-adm card" style="margin:0;padding:8px"><div class="thumb">' + V.mediaEl(b.media, b.tipe, '', 'autoplay loop') + '</div><div class="grow" style="min-width:0"><b class="small">' + esc(b.judul || '(tanpa judul)') + '</b>' + (b.aktif === false ? ' <span class="tag no">nonaktif</span>' : '') +
+        '<div class="xs muted">' + (b.slot === 'promo' ? 'Banner promo' : 'Banner utama') + ' · ' + esc((BN_TG.filter(function (t) { return t[0] === b.target; })[0] || BN_TG[0])[1]) + ' · ' + esc(b.tipe) + '</div></div>' +
+        '<div class="row" style="gap:4px;flex:none">' + (i > 0 ? '<button class="btn sm ghost" data-bnu="' + i + '" aria-label="Naik">▲</button>' : '') + '<button class="btn sm ghost" data-bn="' + i + '">Ubah</button></div></div>';
+    }).join('') : '<div class="xs muted">Belum ada banner kustom — aplikasi memakai banner bawaan.</div>';
+    el.querySelectorAll('[data-bn]').forEach(function (b) { b.onclick = function () { bnForm(Number(b.dataset.bn)); }; });
+    el.querySelectorAll('[data-bnu]').forEach(function (b) { b.onclick = function () { var i = Number(b.dataset.bnu), L2 = bnList(), t = L2[i]; L2[i] = L2[i - 1]; L2[i - 1] = t; V.busy(b, true); bnSave(L2, 'Urutan banner disimpan.').catch(function (e) { V.busy(b, false); V.toast(e.message, true); }); }; });
+  }
+  function mediaPicker(el, x, prev, btn, urlIn) {
+    function draw() {
+      el.querySelector(prev).innerHTML = x.media ? '<div style="border-radius:12px;overflow:hidden;background:#0b3d2a;aspect-ratio:2/1">' + V.mediaEl(x.media, x.tipe, '', 'autoplay loop controls style="width:100%;height:100%;object-fit:cover;display:block"') + '</div>' : '<div class="xs muted">Belum ada media</div>';
+    }
+    draw();
+    var st = { up: false };
+    el.querySelector(btn).onclick = function () {
+      var bt = this;
+      V.pickMedia().then(function (file) {
+        if (!file) return; st.up = true; V.busy(bt, true, 'Mengunggah...');
+        return V.uploadMedia(file, S.pin).then(function (r) { x.media = r.url; x.tipe = r.tipe; if (urlIn) el.querySelector(urlIn).value = r.url; draw(); V.toast('Media terunggah.'); })
+          .catch(function (e) { V.toast(e.message, true); }).then(function () { st.up = false; V.busy(bt, false); });
+      });
+    };
+    if (urlIn) el.querySelector(urlIn).onchange = function () { x.media = this.value.trim(); x.tipe = V.mediaTipe(x.media); draw(); };
+    return st;
+  }
+  function bnForm(i) {
+    var L = bnList(), x = i >= 0 ? L[i] : { slot: 'utama', target: 'semua', tipe: 'gambar', media: '', judul: '', sub: '', aksi: 'sewa', link: '', aktif: true };
+    var opt = function (A, v) { return A.map(function (a) { return '<option value="' + a[0] + '"' + (a[0] === v ? ' selected' : '') + '>' + esc(a[1]) + '</option>'; }).join(''); };
+    V.sheet('<h2>' + (i >= 0 ? 'Ubah banner' : 'Tambah banner') + '</h2>' +
+      '<div class="stack"><b class="small">Gambar / GIF / video</b><div id="bn-prev"></div><button type="button" class="btn sm soft" id="bn-up">Unggah dari galeri</button>' +
+      '<label class="f">atau URL media <span class="hint">https://… (.jpg, .png, .gif, .mp4)</span><input id="bn-url" value="' + esc(x.media) + '"></label></div>' +
+      '<div class="grid"><label class="f">Posisi<select id="bn-slot">' + opt([['utama', 'Banner utama (atas)'], ['promo', 'Banner promo']], x.slot) + '</select></label><label class="f">Tampil di<select id="bn-tg">' + opt(BN_TG, x.target) + '</select></label></div>' +
+      '<label class="f">Judul <span class="hint">opsional, tampil di atas media</span><input id="bn-j" maxlength="80" value="' + esc(x.judul) + '"></label>' +
+      '<label class="f">Subjudul <span class="hint">opsional</span><input id="bn-s" maxlength="140" value="' + esc(x.sub) + '"></label>' +
+      '<label class="f">Saat diketuk<select id="bn-a">' + opt(BN_AKSI, x.aksi) + '</select></label>' +
+      '<label class="f" id="bn-lw">Link<input id="bn-l" value="' + esc(x.link) + '" placeholder="https://… atau wa.me/62…"></label>' +
+      '<label class="fsw"><span class="small">Tampilkan banner ini</span><input type="checkbox" id="bn-on"' + (x.aktif !== false ? ' checked' : '') + '></label>' +
+      '<button class="btn go block" id="bn-sv">Simpan banner</button>' + (i >= 0 && fiturOn('push_promo') ? '<button class="btn soft block" id="bn-push">' + V.ic('bell') + ' Kirim notifikasi banner ini</button>' : '') + (i >= 0 ? '<button class="btn ghost block" id="bn-del" style="color:var(--red)">Hapus banner</button>' : ''), function (el) {
+      var st = mediaPicker(el, x, '#bn-prev', '#bn-up', '#bn-url'), aSel = el.querySelector('#bn-a'), lw = el.querySelector('#bn-lw');
+      aSel.onchange = function () { lw.style.display = aSel.value === 'link' ? '' : 'none'; }; aSel.onchange();
+      el.querySelector('#bn-sv').onclick = function () {
+        if (st.up) return V.toast('Tunggu unggahan selesai.', true);
+        x.media = el.querySelector('#bn-url').value.trim() || x.media; x.slot = el.querySelector('#bn-slot').value; x.target = el.querySelector('#bn-tg').value; x.judul = el.querySelector('#bn-j').value.trim(); x.sub = el.querySelector('#bn-s').value.trim();
+        x.aksi = aSel.value; x.link = el.querySelector('#bn-l').value.trim(); x.aktif = el.querySelector('#bn-on').checked;
+        if (!/^(https?:\/\/|img\/)/i.test(x.media)) return V.toast('Unggah media atau isi URL https:// yang valid.', true);
+        if (x.aksi === 'link' && !/^(https?:\/\/|wa\.me)/i.test(x.link)) return V.toast('Isi link https:// atau wa.me/…', true);
+        var bt = this, list = bnList(); if (i >= 0) list[i] = x; else list.push(x);
+        V.busy(bt, true); bnSave(list).then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); });
+      };
+      var bp = el.querySelector('#bn-push'); if (bp) bp.onclick = function () { V.closeSheet(); pushForm(x.id, x.judul || 'Promo Vast Travel', x.sub, x.target === 'mitra' ? 'mitra' : x.target === 'penyewa' ? 'perental' : 'semua'); };
+      var dl = el.querySelector('#bn-del');
+      if (dl) dl.onclick = function () { var bt = this; V.confirm('Hapus banner ini?').then(function () { var list = bnList(); list.splice(i, 1); V.busy(bt, true); bnSave(list, 'Banner dihapus.').then(function () { V.closeSheet(); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); }); }); };
+    });
+  }
+  /* Kirim push notifikasi promo / event (ketuk notifikasi = buka promo di aplikasi) */
+  function pushForm(id, judul, isi, target) {
+    if (!fiturOn('push_promo')) return V.toast('Fitur push promo sedang dimatikan. Nyalakan di Sakelar fitur.', true);
+    V.sheet('<h2>Kirim notifikasi promo</h2><div class="xs muted">Dikirim ke HP pengguna aplikasi. Saat notifikasi diketuk, promo langsung terbuka.</div>' +
+      '<label class="f">Judul notifikasi<input id="pu-j" maxlength="80" value="' + esc(judul || '') + '"></label><label class="f">Isi<textarea id="pu-i" maxlength="240">' + esc(isi || '') + '</textarea></label>' +
+      '<label class="f">Kirim ke<select id="pu-t">' + [['perental', 'Semua penyewa'], ['mitra', 'Semua mitra'], ['semua', 'Penyewa & mitra']].map(function (a) { return '<option value="' + a[0] + '"' + (a[0] === (target || 'perental') ? ' selected' : '') + '>' + a[1] + '</option>'; }).join('') + '</select></label>' +
+      '<button class="btn go block" id="pu-go">' + V.ic('send') + ' Kirim sekarang</button>', function (el) {
+      el.querySelector('#pu-go').onclick = function () {
+        var bt = this; V.busy(bt, true, 'Mengirim...');
+        V.api('adminPromoPush', { pin: S.pin, id: id, judul: el.querySelector('#pu-j').value.trim(), isi: el.querySelector('#pu-i').value.trim(), target: el.querySelector('#pu-t').value })
+          .then(function () { V.closeSheet(); V.toast('Notifikasi promo terkirim.'); }).catch(function (e) { V.busy(bt, false); V.toast(e.message, true); });
+      };
     });
   }
 
